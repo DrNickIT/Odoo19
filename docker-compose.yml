@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  web:
+    image: odoo:19.0
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "8071:8069"
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - ./etc:/etc/odoo
+      - odoo-web-data:/var/lib/odoo
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=${ODOO_DB_PASSWORD}
+  db:
+    image: postgres:18
+    env_file: .env
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD} # Moet matchen met Odoo's PASSWORD
+      - POSTGRES_USER=odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    ports:
+      - "5444:5432"
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:

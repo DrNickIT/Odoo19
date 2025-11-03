@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_partner_form_consignment" model="ir.ui.view">
+            <field name="name">res.partner.form.consignment</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Consignment" name="consignment">
+                        <group>
+                            <group string="Uitbetalingsmethode">
+                                <field name="x_payout_method"/>
+                                <field name="x_cash_payout_percentage" widget="percentage"/>
+                                <field name="x_coupon_payout_percentage" widget="percentage"/>
+                            </group>
+                            <group string="Consignment ID">
+                                <field name="x_consignment_prefix"/>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
