@@ -1,0 +1,73 @@
+# In models/product_template.py
+from odoo import models, fields
+
+class ProductTemplate(models.Model):
+    _inherit = 'product.template'
+
+    submission_id = fields.Many2one(
+        'otters.consignment.submission',
+        string="Originele Inzending",
+        ondelete='set null'
+    )
+
+    consignment_attribute_values_ids = fields.Many2many(
+        'product.attribute.value',
+        string="Kenmerken Waarden",
+        compute='_compute_consignment_attribute_values_ids',
+        store=False, # Niet opslaan, wordt dynamisch berekend
+    )
+
+    # NIEUWE RELATED VELDEN TOEVOEGEN:
+
+    consignment_supplier_id = fields.Many2one(
+        'res.partner',
+        string="Leverancier Inzending",
+        related='submission_id.supplier_id',
+        store=False,  # Niet opslaan in database, lees van de relatie
+        readonly=True
+    )
+
+    consignment_submission_date = fields.Date(
+        string="Inzendingsdatum",
+        related='submission_id.submission_date',
+        store=False,
+        readonly=True
+    )
+
+    consignment_payout_method = fields.Selection(
+        string="Uitbetalingsmethode",
+        related='submission_id.payout_method',
+        store=False,
+        readonly=True
+    )
+
+    consignment_payout_percentage = fields.Float(
+        string="Uitbetalingspercentage",
+        related='submission_id.payout_percentage',
+        store=False,
+        readonly=True
+    )
+
+    consignment_state = fields.Selection(
+        string='Status Inzending',
+        related='submission_id.state',
+        store=False,
+        readonly=True
+    )
+
+    # Definitie van de 5 sterren opties
+    CONDITION_OPTIONS = [
+        ('0', 'Ongekend'),
+        ('1', '⭐ Slecht'),
+        ('2', '⭐⭐ Redelijk'),
+        ('3', '⭐⭐⭐ Goed'),
+        ('4', '⭐⭐⭐⭐ Zeer Goed'),
+        ('5', '⭐⭐⭐⭐⭐ Nieuw'),
+    ]
+
+    condition_rating = fields.Selection(
+        CONDITION_OPTIONS,
+        string='Staat (Conditie)',
+        default='3', # Belangrijk: De default moet een string zijn ('3')
+        required=True,
+    )

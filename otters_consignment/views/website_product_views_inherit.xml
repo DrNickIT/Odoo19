@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="otters_product_condition_stars" name="Product Condition Stars Component">
+        <t t-set="rating_int" t-value="int(product.condition_rating)"/>
+        <div class="o_product_condition_rating mt-2 mb-2">
+            <t t-if="rating_int == 0">
+                <strong>Staat: </strong>
+                <span>Ongekend</span>
+            </t>
+            <t t-if="rating_int > 0">
+                <strong>Staat: </strong>
+                <span class="ms-1" style="font-size: 1.2em; color: gold;">
+                    <t t-foreach="range(rating_int)" t-as="star">
+                        <i class="fa fa-star" aria-hidden="true"></i>
+                    </t>
+                    <t t-foreach="range(5 - rating_int)" t-as="star">
+                        <i class="fa fa-star-o" aria-hidden="true"></i>
+                    </t>
+                </span>
+            </t>
+        </div>
+    </template>
+
+
+    <template id="product_condition_stars_website_safe_xpath"
+              inherit_id="website_sale.product_title"
+              name="Show Condition Stars (Safe XPath)">
+        <xpath expr="." position="inside">
+            <t t-call="otters_consignment.otters_product_condition_stars"/>
+        </xpath>
+    </template>
+
+
+    <template id="product_condition_stars_shop_list"
+              inherit_id="website_sale.products_item"
+              name="Show Condition Stars (Shop List)">
+        <xpath expr="//div[hasclass('product_price')]" position="before">
+            <t t-call="otters_consignment.otters_product_condition_stars"/>
+        </xpath>
+    </template>
+
+
+    <template id="product_condition_stars_shop_filter"
+              inherit_id="website_sale.product_attribute_filters_form"
+              name="Show Condition Stars (Shop Filter Form)">
+
+        <xpath expr="." position="attributes">
+            <attribute name="id">products_grid_form</attribute>
+        </xpath>
+
+        <xpath expr="//t[@t-foreach='attributes']" position="before">
+
+            <t t-set="conditions_list" t-value="request.httprequest.args.getlist('condition_rating')"/>
+
+            <div class="nav-item pt-3">
+                <h6 class="o_ws_sidebar_title">Staat (Conditie)</h6>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="5"
+                                   t-att-checked="'5' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">⭐⭐⭐⭐⭐ Nieuw</span>
+                        </label>
+                    </li>
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="4"
+                                   t-att-checked="'4' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">⭐⭐⭐⭐ Zeer Goed</span>
+                        </label>
+                    </li>
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="3"
+                                   t-att-checked="'3' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">⭐⭐⭐ Goed</span>
+                        </label>
+                    </li>
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="2"
+                                   t-att-checked="'2' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">⭐⭐ Redelijk</span>
+                        </label>
+                    </li>
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="1"
+                                   t-att-checked="'1' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">⭐ Slecht</span>
+                        </label>
+                    </li>
+                    <li class="nav-item">
+                        <label class="nav-link">
+                            <input type="checkbox" name="condition_rating" value="0"
+                                   t-att-checked="'0' in conditions_list"
+                                   onchange="this.form.submit();"/>
+                            <span class="ms-1">Ongekend</span>
+                        </label>
+                    </li>
+                </ul>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

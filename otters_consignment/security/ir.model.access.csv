@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_otters_consignment_submission,otters.consignment.submission,model_otters_consignment_submission,base.group_user,1,1,1,1
+access_otters_consignment_report,otters.consignment.report,model_otters_consignment_report,base.group_user,1,0,0,0
+access_import_products_wizard,otters.consignment.import_products_wizard,model_otters_consignment_import_products_wizard,base.group_user,1,1,1,1

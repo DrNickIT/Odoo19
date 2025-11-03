@@ -1,0 +1,143 @@
+<odoo>
+    <data>
+        <template id="consignment_form_template" name="Kleding Opsturen">
+            <t t-call="website.layout">
+                <div id="wrap" class="oe_structure">
+                    <div class="container">
+                        <h1>Stuur je kleding op</h1>
+                        <p>Vul het onderstaande formulier in om een verzendlabel aan te vragen. We nemen zo snel mogelijk contact met je op.</p>
+
+                        <form action="/kleding-opsturen/submit" method="POST" class="mt-4">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                            <div class="mb-3">
+                                <label for="contact_name" class="form-label">Jouw Naam</label>
+                                <input type="text" class="form-control" name="contact_name" id="contact_name" required="1"/>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">E-mailadres</label>
+                                <input type="email" class="form-control" name="email" id="email" required="1"/>
+                            </div>
+
+                            <hr/>
+                            <h5>Verzendadres (Van waar je het pakket opstuurt)</h5>
+                            <div class="row">
+                                <div class="col-md-9 mb-3">
+                                    <label for="street" class="form-label">Straat</label>
+                                    <input type="text" class="form-control" name="street" id="street" required="1"/>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="house_number" class="form-label">Huisnummer</label>
+                                    <input type="text" class="form-control" name="house_number" id="house_number" required="1"/>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="postal_code" class="form-label">Postcode</label>
+                                    <input type="text" class="form-control" name="postal_code" id="postal_code" required="1"/>
+                                </div>
+                                <div class="col-md-8 mb-3">
+                                    <label for="city" class="form-label">Stad</label>
+                                    <input type="text" class="form-control" name="city" id="city" required="1"/>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Land</label>
+                                <input type="text" class="form-control" name="country" id="country" required="1" value="BE" readonly="readonly"/>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Telefoonnummer</label>
+                                <input type="tel" class="form-control" name="phone" id="phone" required="1" placeholder="Voor de vervoerder"/>
+                            </div>
+
+                            <hr/>
+                            <div class="mb-3" id="payout_options_wrapper">
+                                <label class="form-label">Hoe wil je uitbetaald worden?</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payout_method" id="payout_cash" value="cash" required="1" checked="1"/>
+                                    <label class="form-check-label" for="payout_cash">
+                                        <t t-esc="cash_percentage"/>% van het verkoopbedrag in cash
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payout_method" id="payout_coupon" value="coupon" required="1"/>
+                                    <label class="form-check-label" for="payout_coupon">
+                                        <t t-esc="coupon_percentage"/>% van het verkoopbedrag in shoptegoed
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Aanvraag Indienen</button>
+                        </form>
+
+                        <script type="text/javascript">
+                            document.addEventListener('DOMContentLoaded', (event) => {
+                            const emailInput = document.getElementById('email');
+                            const payoutWrapper = document.getElementById('payout_options_wrapper');
+                            const payoutRadios = payoutWrapper.querySelectorAll('input[type="radio"]');
+
+                            emailInput.addEventListener('blur', (e) => {
+                            const email = e.target.value;
+
+                            // *** DIT IS DE WIJZIGING ***
+                            // Als het veld leeg is, stop hier en doe niets.
+                            if (!email) {
+                            payoutWrapper.style.display = 'block'; // Herstel de opties (veiligheid)
+                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
+                            return; // Stop de functie
+                            }
+                            // *** EINDE WIJZIGING ***
+
+                            // Call our new Odoo controller
+                            fetch('/kleding-opsturen/check-partner', {
+                            method: 'POST',
+                            headers: {
+                            'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ email: email }),
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                            const result = data.result || data; // Handle Odoo's JSON-RPC wrapping
+                            if (result.payout_method_set) {
+                            // This partner already has a choice, hide the options
+                            payoutWrapper.style.display = 'none';
+                            payoutRadios.forEach(radio => radio.removeAttribute('required'));
+                            } else {
+                            // New partner, show the options
+                            payoutWrapper.style.display = 'block';
+                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
+                            }
+                            })
+                            .catch(error => {
+                            console.error('Error checking partner:', error);
+                            // Show options as a safe fallback
+                            payoutWrapper.style.display = 'block';
+                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
+                            });
+                            });
+                            });
+                        </script>
+
+                    </div>
+                </div>
+            </t>
+        </template>
+
+        <template id="consignment_thankyou_template" name="Bedankt!">
+            <t t-call="website.layout">
+                <div id="wrap" class="oe_structure">
+                    <div class="container">
+                        <h1>Bedankt voor je aanvraag!</h1>
+                        <p>We hebben je gegevens goed ontvangen en zullen je spoedig een verzendlabel toesturen via
+                            e-mail.
+                        </p>
+                        <a href="/" class="btn btn-primary mt-4">Terug naar de homepagina</a>
+                    </div>
+                </div>
+            </t>
+        </template>
+    </data>
+</odoo>

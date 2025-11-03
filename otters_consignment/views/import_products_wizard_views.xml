@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="view_import_products_wizard_form" model="ir.ui.view">
+            <field name="name">import.products.wizard.form</field>
+            <field name="model">otters.consignment.import_products_wizard</field>
+            <field name="arch" type="xml">
+                <form string="Importeer Producten">
+                    <group>
+                        <field name="file_data" filename="filename"/>
+                        <field name="filename" invisible="1"/>
+                    </group>
+                    <p>Selecteer een CSV-bestand. Kolomnamen moeten overeenkomen (name, price, attributes).</p>
+                    <p>Voor kenmerken (zoals Geslacht, Seizoen), gebruik de kolom **'attributes'** en scheid waarden met een komma. Formaat: **KenmerkNaam:Waarde**. Bijvoorbeeld: <code>Geslacht:Jongen, Geslacht:Meisje, Seizoen:Zomer</code></p>
+                    <footer>
+                        <button name="import_products" string="Importeren" type="object" class="btn-primary"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_import_products_wizard" model="ir.actions.act_window">
+            <field name="name">Importeer Producten (CSV)</field>
+            <field name="res_model">otters.consignment.import_products_wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+    </data>
+</odoo>

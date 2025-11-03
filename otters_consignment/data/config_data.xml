@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="consignment_cash_payout_percentage" model="ir.config_parameter">
+            <field name="key">otters_consignment.cash_payout_percentage</field>
+            <field name="value">0.3</field>
+        </record>
+        <record id="consignment_coupon_payout_percentage" model="ir.config_parameter">
+            <field name="key">otters_consignment.coupon_payout_percentage</field>
+            <field name="value">0.5</field>
+        </record>
+
+        <record id="sendcloud_api_key" model="ir.config_parameter">
+            <field name="key">otters_consignment.sendcloud_api_key</field>
+            <field name="value">VUL_HIER_JE_PUBLIC_KEY_IN</field>
+        </record>
+        <record id="sendcloud_api_secret" model="ir.config_parameter">
+            <field name="key">otters_consignment.sendcloud_api_secret</field>
+            <field name="value">VUL_HIER_JE_SECRET_KEY_IN</field>
+        </record>
+
+        <record id="sendcloud_shipping_method_id" model="ir.config_parameter">
+            <field name="key">otters_consignment.sendcloud_shipping_method_id</field>
+            <field name="value">8</field>
+        </record>
+
+        <record id="consignment_store_name" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_name</field>
+            <field name="value">Otters en Flamingo's</field>
+        </record>
+        <record id="consignment_store_street" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_street</field>
+            <field name="value">Jan Davidtsstraat</field>
+        </record>
+        <record id="consignment_store_house_number" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_house_number</field>
+            <field name="value">52</field>
+        </record>
+        <record id="consignment_store_city" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_city</field>
+            <field name="value">LINDEN</field>
+        </record>
+        <record id="consignment_store_zip" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_zip</field>
+            <field name="value">3210</field>
+        </record>
+        <record id="consignment_store_country_code" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_country_code</field>
+            <field name="value">BE</field>
+        </record>
+        <record id="consignment_store_phone" model="ir.config_parameter">
+            <field name="key">otters_consignment.store_phone</field>
+            <field name="value">VUL_HIER_JE_TELEFOONNUMMER_IN</field>
+        </record>
+
+    </data>
+</odoo>
