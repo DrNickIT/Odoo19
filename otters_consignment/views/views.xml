@@ -30,9 +30,6 @@
                                    invisible="not is_storable"/>
                             <field name="public_categ_ids" widget="many2many_tags"/>
                             <field name="list_price"/>
-                            <field name="condition_rating"
-                                   widget="priority"
-                                   options='{"type": "star", "max": 5}'/>
                         </group>
                     </group>
                     <notebook>
@@ -100,10 +97,6 @@
                                     <field name="list_price"/>
                                     <field name="qty_available" string="Voorraad"/>
                                     <field name="is_published" string="Gepubliceerd"/>
-                                    <field name="condition_rating"
-                                           string="Staat"
-                                           widget="priority"
-                                           options='{"type": "star", "max": 5}'/>
                                     <field name="list_price"/>
                                 </list>
                             </field>

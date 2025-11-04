@@ -11,12 +11,6 @@
 
                     <field name="submission_id" readonly="1" string="Gekoppelde Inzending"/>
 
-                    <group>
-                        <field name="condition_rating"
-                               widget="priority"
-                               options='{"type": "star", "max": 5}'/>
-                    </group>
-
                     <group string="Leveranciersafspraken">
 
                         <field name="consignment_supplier_id"/>

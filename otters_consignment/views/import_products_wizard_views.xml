@@ -10,8 +10,9 @@
                         <field name="file_data" filename="filename"/>
                         <field name="filename" invisible="1"/>
                     </group>
-                    <p>Selecteer een CSV-bestand. Kolomnamen moeten overeenkomen (name, price, attributes).</p>
-                    <p>Voor kenmerken (zoals Geslacht, Seizoen), gebruik de kolom **'attributes'** en scheid waarden met een komma. Formaat: **KenmerkNaam:Waarde**. Bijvoorbeeld: <code>Geslacht:Jongen, Geslacht:Meisje, Seizoen:Zomer</code></p>
+                    <p>Selecteer een CSV-bestand. Kolomnamen moeten overeenkomen (name, price).</p>
+                    <p>Gebruik de kolom **'condition_rating'** (0 tot 5) om de staat in te voeren. Dit wordt automatisch omgezet naar sterren.</p>
+                    <p>Gebruik de kolom **'attributes'** voor Merken, Geslacht en Seizoen (Formaat: KenmerkNaam:Waarde).</p>
                     <footer>
                         <button name="import_products" string="Importeren" type="object" class="btn-primary"/>
                         <button string="Annuleren" class="btn-secondary" special="cancel"/>

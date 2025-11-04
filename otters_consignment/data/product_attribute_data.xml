@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="attribute_conditie_status" model="product.attribute">
+        <field name="name">Conditie</field>
+        <field name="create_variant">no_variant</field>
+        <field name="display_type">radio</field>
+    </record>
+
+    <record id="attribute_value_conditie_5" model="product.attribute.value">
+        <field name="name">❤️❤️❤️❤️❤️</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">50</field>
+    </record>
+
+    <record id="attribute_value_conditie_4" model="product.attribute.value">
+        <field name="name">❤️❤️❤️❤️🤍</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">40</field>
+    </record>
+
+    <record id="attribute_value_conditie_3" model="product.attribute.value">
+        <field name="name">❤️❤️❤️🤍🤍</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="attribute_value_conditie_2" model="product.attribute.value">
+        <field name="name">❤️❤️🤍🤍🤍</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="attribute_value_conditie_1" model="product.attribute.value">
+        <field name="name">❤️🤍🤍🤍🤍</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="attribute_value_conditie_0" model="product.attribute.value">
+        <field name="name">🤍🤍🤍🤍🤍</field>
+        <field name="attribute_id" ref="attribute_conditie_status"/>
+        <field name="sequence">0</field>
+    </record>
+
+</odoo>
