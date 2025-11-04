@@ -54,20 +54,3 @@ class ProductTemplate(models.Model):
         store=False,
         readonly=True
     )
-
-    # Definitie van de 5 sterren opties
-    CONDITION_OPTIONS = [
-        ('0', 'Ongekend'),
-        ('1', '⭐ Slecht'),
-        ('2', '⭐⭐ Redelijk'),
-        ('3', '⭐⭐⭐ Goed'),
-        ('4', '⭐⭐⭐⭐ Zeer Goed'),
-        ('5', '⭐⭐⭐⭐⭐ Nieuw'),
-    ]
-
-    condition_rating = fields.Selection(
-        CONDITION_OPTIONS,
-        string='Staat (Conditie)',
-        default='3', # Belangrijk: De default moet een string zijn ('3')
-        required=True,
-    )

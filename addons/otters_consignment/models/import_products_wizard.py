@@ -15,34 +15,54 @@ class ImportProductsWizard(models.TransientModel):
     file_data = fields.Binary(string="CSV-bestand", required=True)
     filename = fields.Char(string="Bestandsnaam")
 
-    def import_products(self):
-        """ Leest het CSV-bestand, creëert de producten en koppelt de kenmerken. """
-        self.ensure_one()
+    # Mapping van het cijfer uit de CSV naar de hartjes-waarde in Odoo
+    CONDITION_MAPPING = {
+        '5': '❤️❤️❤️❤️❤️',
+        '4': '❤️❤️❤️❤️🤍',
+        '3': '❤️❤️❤️🤍🤍',
+        '2': '❤️❤️🤍🤍🤍',
+        '1': '❤️🤍🤍🤍🤍',
+        '0': 'Ongekend',
+    }
 
-        # 1. Haal de actieve inzending op
+    # Lijst met kolommen die GEEN kenmerken zijn, maar basis productvelden
+    BASE_FIELDS = [
+        'name', 'price', 'category', 'condition_number', 'submission_id', 'id', 'default_code',
+        'image_url', 'seo_title', 'seo_description', 'website_description'
+    ]
+
+    def import_products(self):
+        """ Leest het CSV-bestand en creëert de producten en hun kenmerken. """
+        self.ensure_one()
         submission_id = self.env.context.get('active_id')
         if not submission_id:
             raise UserError(_("Kan de actieve inzending niet vinden."))
 
         submission = self.env['otters.consignment.submission'].browse(submission_id)
 
-        # 2. Controleer en Lees het CSV-bestand
         if not self.filename or not self.filename.lower().endswith('.csv'):
             raise UserError(_("Selecteer a.u.b. een .csv-bestand."))
 
         try:
             file_content = base64.b64decode(self.file_data).decode('utf-8')
-            csv_data = csv.DictReader(io.StringIO(file_content))
+
+            # Gebruik puntkomma als delimiter
+            csv_data = csv.DictReader(io.StringIO(file_content), delimiter=';')
 
             products_to_create = []
 
+            all_headers = csv_data.fieldnames
+            base_fields_lower = [f.lower() for f in self.BASE_FIELDS]
+
+            # --- START LOOP PER RIJ ---
             for row in csv_data:
-                # Kolomkoppen: 'name', 'price', 'category', 'attributes', 'condition_rating'
                 name = row.get('name')
                 price_str = row.get('price', '0.0')
                 category_name = row.get('category')
-                attributes_str = row.get('attributes')
-                condition_rating_str = row.get('condition_rating', '0')
+                condition_num_str = row.get('condition_number')
+                seo_title = row.get('seo_title', '').strip()
+                seo_description = row.get('seo_description', '').strip()
+                website_description_content = row.get('website_description', '').strip()
 
                 if not name:
                     _logger.warning("Rij overgeslagen: geen 'name' gevonden.")
@@ -54,17 +74,20 @@ class ImportProductsWizard(models.TransientModel):
                 except ValueError:
                     raise UserError(_("Ongeldige prijs '%s' gevonden voor product '%s'.") % (price_str, name))
 
-                    # --- Basis Product Waarden ---
+                # --- Basis Product Waarden ---
                 product_vals = {
                     'name': name,
                     'list_price': price,
+                    # Btw-instelling wordt nu extern beheerd, dus taxes_id is hier niet nodig
                     'submission_id': submission.id,
                     'is_published': True,
                     # Correct voor voorraadtracking in een Storable Product
                     'type': 'consu',
                     'is_storable': True,
                     'qty_available': 1,
-                    'condition_rating': condition_rating_str, # Veld voor de staat (1-5)
+                    'website_meta_title': seo_title,
+                    'website_meta_description': seo_description,
+                    'website_description': website_description_content,
                 }
 
                 # --- Categorieën Verwerking ---
@@ -76,61 +99,68 @@ class ImportProductsWizard(models.TransientModel):
 
                     product_vals['public_categ_ids'] = [(6, 0, [category.id])]
 
-                # --- Attributen (Kenmerken) Verwerking ---
+                # --- DYNAMISCHE ATTRIBUTEN (KENMERKEN) VERWERKING ---
                 attribute_lines_commands = []
-                if attributes_str:
-                    attribute_pairs = [p.strip() for p in attributes_str.split(',') if p.strip()]
 
-                    for pair in attribute_pairs:
-                        if ':' not in pair:
-                            _logger.warning(f"Ongeldige attribuutindeling voor product {name}: {pair}. Formaat moet zijn Naam:Waarde.")
-                            continue
+                # 1. Verwerk de Kwaliteit
+                if condition_num_str and condition_num_str in self.CONDITION_MAPPING:
+                    val_name = self.CONDITION_MAPPING[condition_num_str]
+                    att_name = 'Kwaliteit'
+                    self._process_attribute_value(att_name, val_name, attribute_lines_commands)
 
-                        att_name, val_name = pair.split(':', 1)
-                        att_name = att_name.strip()
-                        val_name = val_name.strip()
+                # 2. Verwerk alle andere dynamische kolommen
+                for header in all_headers:
+                    att_name = header.strip()
+                    val_name_raw = row.get(header, '').strip()
 
-                        # A. Zoek/Creëer het Attribuut (product.attribute)
-                        attribute = self.env['product.attribute'].search([('name', '=ilike', att_name)], limit=1)
-                        if not attribute:
-                            # Kenmerk bestaat NIET: Maak een nieuwe aan en zet Variant Creation op NOOIT
-                            attribute = self.env['product.attribute'].create({
-                                'name': att_name,
-                                'create_variant': 'no_variant'
-                            })
+                    # Controleer: GEEN basisveld & er staat een waarde
+                    if att_name.lower() not in base_fields_lower and val_name_raw:
 
-                        # B. Zoek/Creëer de Attribuutwaarde (product.attribute.value)
-                        value = self.env['product.attribute.value'].search([
-                            ('attribute_id', '=', attribute.id),
-                            ('name', '=ilike', val_name)
-                        ], limit=1)
-                        if not value:
-                            # Waarde bestaat NIET: Maak een nieuwe waarde aan voor dit Kenmerk
-                            value = self.env['product.attribute.value'].create({
-                                'name': val_name,
-                                'attribute_id': attribute.id,
-                                'sequence': 10,
-                            })
+                        # Splits op verticale streep (|)
+                        val_names = [v.strip() for v in val_name_raw.split('|') if v.strip()]
 
-                        # C. Creëer de Commando voor de Attribuut Lijn
-                        # Dit zorgt voor de gewenste "aparte lijnen" aanpak
-                        attribute_lines_commands.append((0, 0, {
-                            'attribute_id': attribute.id,
-                            'value_ids': [(6, 0, [value.id])],
-                        }))
+                        for val_name in val_names:
+                            self._process_attribute_value(att_name, val_name, attribute_lines_commands)
 
                 if attribute_lines_commands:
                     product_vals['attribute_line_ids'] = attribute_lines_commands
 
                 products_to_create.append(product_vals)
 
-            # 3. Creëer de producten in één batch
+            # 3. Creëer de producten
             if products_to_create:
                 self.env['product.template'].create(products_to_create)
 
         except Exception as e:
-            # Vang algemene fouten
             raise UserError(_("Fout bij het verwerken van het bestand: %s") % str(e))
 
-        # 4. Sluit de wizard
         return {'type': 'ir.actions.act_window_close'}
+
+    def _process_attribute_value(self, att_name, val_name, commands_list):
+        """ Hulpfunctie om één kenmerknaam en één waarde te zoeken/creëren en aan de commandolijst toe te voegen. """
+
+        # A. Zoek/Creëer het Attribuut
+        attribute = self.env['product.attribute'].search([('name', '=ilike', att_name)], limit=1)
+        if not attribute:
+            attribute = self.env['product.attribute'].create({
+                'name': att_name,
+                'create_variant': 'no_variant'
+            })
+
+        # B. Zoek/Creëer de Attribuutwaarde
+        value = self.env['product.attribute.value'].search([
+            ('attribute_id', '=', attribute.id),
+            ('name', '=ilike', val_name)
+        ], limit=1)
+        if not value:
+            value = self.env['product.attribute.value'].create({
+                'name': val_name,
+                'attribute_id': attribute.id,
+                'sequence': 10,
+            })
+
+        # C. Creëer de Commando voor de Attribuut Lijn
+        commands_list.append((0, 0, {
+            'attribute_id': attribute.id,
+            'value_ids': [(6, 0, [value.id])],
+        }))

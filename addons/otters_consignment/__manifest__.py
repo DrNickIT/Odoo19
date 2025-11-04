@@ -14,10 +14,10 @@
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/product_attribute_data.xml',
         'views/import_products_wizard_views.xml',
         'views/views.xml',
         'views/product_views_inherit.xml',
-        'views/website_product_views_inherit.xml',
         'data/config_data.xml',
         'views/res_partner_views.xml',
         'views/templates.xml',
