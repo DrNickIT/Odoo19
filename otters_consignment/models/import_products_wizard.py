@@ -63,6 +63,7 @@ class ImportProductsWizard(models.TransientModel):
                 seo_title = row.get('seo_title', '').strip()
                 seo_description = row.get('seo_description', '').strip()
                 website_description_content = row.get('website_description', '').strip()
+                default_code = row.get('code', '').strip()
 
                 if not name:
                     _logger.warning("Rij overgeslagen: geen 'name' gevonden.")
@@ -88,6 +89,7 @@ class ImportProductsWizard(models.TransientModel):
                     'website_meta_title': seo_title,
                     'website_meta_description': seo_description,
                     'website_description': website_description_content,
+                    'default_code': default_code
                 }
 
                 # --- Categorieën Verwerking ---
@@ -102,10 +104,10 @@ class ImportProductsWizard(models.TransientModel):
                 # --- DYNAMISCHE ATTRIBUTEN (KENMERKEN) VERWERKING ---
                 attribute_lines_commands = []
 
-                # 1. Verwerk de Kwaliteit
+                # 1. Verwerk de Conditie
                 if condition_num_str and condition_num_str in self.CONDITION_MAPPING:
                     val_name = self.CONDITION_MAPPING[condition_num_str]
-                    att_name = 'Kwaliteit'
+                    att_name = 'Conditie'
                     self._process_attribute_value(att_name, val_name, attribute_lines_commands)
 
                 # 2. Verwerk alle andere dynamische kolommen
