@@ -24,7 +24,7 @@ services:
       - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD} # Moet matchen met Odoo's PASSWORD
       - POSTGRES_USER=odoo
     volumes:
-      - odoo-db-data:/var/lib/postgresql/data
+      - odoo-db-data:/var/lib/postgresql
     ports:
       - "5444:5432"
 

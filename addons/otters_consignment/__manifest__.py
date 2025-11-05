@@ -11,6 +11,7 @@
         'stock',
         'sale_management',
         'otters_webshop_outofstock_filter',
+        'portal',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -22,6 +23,8 @@
         'views/res_partner_views.xml',
         'views/templates.xml',
         'reports/consignment_report_views.xml',
+        'security/ir_rule.xml', # NIEUW: Access Rule
+        'views/portal_templates.xml', # NIEUW: Portal Views
     ],
     'installable': True,
     'auto_install': False,

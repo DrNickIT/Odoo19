@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu" inherit_id="portal.portal_my_home" priority="20">
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="inside">
+            <t t-call="portal.portal_docs_entry">
+                <t t-set="title">Mijn Inzendingen</t>
+                <t t-set="url" t-value="'/my/consignments'"/>
+                <t t-set="icon" t-value="'fa-archive'"/>
+                <t t-set="count" t-value="consignment_count"/>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="portal_my_consignments" name="Mijn Inzendingen Lijst">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar"/>
+
+            <div class="o_portal_frontend_container">
+                <div class="oe_structure">
+                    <h3 class="page-header">Mijn Kleding Inzendingen</h3>
+                    <p t-if="not submissions">U hebt nog geen kleding ter consignatie ingezonden.</p>
+
+                    <t t-if="submissions">
+                        <div class="table-responsive">
+                            <table class="table table-hover o_portal_my_table">
+                                <thead>
+                                    <tr>
+                                        <th>Inzending ID</th>
+                                        <th>Datum</th>
+                                        <th>Status</th>
+                                        <th>Uitbetalingsmethode</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="submissions" t-as="submission">
+                                        <tr>
+                                            <td><a t-attf-href="/my/consignments/#{submission.id}"><span t-field="submission.name"/></a></td>
+                                            <td><span t-field="submission.submission_date"/></td>
+                                            <td><span class="badge" t-attf-class="badge-{{{'draft': 'secondary', 'received': 'info', 'processing': 'primary', 'sold': 'warning', 'done': 'success'}[submission.state]}}"><span t-field="submission.state"/></span></td>
+                                            <td><span t-field="submission.payout_method"/></td>
+                                            <td><a t-attf-href="/my/consignments/#{submission.id}" class="btn btn-sm btn-link">Bekijken</a></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div t-if="pager" class="o_portal_pager text-center">
+                            <t t-call="portal.pager"/>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_consignment_submission" name="Inzending Details">
+        <t t-call="portal.portal_layout">
+            <div id="wrap" class="oe_structure">
+                <div class="container">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/my">Mijn Account</a></li>
+                        <li class="breadcrumb-item"><a href="/my/consignments">Mijn Inzendingen</a></li>
+                        <li class="breadcrumb-item active"><t t-esc="submission.name"/></li>
+                    </ol>
+
+                    <h3 class="page-header">
+                        Inzending Details: <span t-field="submission.name"/>
+                        <span class="badge float-right" t-attf-class="badge-{{{'draft': 'secondary', 'received': 'info', 'processing': 'primary', 'sold': 'warning', 'done': 'success'}[submission.state]}}"><span t-field="submission.state"/></span>
+                    </h3>
+                    <hr/>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Afspraken</h4>
+                            <ul class="list-unstyled">
+                                <li><strong>Datum van Inzending:</strong> <span t-field="submission.submission_date"/></li>
+                                <li><strong>Uitbetalingsmethode:</strong> <span t-field="submission.payout_method"/></li>
+                                <li><strong>Uw Percentage:</strong> <span t-field="submission.payout_percentage" t-options="{'widget': 'percentage'}"/></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Financieel Overzicht</h4>
+                            <ul class="list-unstyled">
+                                <li><strong>Totaal Uit te Betalen (verkochte items):</strong> <span t-esc="total_payout_for_submission" t-options='{"widget": "monetary", "display_currency": submission.env.company.currency_id}'/></li>
+                                <t t-if="total_payout_for_submission == 0">
+                                    <li>(Wordt berekend zodra producten verkocht zijn.)</li>
+                                </t>
+                            </ul>
+                        </div>
+                    </div>
+                    <hr/>
+
+                    <h4><i class="fa fa-shopping-bag"/> Producten in Voorraad (<t t-esc="len(products_in_stock)"/>)</h4>
+                    <t t-if="products_in_stock">
+                        <div class="row">
+                            <t t-foreach="products_in_stock" t-as="product">
+                                <div class="col-md-3 mb-4">
+                                    <div class="card h-100">
+                                        <img t-if="product.image_128" class="card-img-top" t-att-src="image_data_uri(product.image_128)" alt="Product Afbeelding"/>
+                                        <div class="card-body">
+                                            <h5 class="card-title"><span t-field="product.name"/></h5>
+                                            <p class="card-text">Prijs: <span t-field="product.list_price" t-options='{"widget": "monetary"}'/></p>
+                                            <t t-set="conditie_value" t-value="product.attribute_line_ids.filtered(lambda l: l.attribute_id.name == 'Conditie').value_ids"/>
+                                            <p class="card-text">Conditie: <t t-esc="conditie_value.name if conditie_value else 'Nvt'"/></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                    <p t-else="">Alle kledingstukken van deze inzending zijn verkocht of gearchiveerd.</p>
+
+                    <h4><i class="fa fa-tag"/> Verkochte Producten (<t t-esc="len(products_sold)"/>)</h4>
+                    <ul t-if="products_sold" class="list-unstyled">
+                        <t t-foreach="products_sold" t-as="product">
+                            <li><i class="fa fa-check text-success"/> <span t-field="product.name"/> (Verkocht)</li>
+                        </t>
+                    </ul>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>
