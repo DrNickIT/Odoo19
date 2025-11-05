@@ -112,5 +112,9 @@
         <field name="res_model">otters.consignment.submission</field>
         <field name="view_mode">list,form</field> </record>
     <menuitem id="menu_consignment_root" name="Consignment" sequence="10"/>
-    <menuitem id="menu_consignment_submission" name="Inzendingen" parent="menu_consignment_root" action="action_consignment_submission" sequence="10"/>
+    <menuitem
+            id="menu_consignment_submission"
+            name="Inzendingen xx"
+            parent="otters_consignment.menu_consignment_root"  action="action_consignment_submission"
+            sequence="10"/>
 </odoo>
