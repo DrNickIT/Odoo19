@@ -25,6 +25,7 @@
         'reports/consignment_report_views.xml',
         'security/ir_rule.xml', # NIEUW: Access Rule
         'views/portal_templates.xml', # NIEUW: Portal Views
+        'views/image_upload_wizard_views.xml',
     ],
     'installable': True,
     'auto_install': False,

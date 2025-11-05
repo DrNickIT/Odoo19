@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_image_upload_wizard_form" model="ir.ui.view">
+        <field name="name">otters.image.upload.wizard.form</field>
+        <field name="model">otters.image.upload.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Afbeeldingen Bulk Importeren">
+                <sheet>
+                    <group>
+                        <field name="filename" invisible="1"/>
+                        <field name="zip_file" filename="filename"/>
+                    </group>
+                    <footer>
+                        <button name="upload_images" string="Upload &amp; Koppel Afbeeldingen" type="object" class="btn-primary"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_image_upload_wizard" model="ir.actions.act_window">
+        <field name="name">Afbeeldingen Bulk Importeren</field>
+        <field name="res_model">otters.image.upload.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem
+            id="menu_image_upload_wizard"
+            name="Afbeeldingen Bulk Upload"
+            parent="otters_consignment.menu_consignment_root"  action="action_image_upload_wizard"
+            sequence="20"/>
+
+
+</odoo>
