@@ -20,13 +20,19 @@
         'data/config_data.xml',           # Systeemparameters (Payout percentages, Sendcloud)
         'data/product_attribute_data.xml',# Product Attributen
 
-        # 2. BACKEND MODIFICATIES & WIZARDS (Modellen moeten nu geladen zijn)
-        'views/res_partner_views.xml',    # Partner Formulier extensie
-        'views/product_views_inherit.xml',# Product Formulier extensie (Maakt custom velden zichtbaar)
-        'views/views.xml',                # Consignment Submission Model (Form/Tree/Menus)
-        'reports/consignment_report_views.xml', # UI voor de SQL Rapportage
-        'views/import_products_wizard_views.xml',
-        'views/image_upload_wizard_views.xml',
+        # 2. BACKEND MODIFICATIES & WIZARDS (DE KRITISCHE SECTIE)
+        'views/res_partner_views.xml',
+        'views/product_views_inherit.xml',
+
+        # 2.1 EERST: Definieer de actie die door views.xml wordt gebruikt
+        'views/import_products_wizard_views.xml', # Bevat: action_import_products_wizard
+
+        # 2.2 TWEEDE: Definieer de Root Menu en gebruik de import actie
+        'views/views.xml',                # Bevat: menu_consignment_root EN gebruikt action_import_products_wizard
+
+        # 2.3 LAATST: Gebruik de Root Menu voor de Submenu's
+        'views/image_upload_wizard_views.xml',    # Gebruikt: menu_consignment_root (parent)
+        'reports/consignment_report_views.xml', # Gebruikt: menu_consignment_root (parent)
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
