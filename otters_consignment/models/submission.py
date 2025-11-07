@@ -61,49 +61,102 @@ class ConsignmentSubmission(models.Model):
 
     # --- Create/Write logica voor auto-nummering, percentages en archiveren ---
 
-    @api.model
-    def _get_or_create_supplier_prefix(self, partner):
+    def _get_or_create_supplier_prefix(self, supplier):
         """
-        Krijgt of creëert een unieke prefix voor een leverancier.
+        Gets or creates a unique prefix for the given supplier.
+        e.g., "Tom Hoornaert" -> "TOHO"
+        e.g., "Tomas Hoogland" -> "TOHOO" (if "TOHO" is taken)
         """
-        if not partner.x_consignment_prefix:
-            name_parts = re.findall(r'\b\w', partner.name.upper())
-            prefix = "".join(name_parts[:2]).ljust(2, 'X')
+        # If the supplier already has a prefix, use it.
+        if supplier.x_consignment_prefix:
+            return supplier.x_consignment_prefix
 
-            last_partner_id = self.env['res.partner'].search([], order='id desc', limit=1)
-            suffix_num = (last_partner_id.id or 0) + 1
-            unique_prefix = f"{prefix}{suffix_num:03d}"
+        # --- If not, generate a new, unique one ---
+        if not supplier.name:
+            return "PARTNER" # Fallback
 
-            while self.env['res.partner'].search_count([('x_consignment_prefix', '=', unique_prefix)]):
-                suffix_num += 1
-                unique_prefix = f"{prefix}{suffix_num:03d}"
+        parts = supplier.name.strip().split()
+        prefix_base = ""
 
-            partner.x_consignment_prefix = unique_prefix
+        if len(parts) >= 2:
+            # "Tom Hoornaert" -> "TO" + "HO"
+            fn = re.sub(r'[^A-Z0-9]', '', parts[0][:2].upper())
+            ln_base = re.sub(r'[^A-Z0-9]', '', parts[-1].upper())
 
-        return partner.x_consignment_prefix
+            # Try FN[:2] + LN[:2], then FN[:2] + LN[:3], etc.
+            for i in range(2, len(ln_base) + 1):
+                prefix_try = fn + ln_base[:i]
+                if not prefix_try: continue # Skip if name was weird (e.g., "!!")
+
+                # Check if this prefix is already used by *another* supplier
+                if not self.env['res.partner'].search_count([('x_consignment_prefix', '=', prefix_try)]):
+                    prefix_base = prefix_try
+                    break
+
+            # Fallback if all variations are taken (e.g., TOHO, TOHOO, TOHOOR, ...)
+            if not prefix_base:
+                prefix_base = fn + ln_base + str(supplier.id)
+
+        elif len(parts) == 1 and parts[0]:
+            # "IKEA" -> "IKEA"
+            prefix_base = re.sub(r'[^A-Z0-9]', '', parts[0][:4].upper())
+
+        if not prefix_base:
+            prefix_base = "INV" # Invalid
+
+        # Save the new prefix to the supplier
+        supplier.write({'x_consignment_prefix': prefix_base})
+        _logger.info(f"### Generated and saved new prefix '{prefix_base}' for supplier '{supplier.name}'")
+        return prefix_base
 
     @api.model_create_multi
     def create(self, vals_list):
+        _logger.info(f"### CREATE METHOD CALLED. Vals list: {vals_list}")
+
         for vals in vals_list:
-            # 1. Automatisch nummeren
-            if vals.get('name', 'Nieuw') == 'Nieuw':
-                # Gebruik de standaard Odoo sequens (mits deze is gedefinieerd in XML)
-                vals['name'] = self.env['ir.sequence'].next_by_code('otters.consignment.submission') or 'Nieuw'
+            if not vals.get('name') or vals.get('name') == 'Nieuw':
+                _logger.info(f"### Name is 'Nieuw' or empty. Generating new ID.")
 
-            # 2. Vul het juiste uitbetalingspercentage in
-            if vals.get('supplier_id'):
-                supplier = self.env['res.partner'].browse(vals['supplier_id'])
-                ICP = self.env['ir.config_parameter'].sudo()
+                supplier_id = vals.get('supplier_id')
+                if not supplier_id:
+                    _logger.warning("### No supplier_id found in vals. Skipping ID generation.")
+                    continue
 
-                if supplier.x_payout_method == 'cash':
-                    default_perc = ICP.get_param('otters_consignment.cash_payout_percentage', '0.3')
-                    vals['payout_percentage'] = supplier.x_cash_payout_percentage or float(default_perc)
-                elif supplier.x_payout_method == 'coupon':
-                    default_perc = ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5')
-                    vals['payout_percentage'] = supplier.x_coupon_payout_percentage or float(default_perc)
+                supplier = self.env['res.partner'].browse(supplier_id)
+                prefix = self._get_or_create_supplier_prefix(supplier)
+                _logger.info(f"### Using prefix: {prefix}")
+
+                # --- Find next number FOR THIS PREFIX ---
+                search_pattern = f"{prefix}_"
+                existing_records = self.search(
+                    [('name', '=like', f"{search_pattern}%")],
+                    order='name DESC',
+                    limit=1
+                )
+
+                new_number = 1
+                if existing_records:
+                    last_name = existing_records.name
+                    last_number_str = last_name.split('_')[-1]
+                    try:
+                        new_number = int(last_number_str) + 1
+                    except ValueError:
+                        new_number = 1 # Fallback
+
+                number_str = str(new_number).zfill(5) # e.g., "001"
+
+                vals['name'] = f"{prefix}_{number_str}"
+                _logger.info(f"### Final new name set in vals: {vals['name']}")
+
+            else:
+                _logger.warning(f"### SKIPPING ID generation. 'name' was already set to: {vals.get('name')}")
 
         result = super(ConsignmentSubmission, self).create(vals_list)
+
+        _logger.info(f"### Super create finished. Resulting names: {result.mapped('name')}")
         return result
+
+    # In submission.py, binnen de ConsignmentSubmission class
 
     def write(self, vals):
         removed_template_ids = []
@@ -113,11 +166,12 @@ class ConsignmentSubmission(models.Model):
 
             for command in vals['product_ids']:
                 if command[0] == 2 and command[1]:
-                    # Onderschep de 'Delete' actie (commando 2)
+                    # 1. Onderschep de 'Delete' actie (commando 2)
                     removed_template_ids.append(command[1])
 
-                    # Vervang 'Delete' (2, ID, False) door 'Unlink' (3, ID, False)
-                    # om te voorkomen dat Odoo de product.template probeert te verwijderen.
+                    # 2. Vervang 'Delete' (2, ID, False) door 'Unlink' (3, ID, False)
+                    # Dit zorgt ervoor dat Odoo alleen de link verbreekt,
+                    # maar de product.template NIET probeert te verwijderen.
                     new_commands.append((3, command[1], False))
                 else:
                     new_commands.append(command)
@@ -125,14 +179,16 @@ class ConsignmentSubmission(models.Model):
             if removed_template_ids:
                 vals['product_ids'] = new_commands
 
-        # Voer de standaard Odoo write/update uit
+        # 3. Voer de standaard Odoo write/update uit
         res = super(ConsignmentSubmission, self).write(vals)
 
-        # Archiveer de Product Templates
+        # 4. Archiveer de Product Templates
         if removed_template_ids:
             templates_to_archive = self.env['product.template'].browse(removed_template_ids)
 
             # Archiveer: zet de 'active' status op False
             templates_to_archive.write({'active': False})
+
+            _logger.info(f"### Product Templates gearchiveerd (active=False): {removed_template_ids}")
 
         return res
