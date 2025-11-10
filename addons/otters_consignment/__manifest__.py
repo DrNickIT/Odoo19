@@ -19,6 +19,7 @@
         'security/ir.model.access.csv',   # ACL's (Model-niveau beveiliging)
         'data/config_data.xml',           # Systeemparameters (Payout percentages, Sendcloud)
         'data/product_attribute_data.xml',# Product Attributen
+        'data/whitelist_data.xml',        # whitlist voor forms Attributen
 
         # 2. BACKEND MODIFICATIES & WIZARDS (DE KRITISCHE SECTIE)
         'views/res_partner_views.xml',

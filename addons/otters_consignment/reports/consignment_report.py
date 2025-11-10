@@ -41,13 +41,7 @@ class ConsignmentReport(models.Model):
                     sub.payout_method AS payout_method,
                     
                     -- === HIER ZIT DE CORRECTIE ===
-                    CASE
-                        WHEN sub.payout_method = 'cash' THEN
-                            sol.price_subtotal * rp.x_cash_payout_percentage
-                        WHEN sub.payout_method = 'coupon' THEN
-                            sol.price_subtotal * rp.x_coupon_payout_percentage
-                        ELSE 0
-                    END AS commission_amount
+                    sub.payout_percentage * sol.price_subtotal AS commission_amount
                     -- === EINDE CORRECTIE ===
                     
                 FROM sale_order_line sol
