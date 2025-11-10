@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu"
-              inherit_id="portal.portal_my_home" priority="999">
+              inherit_id="portal.portal_my_home" priority="99">
         <xpath expr="//div[hasclass('o_portal_my_home')]" position="inside">
             <style>
                 a[href='/my/consignments'] .o_portal_icon img {
-                max-height: 5em !important; /* Forceer de stijl */
+                max-height: 5em !important;
                 width: auto !important;
                 }
             </style>
@@ -19,149 +19,193 @@
         </xpath>
     </template>
 
-    <template id="portal_my_consignments" name="Mijn Inzendingen Lijst">
+    <template id="portal_my_consignments" name="Mijn Consignaties">
         <t t-call="portal.portal_layout">
-            <t t-set="breadcrumbs_searchbar" t-value="True"/>
-            <t t-call="portal.portal_searchbar"/>
+            <t t-set="breadcrumbs" t-value="[
+                ('my_home', {'title': 'Mijn Portaal'}),
+                ('my_consignments', {'title': 'Mijn Inzendingen'})
+            ]"/>
 
-            <div class="o_portal_frontend_container">
-                <div class="oe_structure">
-                    <h3 class="page-header">Mijn Kleding Inzendingen</h3>
-                    <p t-if="not submissions">U hebt nog geen kleding ter consignatie ingezonden.</p>
-
-                    <t t-if="submissions">
-                        <div class="table-responsive">
-                            <table class="table table-hover o_portal_my_table">
-                                <thead>
-                                    <tr>
-                                        <th>Inzending ID</th>
-                                        <th>Datum</th>
-                                        <th>Status</th>
-                                        <th>Uitbetalingsmethode</th>
-                                        <th>Details</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <t t-foreach="submissions" t-as="submission">
-                                        <tr>
-                                            <td><a t-attf-href="/my/consignments/#{submission.id}"><span t-field="submission.name"/></a></td>
-                                            <td><span t-field="submission.submission_date"/></td>
-                                            <td><span class="badge" t-attf-class="badge-{{{'draft': 'secondary', 'received': 'info', 'processing': 'primary', 'sold': 'warning', 'done': 'success'}[submission.state]}}"><span t-field="submission.state"/></span></td>
-                                            <td><span t-field="submission.payout_method"/></td>
-                                            <td><a t-attf-href="/my/consignments/#{submission.id}" class="btn btn-sm btn-link">Bekijken</a></td>
-                                        </tr>
-                                    </t>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div t-if="pager" class="o_portal_pager text-center">
-                            <t t-call="portal.pager"/>
-                        </div>
-                    </t>
+            <div class="container">
+                <h3>Mijn Inzendingen</h3>
+                <t t-if="not submissions">
+                    <div class="alert alert-info" role="alert">
+                        Je hebt nog geen inzendingen.
+                    </div>
+                </t>
+                <t t-if="submissions">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Datum</th>
+                                <th>Status</th>
+                                <th>Uitbetaalmethode</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="submissions" t-as="submission">
+                                <td>
+                                    <a t-att-href="'/my/consignments/%s' % submission.id">
+                                        <span t-field="submission.name"/>
+                                    </a>
+                                </td>
+                                <td><span t-field="submission.submission_date" t-options="{'widget': 'date'}"/></td>
+                                <td><span t-field="submission.state"/></td>
+                                <td><span t-field="submission.payout_method"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </t>
+                <div t-if="pager" class="o_portal_pager">
+                    <t t-call="portal.pager"/>
                 </div>
             </div>
         </t>
     </template>
 
-    <template id="portal_consignment_submission" name="Inzending Details">
+    <template id="portal_consignment_submission" name="Consignatie Details">
         <t t-call="portal.portal_layout">
-            <div id="wrap" class="oe_structure">
-                <div class="container">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="/my">Mijn Account</a></li>
-                        <li class="breadcrumb-item"><a href="/my/consignments">Mijn Inzendingen</a></li>
-                        <li class="breadcrumb-item active"><t t-esc="submission.name"/></li>
-                    </ol>
+            <t t-set="breadcrumbs" t-value="[
+                ('my_home', {'title': 'Mijn Portaal'}),
+                ('my_consignments', {'title': 'Mijn Inzendingen', 'url': '/my/consignments'}),
+                ('submission', {'title': submission.name})
+            ]"/>
 
-                    <h3 class="page-header">
-                        Inzending Details: <span t-field="submission.name"/>
-                        <span class="badge float-right" t-attf-class="badge-{{{'draft': 'secondary', 'received': 'info', 'processing': 'primary', 'sold': 'warning', 'done': 'success'}[submission.state]}}"><span t-field="submission.state"/></span>
-                    </h3>
-                    <hr/>
-
+            <div class="card o_portal_details">
+                <div class="card-header">
                     <div class="row">
-                        <div class="col-md-6">
-                            <h4>Afspraken</h4>
-                            <ul class="list-unstyled">
-                                <li><strong>Datum van Inzending:</strong> <span t-field="submission.submission_date"/></li>
-                                <li><strong>Uitbetalingsmethode:</strong> <span t-field="submission.payout_method"/></li>
-                                <li><strong>Uw Percentage:</strong> <span t-field="submission.payout_percentage" t-options="{'widget': 'percentage'}"/></li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h4>Financieel Overzicht</h4>
-                            <ul class="list-unstyled">
-                                <li><strong>Totaal Uit te Betalen (verkochte items):</strong> <span t-esc="total_payout_for_submission" t-options='{"widget": "monetary", "display_currency": submission.env.company.currency_id}'/></li>
-                                <t t-if="total_payout_for_submission == 0">
-                                    <li>(Wordt berekend zodra producten verkocht zijn.)</li>
-                                </t>
-                            </ul>
-                        </div>
-                    </div>
-                    <hr/>
-
-                    <h4><i class="fa fa-shopping-bag"/> Producten in Voorraad (<t t-esc="len(products_in_stock)"/>)</h4>
-                    <t t-if="products_in_stock">
-                        <div class="row">
-                            <t t-foreach="products_in_stock" t-as="product">
-                                <div class="col-md-3 mb-4">
-                                    <div class="card h-100">
-                                        <img t-if="product.image_128" class="card-img-top" t-att-src="image_data_uri(product.image_128)" alt="Product Afbeelding"/>
-                                        <div class="card-body">
-                                            <h5 class="card-title"><span t-field="product.name"/></h5>
-                                            <p class="card-text">Prijs: <span t-field="product.list_price" t-options='{"widget": "monetary"}'/></p>
-                                            <t t-set="conditie_value" t-value="product.attribute_line_ids.filtered(lambda l: l.attribute_id.name == 'Conditie').value_ids"/>
-                                            <p class="card-text">Conditie: <t t-esc="conditie_value.name if conditie_value else 'Nvt'"/></p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </t>
-                        </div>
-                    </t>
-                    <p t-else="">Alle kledingstukken van deze inzending zijn verkocht of gearchiveerd.</p>
-
-                    <h4><i class="fa fa-tag"/> Verkochte Producten (<t t-esc="len(products_sold_data)"/>)</h4>
-
-                    <t t-if="products_sold_data">
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Product</th>
-                                    <th class="text-center">Aantal</th>
-                                    <th class="text-end">Verkoopwaarde</th>
-                                    <th class="text-end text-success">Jouw Opbrengst</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <t t-foreach="products_sold_data" t-as="data">
-                                    <tr>
-                                        <td>
-                                            <span t-field="data['product'].name"/>
-                                        </td>
-                                        <td class="text-center"><span t-esc="data['qty_sold']"/></td>
-                                        <td class="text-end">
-                                            <span t-esc="data['total_sold_price']" t-options='{"widget": "monetary", "display_currency": currency}'/>
-                                        </td>
-                                        <td class="text-end text-success">
-                                            <span t-esc="data['total_commission']" t-options='{"widget": "monetary", "display_currency": currency}'/>
-                                        </td>
-                                    </tr>
-                                </t>
-                            </tbody>
-                        </table>
-
-                        <div class="row mt-4">
-                            <div class="col-12 text-end">
-                                <strong>Totaal te ontvangen:</strong>
-                                <span class="ms-3 text-success"
-                                      t-esc="total_payout_for_submission"
-                                      t-options='{"widget": "monetary", "display_currency": currency}'
-                                      style="font-size: 1.2em; font-weight: bold;"/>
+                        <div class="col-md-8">
+                            <h5 class="mb-0">
+                                Inzending: <b t-field="submission.name"/>
+                            </h5>
+                            <div class="text-muted">
+                                Status: <span t-field="submission.state"/>
                             </div>
                         </div>
+                        <div class="col-md-4 text-md-end">
+                            <small class="text-muted">Uitbetaal-afspraak:</small><br/>
+                            <strong t-if="submission.payout_method == 'cash'">
+                                <span t-esc="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Cash
+                            </strong>
+                            <strong t-if="submission.payout_method == 'coupon'">
+                                <span t-esc="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Tegoedbon
+                            </strong>
+                        </div>
+                    </div>
+                </div>
 
-                    </t>
-                    <p t-else="">Er zijn nog geen producten uit deze inzending verkocht.</p>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="stock-tab" data-bs-toggle="tab" href="#stock" role="tab" aria-controls="stock" aria-selected="true">
+                                In Voorraad (<t t-esc="len(stock_products)"/>)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="unpaid-tab" data-bs-toggle="tab" href="#unpaid" role="tab" aria-controls="unpaid" aria-selected="false">
+                                Nog Uit te Betalen (<t t-esc="len(aggregated_unpaid)"/>)
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="paid-tab" data-bs-toggle="tab" href="#paid" role="tab" aria-controls="paid" aria-selected="false">
+                                Reeds Uitbetaald (<t t-esc="len(aggregated_paid)"/>)
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content pt-3" id="myTabContent">
+
+                        <div class="tab-pane fade show active" id="stock" role="tabpanel" aria-labelledby="stock-tab">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-end">Jouw Prijs</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="stock_products" t-as="product">
+                                        <td><span t-field="product.name"/></td>
+                                        <td class="text-end">
+                                            <span t-field="product.list_price" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="unpaid" role="tabpanel" aria-labelledby="unpaid-tab">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-end">Aantal</th>
+                                        <th class="text-end">Verkoopprijs</th>
+                                        <th class="text-end">Jouw Uitbetaling</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="aggregated_unpaid" t-as="line">
+                                        <td><span t-esc="line['name']"/></td>
+                                        <td class="text-end"><span t-esc="line['qty']"/> st</td>
+                                        <td class="text-end">
+                                            <span t-esc="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-esc="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-light">
+                                        <td colspan="3" class="text-end">
+                                            <strong>Totaal nog uit te betalen:</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong t-esc="total_payout_unpaid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="paid" role="tabpanel" aria-labelledby="paid-tab">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-end">Aantal</th>
+                                        <th class="text-end">Verkoopprijs</th>
+                                        <th class="text-end">Uitbetaald Bedrag</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="aggregated_paid" t-as="line">
+                                        <td><span t-esc="line['name']"/></td>
+                                        <td class="text-end"><span t-esc="line['qty']"/> st</td>
+                                        <td class="text-end">
+                                            <span t-esc="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-esc="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="bg-light">
+                                        <td colspan="3" class="text-end">
+                                            <strong>Totaal reeds uitbetaald:</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong t-esc="total_payout_paid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </t>
