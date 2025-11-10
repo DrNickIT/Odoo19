@@ -63,35 +63,67 @@ class ConsignmentPortal(CustomerPortal):
         return submission
 
     @http.route(['/my/consignments/<int:submission_id>'], type='http', auth="user", website=True)
-    def portal_consignment_submission(self, submission_id, **kw):
-        """ Toont de details van één inzending en de bijbehorende producten. """
-
+    def portal_submission_page(self, submission_id, **kw):
+        """ Toont de details van één specifieke inzending. """
         try:
             submission = self._get_submission_check_access(submission_id)
         except request.exceptions.AccessError:
             return request.render("website.403") # Geen toegang
 
         # --- LOGICA VOOR VERKOCHTE VS. IN VOORRAAD ---
-        # Roept de methode uit submission.py aan om betrouwbaar verkochte producten te bepalen
         products_sold = submission._get_sold_products()
-        # Alles in de inzending MINUS de verkochte producten
         products_in_stock = submission.product_ids - products_sold
 
-        # Berekening van de totale uitbetaling (via de SQL-view otters.consignment.report)
+        # --- NIEUWE LOGICA VOOR VERKOOPGEGEVENS (PRIJS & COMMISSIE) ---
+        # 1. Haal de rapportlijnen op voor de verkochte producten in deze inzending
         report_lines = request.env['otters.consignment.report'].sudo().search([
-            ('supplier_id.email', '=ilike', submission.supplier_id.email)
+            ('supplier_id', '=', submission.supplier_id.id),
+            ('product_id', 'in', products_sold.ids),
         ])
 
-        # Filter de rapportlijnen specifiek op producten van deze inzending
-        submission_product_ids = submission.product_ids.ids
-        total_payout = sum(line.commission_amount for line in report_lines if line.product_id.id in submission_product_ids)
+        # 2. Aggregeer de verkoopgegevens per product (nodig als een product meerdere keren verkocht is)
+        product_report_map = {}
+        for line in report_lines:
+            product_id = line.product_id.id
+            if product_id not in product_report_map:
+                product_report_map[product_id] = {
+                    'total_sold_price': 0.0,
+                    'total_commission': 0.0,
+                    'qty_sold': 0,
+                }
+            # De rapportlijn bevat de subtotalen van de SO line, deze tellen we op
+            product_report_map[product_id]['total_sold_price'] += line.price_subtotal
+            product_report_map[product_id]['total_commission'] += line.commission_amount
+            product_report_map[product_id]['qty_sold'] += line.qty_sold
+
+
+        products_sold_data = []
+        total_payout = 0.0
+
+        # 3. Koppel de data aan de verkochte producten
+        for product in products_sold:
+            report_data = product_report_map.get(product.id, {})
+
+            sold_price_total = report_data.get('total_sold_price', 0.0)
+            commission_total = report_data.get('total_commission', 0.0)
+            qty_sold = report_data.get('qty_sold', 0)
+
+            products_sold_data.append({
+                'product': product,
+                'qty_sold': qty_sold,
+                'total_sold_price': sold_price_total,
+                'total_commission': commission_total,
+            })
+            total_payout += commission_total # Bereken de totale uitbetaling
 
         values = self._prepare_portal_layout_values()
         values.update({
             'submission': submission,
             'products_in_stock': products_in_stock,
-            'products_sold': products_sold,
+            'products_sold_data': products_sold_data, # NIEUW: Bevat prijs en commissie
             'total_payout_for_submission': total_payout,
-            'page_name': 'consignment_detail',
+            'page_name': 'submission',
+            'pager': False,
+            'currency': request.env.company.currency_id, # Valuta van het bedrijf
         })
         return request.render("otters_consignment.portal_consignment_submission", values)

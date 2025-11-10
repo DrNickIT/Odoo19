@@ -114,7 +114,7 @@
     <menuitem id="menu_consignment_root" name="Consignment" sequence="10"/>
     <menuitem
             id="menu_consignment_submission"
-            name="Inzendingen xx"
+            name="Inzendingen"
             parent="otters_consignment.menu_consignment_root"  action="action_consignment_submission"
             sequence="10"/>
 </odoo>
