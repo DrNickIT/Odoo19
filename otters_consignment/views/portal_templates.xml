@@ -112,12 +112,48 @@
                     </t>
                     <p t-else="">Alle kledingstukken van deze inzending zijn verkocht of gearchiveerd.</p>
 
-                    <h4><i class="fa fa-tag"/> Verkochte Producten (<t t-esc="len(products_sold)"/>)</h4>
-                    <ul t-if="products_sold" class="list-unstyled">
-                        <t t-foreach="products_sold" t-as="product">
-                            <li><i class="fa fa-check text-success"/> <span t-field="product.name"/> (Verkocht)</li>
-                        </t>
-                    </ul>
+                    <h4><i class="fa fa-tag"/> Verkochte Producten (<t t-esc="len(products_sold_data)"/>)</h4>
+
+                    <t t-if="products_sold_data">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-center">Aantal</th>
+                                    <th class="text-end">Verkoopwaarde</th>
+                                    <th class="text-end text-success">Jouw Opbrengst</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="products_sold_data" t-as="data">
+                                    <tr>
+                                        <td>
+                                            <span t-field="data['product'].name"/>
+                                        </td>
+                                        <td class="text-center"><span t-esc="data['qty_sold']"/></td>
+                                        <td class="text-end">
+                                            <span t-esc="data['total_sold_price']" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                                        </td>
+                                        <td class="text-end text-success">
+                                            <span t-esc="data['total_commission']" t-options='{"widget": "monetary", "display_currency": currency}'/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <div class="row mt-4">
+                            <div class="col-12 text-end">
+                                <strong>Totaal te ontvangen:</strong>
+                                <span class="ms-3 text-success"
+                                      t-esc="total_payout_for_submission"
+                                      t-options='{"widget": "monetary", "display_currency": currency}'
+                                      style="font-size: 1.2em; font-weight: bold;"/>
+                            </div>
+                        </div>
+
+                    </t>
+                    <p t-else="">Er zijn nog geen producten uit deze inzending verkocht.</p>
                 </div>
             </div>
         </t>
