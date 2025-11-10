@@ -4,8 +4,7 @@
         <record id="sequence_consignment_submission" model="ir.sequence">
             <field name="name">Consignment Submission</field>
             <field name="code">otters.consignment.submission</field>
-            <field name="prefix">CON/%(year)s/</field>
-            <field name="padding">4</field>
+            <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
         <record id="consignment_cash_payout_percentage" model="ir.config_parameter">
@@ -60,5 +59,10 @@
             <field name="value">VUL_HIER_JE_TELEFOONNUMMER_IN</field>
         </record>
 
+        <record id="otters_consignment.model_otters_consignment_submission" model="ir.model">
+            <field name="website_form_key">otters_consignment_submission_form</field>
+            <field name="website_form_access">True</field>
+            <field name="website_form_label">Kleding Opsturen</field>
+        </record>
     </data>
 </odoo>

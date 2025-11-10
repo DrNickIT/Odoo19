@@ -1,127 +1,115 @@
 <odoo>
     <data>
+        <template id="add_consignment_menu_link"
+                  inherit_id="website.template_header_default"
+                  name="Link naar Kleding Opsturen">
+            <xpath expr="//t[@t-call='website.navbar_nav']" position="inside">
+                <li class="nav-item">
+                    <a class="nav-link" href="/kleding-opsturen">
+                        <span>Kleding Opsturen</span>
+                    </a>
+                </li>
+            </xpath>
+        </template>
+
+        <template id="consignment_thankyou_template" name="Bedankt!">
+            <t t-call="website.layout">
+                <div id="wrap">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-8 offset-lg-2">
+                                <h1 class="text-center">Bedankt voor je inzending!</h1>
+                                <p class="text-center">Je aanvraag is goed ontvangen. We verwerken je gegevens en sturen zo snel mogelijk het verzendlabel naar het opgegeven e-mailadres.</p>
+                                <p class="text-center"><a href="/">Terug naar de homepagina</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </template>
+
         <template id="consignment_form_template" name="Kleding Opsturen">
             <t t-call="website.layout">
                 <div id="wrap" class="oe_structure">
-                    <div class="container">
-                        <h1>Stuur je kleding op</h1>
-                        <p>Vul het onderstaande formulier in om een verzendlabel aan te vragen. We nemen zo snel mogelijk contact met je op.</p>
+                    <section class="s_website_form" data-vcss="001" data-snippet="s_website_form">
+                        <div class="container">
+                            <h2 class="text-center">Kleding Opsturen</h2>
+                            <p class="text-center">Vul a.u.b. uw gegevens in om een verzendlabel aan te vragen. U ontvangt
+                            <span t-esc="cash_percentage"/>% contant of <span t-esc="coupon_percentage"/>% als tegoedbon van de verkoopprijs.</p>
 
-                        <form action="/kleding-opsturen/submit" method="POST" class="mt-4">
-                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-
-                            <div class="mb-3">
-                                <label for="contact_name" class="form-label">Jouw Naam</label>
-                                <input type="text" class="form-control" name="contact_name" id="contact_name" required="1"/>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="email" class="form-label">E-mailadres</label>
-                                <input type="email" class="form-control" name="email" id="email" required="1"/>
-                            </div>
-
-                            <hr/>
-                            <h5>Verzendadres (Van waar je het pakket opstuurt)</h5>
-                            <div class="row">
-                                <div class="col-md-9 mb-3">
-                                    <label for="street" class="form-label">Straat</label>
-                                    <input type="text" class="form-control" name="street" id="street" required="1"/>
+                            <t t-if="request.params.get('captcha_error') == '1'">
+                                <div class="alert alert-danger" role="alert">
+                                    <h4 class="alert-heading">Validatie mislukt</h4>
+                                    <p>De spam-beveiliging is mislukt. Probeer het a.u.b. opnieuw.</p>
                                 </div>
-                                <div class="col-md-3 mb-3">
-                                    <label for="house_number" class="form-label">Huisnummer</label>
-                                    <input type="text" class="form-control" name="house_number" id="house_number" required="1"/>
+                            </t>
+
+                            <form action="/website/form/" method="post" class="o_mark_required mt-4"
+                                  data-mark="*"
+                                  data-model_name="otters.consignment.submission"
+                                  data-success-mode="redirect"
+                                  data-success-page="/kleding-opsturen/bedankt">
+
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                                <div class="mb-3">
+                                    <label for="contact_name" class="form-label">Jouw Naam</label>
+                                    <input type="text" class="form-control" name="x_sender_name" id="x_sender_name" required="1" data-fill-with="x_sender_name"/>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="postal_code" class="form-label">Postcode</label>
-                                    <input type="text" class="form-control" name="postal_code" id="postal_code" required="1"/>
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">E-mailadres</label>
+                                    <input type="email" class="form-control" name="x_sender_email" id="x_sender_email" required="1" data-fill-with="x_sender_email"/>
                                 </div>
-                                <div class="col-md-8 mb-3">
-                                    <label for="city" class="form-label">Stad</label>
-                                    <input type="text" class="form-control" name="city" id="city" required="1"/>
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Telefoonnummer</label>
+                                    <input type="tel" class="form-control" name="x_sender_phone" id="x_sender_phone" required="1" data-name="x_sender_phone"/>
                                 </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="country" class="form-label">Land</label>
-                                <input type="text" class="form-control" name="country" id="country" required="1" value="BE" readonly="readonly"/>
-                            </div>
 
-                            <div class="mb-3">
-                                <label for="phone" class="form-label">Telefoonnummer</label>
-                                <input type="tel" class="form-control" name="phone" id="phone" required="1" placeholder="Voor de vervoerder"/>
-                            </div>
-
-                            <hr/>
-                            <div class="mb-3" id="payout_options_wrapper">
-                                <label class="form-label">Hoe wil je uitbetaald worden?</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="payout_method" id="payout_cash" value="cash" required="1" checked="1"/>
-                                    <label class="form-check-label" for="payout_cash">
-                                        <t t-esc="cash_percentage"/>% van het verkoopbedrag in cash
-                                    </label>
+                                <hr/>
+                                <h5>Verzendadres (Afzender)</h5>
+                                <div class="row">
+                                    <div class="col-md-9 mb-3">
+                                        <label for="street" class="form-label">Straat</label>
+                                        <input type="text" class="form-control" name="x_sender_street" id="x_sender_street" required="1" data-name="x_sender_street"/>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="house_number" class="form-label">Huisnr.</label>
+                                        <input type="text" class="form-control" name="x_sender_house_number" id="x_sender_house_number" required="1" data-name="x_sender_house_number"/>
+                                    </div>
                                 </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="payout_method" id="payout_coupon" value="coupon" required="1"/>
-                                    <label class="form-check-label" for="payout_coupon">
-                                        <t t-esc="coupon_percentage"/>% van het verkoopbedrag in shoptegoed
-                                    </label>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="postal_code" class="form-label">Postcode</label>
+                                        <input type="text" class="form-control" name="x_sender_postal_code" id="x_sender_postal_code" required="1" data-name="x_sender_postal_code"/>
+                                    </div>
+                                    <div class="col-md-8 mb-3">
+                                        <label for="city" class="form-label">Stad/Plaats</label>
+                                        <input type="text" class="form-control" name="x_sender_city" id="x_sender_city" required="1" data-name="x_sender_city"/>
+                                    </div>
                                 </div>
-                            </div>
+                                <input type="hidden" name="country" value="x_sender_country_code" data-name="x_sender_country_code"/>
 
-                            <button type="submit" class="btn btn-primary">Aanvraag Indienen</button>
-                        </form>
+                                <div id="payout_options_wrapper" class="mt-4">
+                                    <label class="form-label">Gewenste uitbetaling*</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash" required="1" data-name="x_payout_method_temp"/>
+                                        <label class="form-check-label" for="payoutCash">Contant (<t t-esc="cash_percentage"/>% van de verkoopprijs)</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" data-name="x_payout_method_temp"/>
+                                        <label class="form-check-label" for="payoutCoupon">Kortingsbon (<t t-esc="coupon_percentage"/>% van de verkoopprijs)</label>
+                                    </div>
+                                </div>
 
-                        <script type="text/javascript">
-                            document.addEventListener('DOMContentLoaded', (event) => {
-                            const emailInput = document.getElementById('email');
-                            const payoutWrapper = document.getElementById('payout_options_wrapper');
-                            const payoutRadios = payoutWrapper.querySelectorAll('input[type="radio"]');
-
-                            emailInput.addEventListener('blur', (e) => {
-                            const email = e.target.value;
-
-                            // *** DIT IS DE WIJZIGING ***
-                            // Als het veld leeg is, stop hier en doe niets.
-                            if (!email) {
-                            payoutWrapper.style.display = 'block'; // Herstel de opties (veiligheid)
-                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
-                            return; // Stop de functie
-                            }
-                            // *** EINDE WIJZIGING ***
-
-                            // Call our new Odoo controller
-                            fetch('/kleding-opsturen/check-partner', {
-                            method: 'POST',
-                            headers: {
-                            'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ email: email }),
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                            const result = data.result || data; // Handle Odoo's JSON-RPC wrapping
-                            if (result.payout_method_set) {
-                            // This partner already has a choice, hide the options
-                            payoutWrapper.style.display = 'none';
-                            payoutRadios.forEach(radio => radio.removeAttribute('required'));
-                            } else {
-                            // New partner, show the options
-                            payoutWrapper.style.display = 'block';
-                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
-                            }
-                            })
-                            .catch(error => {
-                            console.error('Error checking partner:', error);
-                            // Show options as a safe fallback
-                            payoutWrapper.style.display = 'block';
-                            payoutRadios.forEach(radio => radio.setAttribute('required', '1'));
-                            });
-                            });
-                            });
-                        </script>
-
-                    </div>
+                                <div class="mb-0 py-2 col-12 s_website_form_submit text-end" data-name="Submit Button">
+                                    <a href="#" role="button" class="btn btn-primary s_website_form_send">
+                                        Verstuur mijn aanvraag en vraag verzendlabel aan
+                                    </a>
+                                    <span id="s_website_form_result"/>
+                                </div>
+                            </form>
+                        </div>
+                    </section>
                 </div>
             </t>
         </template>

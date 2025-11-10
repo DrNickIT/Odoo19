@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <function model="ir.model.fields" name="formbuilder_whitelist">
+        <value>otters.consignment.submission</value>
+        <value eval="[
+            'x_sender_name',
+            'x_sender_email',
+            'x_sender_phone',
+            'x_sender_street',
+            'x_sender_house_number',
+            'x_sender_city',
+            'x_sender_postal_code',
+            'x_sender_country_code',
+            'x_payout_method_temp',
+        ]"/>
+    </function>
+</odoo>

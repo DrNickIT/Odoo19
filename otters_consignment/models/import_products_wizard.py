@@ -57,7 +57,7 @@ class ImportProductsWizard(models.TransientModel):
             # --- START LOOP PER RIJ ---
             for row in csv_data:
                 name = row.get('name')
-                price_str = row.get('price', '0.0')
+                price_str = row.get('price', '0.0').replace(',', '.') # Vervang komma door punt
                 category_name = row.get('category')
                 condition_num_str = row.get('condition_number')
                 seo_title = row.get('seo_title', '').strip()
