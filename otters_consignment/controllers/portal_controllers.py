@@ -9,16 +9,17 @@ _logger = logging.getLogger(__name__)
 class ConsignmentPortal(CustomerPortal):
 
     def _prepare_portal_layout_values(self):
-        """ Voegt een teller toe voor het aantal inzendingen op de /my/home pagina. """
+        """
+        Deze functie blijft nodig voor de *andere* portal paginas.
+        """
         values = super(ConsignmentPortal, self)._prepare_portal_layout_values()
 
+        # We voegen de teller hier ook toe voor consistentie
         partner = request.env.user.partner_id
-        # Zoek submissions op basis van het e-mailadres voor consistente filtering
         submission_count = request.env['otters.consignment.submission'].sudo().search_count([
             ('supplier_id.email', '=ilike', partner.email)
         ])
         values['consignment_count'] = submission_count
-
         return values
 
     @http.route(['/my/consignments', '/my/consignments/page/<int:page>'], type='http', auth="user", website=True)
