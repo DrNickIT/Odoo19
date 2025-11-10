@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu" inherit_id="portal.portal_my_home" priority="20">
-        <xpath expr="//div[hasclass('o_portal_docs')]" position="inside">
+    <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu"
+              inherit_id="portal.portal_my_home" priority="999">
+        <xpath expr="//div[hasclass('o_portal_my_home')]" position="inside">
+            <style>
+                a[href='/my/consignments'] .o_portal_icon img {
+                max-height: 5em !important; /* Forceer de stijl */
+                width: auto !important;
+                }
+            </style>
             <t t-call="portal.portal_docs_entry">
+                <t t-set="icon" t-value="'/otters_consignment/static/src/img/consignment_icon.png'"/>
                 <t t-set="title">Mijn Inzendingen</t>
+                <t t-set="text">Bekijk de status van je opgestuurde kleren</t>
                 <t t-set="url" t-value="'/my/consignments'"/>
-                <t t-set="icon" t-value="'fa-archive'"/>
-                <t t-set="count" t-value="consignment_count"/>
+                <t t-set="config_card" t-value="True"/>
             </t>
         </xpath>
     </template>
