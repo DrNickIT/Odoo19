@@ -13,6 +13,7 @@
                                 <field name="x_payout_method"/>
                                 <field name="x_cash_payout_percentage" widget="percentage"/>
                                 <field name="x_coupon_payout_percentage" widget="percentage"/>
+                                <field name="user_id" string="Gerelateerde Portal Gebruiker"/>
                             </group>
                             <group string="Consignment ID">
                                 <field name="x_consignment_prefix"/>
