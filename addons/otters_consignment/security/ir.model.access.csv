@@ -2,7 +2,7 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_otters_consignment_submission,otters.consignment.submission,model_otters_consignment_submission,base.group_user,1,1,1,1
 access_otters_image_upload_wizard,Image Upload Wizard Access,model_otters_image_upload_wizard,base.group_user,1,1,1,1
 access_otters_submission_portal,otters.consignment.submission.portal,model_otters_consignment_submission,base.group_portal,1,0,0,0
-access_otters_consignment_report,otters.consignment.report,model_otters_consignment_report,base.group_user,1,0,0,0
+access_otters_consignment_report,otters.consignment.report,model_otters_consignment_report,base.group_user,1,1,0,0
 access_otters_report_portal,otters.consignment.report.portal,model_otters_consignment_report,base.group_portal,1,0,0,0
 access_import_products_wizard,otters.consignment.import_products_wizard,model_otters_consignment_import_products_wizard,base.group_user,1,1,1,1
 access_stock_warehouse_portal,stock.warehouse.portal.read,stock.model_stock_warehouse,base.group_portal,1,0,0,0

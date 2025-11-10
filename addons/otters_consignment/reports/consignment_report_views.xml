@@ -10,6 +10,7 @@
                     <field name="payout_method" type="row"/>
                     <field name="product_id" type="row"/>
                     <field name="date" interval="month" type="col"/>
+                    <field name="x_is_paid_out" type="col"/>
                     <field name="price_subtotal" type="measure"/>
                     <field name="commission_amount" type="measure"/>
                     <field name="qty_sold" type="measure"/>
@@ -30,6 +31,7 @@
                     <field name="price_subtotal" sum="Total"/>
                     <field name="commission_amount" sum="Total"/>
                     <field name="qty_sold" sum="Total"/>
+                    <field name="x_is_paid_out"/>
                 </list>
             </field>
         </record>
@@ -41,9 +43,34 @@
                 <search string="Verkoop Rapport Zoeken">
                     <field name="supplier_id"/>
                     <field name="product_id"/>
-
+                    <separator/>
                     <filter name="filter_date" date="date" string="Datum"/>
+                    <separator/>
+                    <filter name="unpaid" string="Nog te Betalen" domain="[('x_is_paid_out', '=', False)]"/>
+                    <filter name="paid" string="Reeds Betaald" domain="[('x_is_paid_out', '=', True)]"/>
+                    <separator/>
+                    <filter string="Leverancier" name="group_supplier" context="{'group_by':'supplier_id'}"/>
+                    <filter string="Product" name="group_product" context="{'group_by':'product_id'}"/>
+                    <filter string="Status Uitbetaling" name="group_paid_status" context="{'group_by':'x_is_paid_out'}"/>
+                    <separator/>
+                    <filter string="Datum (Jaar)" name="group_year" context="{'group_by':'date:year'}"/>
+                    <filter string="Datum (Kwartaal)" name="group_quarter" context="{'group_by':'date:quarter'}"/>
+                    <filter string="Datum (Maand)" name="group_month" context="{'group_by':'date:month'}"/>
                 </search>
+            </field>
+        </record>
+
+        <record id="action_mark_as_paid" model="ir.actions.server">
+            <field name="name">Markeer als Uitbetaald</field>
+            <field name="model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">
+# De geselecteerde regels zijn beschikbaar in de 'records' variabele
+report_lines = records
+sale_order_lines = report_lines.mapped('order_line_id')
+sale_order_lines.write({'x_is_paid_out': True})
             </field>
         </record>
 
