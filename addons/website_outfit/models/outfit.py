@@ -38,7 +38,7 @@ class Outfit(models.Model):
     def _compute_slug(self):
         for outfit in self:
             if outfit.id and outfit.name:
-                outfit.slug = f"{self.env['ir.http']._slug(outfit)}-{outfit.id}"
+                outfit.slug = f"{self.env['ir.http']._slug(outfit)}"
             else:
                 outfit.slug = False
 
