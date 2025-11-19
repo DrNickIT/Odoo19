@@ -2,11 +2,6 @@ import logging # Importeer de logger
 from odoo import http
 from odoo.http import request
 
-# --- DIT MOET ALTIJD IN DE LOG VERSCHIJNEN BIJ EEN HERSTART ---
-_logger = logging.getLogger(__name__)
-_logger.info("!!!!!!!!!! [website_outfit] controllers/main.py BESTAND IS GELEZEN DOOR PYTHON !!!!!!!!!!")
-# --- EINDE LOG ---
-
 class WebsiteOutfit(http.Controller):
 
     # Deze route is voor de detailpagina - CORRECT
@@ -61,24 +56,3 @@ class WebsiteOutfit(http.Controller):
             quantity=1
         )
         return request.redirect(redirect)
-
-    @http.route('/website_outfit/snippet_content', type='http', auth="public", website=True, sitemap=False)
-    def latest_outfits_snippet(self, limit=4, **kw):
-
-        # !! DEBUG STAP 1: Wordt de controller aangeroopen?
-        _logger.info("!!!!!!!! OUTFIT SNIPPET CONTROLLER: Route /snippet_content is AANGEROEPEN. !!!!!!!!")
-
-        Outfit = request.env['website.outfit'].sudo()
-        outfits = Outfit.search(
-            [('website_published', '=', True)],
-            order='create_date desc',
-            limit=int(limit)
-        )
-
-        # !! DEBUG STAP 2: Heeft het outfits gevonden?
-        _logger.info(f"!!!!!!!! OUTFIT SNIPPET CONTROLLER: {len(outfits)} outfits gevonden. !!!!!!!!")
-
-        return request.render('website_outfit.snippet_latest_outfits_content', {
-            'outfits': outfits,
-            'outfit_title': kw.get('outfit_title', 'Nieuwste Outfits'),
-        })

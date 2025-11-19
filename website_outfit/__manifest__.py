@@ -24,7 +24,6 @@
         'security/ir.model.access.csv',
         'views/outfit_views.xml',
         'views/outfit_templates.xml',
-        'views/outfit_assets.xml',
     ],
 
     # Voeg een icoon toe (optioneel, maar netjes)
