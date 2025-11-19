@@ -6,35 +6,27 @@ class Website(models.Model):
 
     def sale_product_domain(self):
         """
-        Deze methode wordt overgeërfd om de standaard product query aan te passen.
-        (Odoo 19 versie)
+        Pas het productdomein aan om uitverkochte producten direct in de SQL-query te filteren.
+        Dit is real-time en performant.
         """
         # 1. Haal het standaard domein op (bv. 'is_published = True')
         domain = super().sale_product_domain()
 
-        # 2. Zoek naar producten die we willen *verbergen*.
-        #    Dit zijn producten die GEEN service zijn EN geen voorraad hebben.
-        #    We moeten .sudo() gebruiken omdat de publieke gebruiker
-        #    de voorraadvelden niet mag lezen.
-        ProductTemplateSudo = self.env['product.template'].sudo()
+        # 2. Definieer wat we WEL willen zien.
+        #    Logica: Een product is zichtbaar als:
+        #    (Het is een dienst) OF (Het is fysiek op voorraad EN virtueel op voorraad)
+        #
+        #    In Odoo Polish Notatie:
+        #    ['|', ('type', '=', 'service'), '&', ('qty_available', '>', 0), ('virtual_available', '>', 0)]
 
-        out_of_stock_domain = [
-            ('type', '!=', 'service'),  # Services negeren we
-            '|',                       # OF...
-            ('qty_available', '<=', 0),
-            ('virtual_available', '<=', 0)
+        stock_domain = [
+            '|',
+            ('type', '=', 'service'),        # Laat services altijd zien
+            '&',                             # EN... (combineer de volgende twee)
+            ('qty_available', '>', 0),       # Fysieke voorraad moet positief zijn
+            ('virtual_available', '>', 0)    # Virtuele voorraad (rekening houdend met orders) moet positief zijn
         ]
 
-        # 3. Voer de 'dure' query uit met sudo
-        #    We halen alleen de IDs op, dat is alles wat we nodig hebben.
-        out_of_stock_product_ids = ProductTemplateSudo.search(out_of_stock_domain).ids
-
-        # 4. Voeg een simpele, veilige 'exclusion' toe aan het hoofddomein.
-        #    De publieke gebruiker kan perfect een 'id not in' query uitvoeren.
-        if out_of_stock_product_ids:
-            exclusion_domain = [('id', 'not in', out_of_stock_product_ids)]
-            # Gebruik Domain.AND om de domeinen correct samen te voegen
-            return Domain.AND([domain, exclusion_domain])
-
-        # Als er geen producten zonder voorraad zijn, geef gewoon het basisdomein terug
-        return domain
+        # 3. Voeg dit toe aan het bestaande domein.
+        #    We gebruiken Domain.AND om zeker te zijn dat we bestaande regels niet overschrijven.
+        return Domain.AND([domain, stock_domain])
