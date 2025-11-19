@@ -3,6 +3,46 @@ from odoo import http
 from odoo.http import request
 
 class WebsiteOutfit(http.Controller):
+    # --- NIEUWE ROUTE VOOR OVERZICHT ---
+    @http.route(['/outfits', '/outfits/page/<int:page>'], type='http', auth="public", website=True)
+    def outfit_list(self, page=1, **kw):
+        """Toont een lijst van alle outfits met paginering."""
+
+        # Instellingen
+        items_per_page = 12  # Hoeveel outfits per pagina?
+        Outfit = request.env['website.outfit']
+
+        # Alleen gepubliceerde outfits tonen
+        domain = [('is_published', '=', True)]
+
+        # Totaal aantal tellen voor de pager
+        total = Outfit.search_count(domain)
+
+        # De pager berekenen (standaard Odoo functie)
+        pager = request.website.pager(
+            url='/outfits',
+            total=total,
+            page=page,
+            step=items_per_page,
+            scope=7,
+            url_args=kw
+        )
+
+        # De records ophalen
+        # limit = hoeveelheid per pagina
+        # offset = waar te beginnen (berekend door pager)
+        # order = 'create_date desc' zorgt voor NIEUWSTE bovenaan
+        outfits = Outfit.search(
+            domain,
+            limit=items_per_page,
+            offset=pager['offset'],
+            order='create_date desc'
+        )
+
+        return request.render('website_outfit.outfit_list_page', {
+            'outfits': outfits,
+            'pager': pager, # Geef pager door aan template
+        })
 
     # Deze route is voor de detailpagina - CORRECT
     @http.route(['/outfit/<string:slug>'], type='http', auth="public", website=True)
