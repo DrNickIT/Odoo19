@@ -7,6 +7,7 @@
     'author': 'Tom Hoornaert',
     'depends': [
         'website_sale',
+        'website_sale_stock',
         'stock',
     ],
     'data': [],
