@@ -2,7 +2,7 @@
 from odoo import http
 from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
-from odoo.osv import expression
+from odoo.fields import Domain as expression
 
 # --- FIX 1: Imports toegevoegd voor AccessError en MissingError ---
 from odoo.exceptions import AccessError, MissingError
