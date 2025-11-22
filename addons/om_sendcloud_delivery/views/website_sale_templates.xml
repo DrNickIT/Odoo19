@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="layout_sendcloud_script" inherit_id="website.layout">
+        <xpath expr="//head" position="inside">
+            <script src="https://embed.sendcloud.sc/spp/1.0.0/api.min.js"></script>
+        </xpath>
+    </template>
+
+    <template id="delivery_form_inherit_sendcloud" inherit_id="website_sale.delivery_form">
+        <xpath expr="//ul[@id='o_delivery_methods']/t/li/t[@t-call='website_sale.delivery_method']" position="after">
+
+            <t t-if="dm.delivery_type == 'sendcloud' and dm.sendcloud_method_type == 'pickup'">
+                <div class="sendcloud-pickup-container mt-2" style="display:none; margin-left: 25px;">
+                    <input type="hidden" class="sendcloud_public_key" t-att-value="website.company_id.sendcloud_public_key"/>
+                    <input type="hidden" class="sendcloud_country_code" t-att-value="order.partner_shipping_id.country_id.code"/>
+                    <input type="hidden" class="sendcloud_zip" t-att-value="order.partner_shipping_id.zip"/>
+                    <button type="button" class="btn btn-primary btn-sm open-sendcloud-map">
+                        <i class="fa fa-map-marker"></i> Kies Afhaalpunt
+                    </button>
+                    <div class="sendcloud-selected-point text-success mt-1 fw-bold"></div>
+                </div>
+            </t>
+
+        </xpath>
+    </template>
+</odoo>
