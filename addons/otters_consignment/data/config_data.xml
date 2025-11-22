@@ -16,15 +16,6 @@
             <field name="value">0.5</field>
         </record>
 
-        <record id="sendcloud_api_key" model="ir.config_parameter">
-            <field name="key">otters_consignment.sendcloud_api_key</field>
-            <field name="value">VUL_HIER_JE_PUBLIC_KEY_IN</field>
-        </record>
-        <record id="sendcloud_api_secret" model="ir.config_parameter">
-            <field name="key">otters_consignment.sendcloud_api_secret</field>
-            <field name="value">VUL_HIER_JE_SECRET_KEY_IN</field>
-        </record>
-
         <record id="sendcloud_shipping_method_id" model="ir.config_parameter">
             <field name="key">otters_consignment.sendcloud_shipping_method_id</field>
             <field name="value">8</field>
