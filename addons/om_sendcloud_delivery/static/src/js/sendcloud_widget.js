@@ -29,15 +29,27 @@ publicWidget.registry.SendcloudWidget = publicWidget.Widget.extend({
         var self = this;
         var container = $(ev.currentTarget).closest('.sendcloud-pickup-container');
 
+        // 1. Ophalen van waarden (met fallbacks)
         var publicKey = container.find('.sendcloud_public_key').val();
+
+        // Als land leeg is -> Val terug op 'BE'
         var country = container.find('.sendcloud_country_code').val() || 'BE';
-        var postalCode = container.find('.sendcloud_zip').val();
+
+        // Als postcode/stad/straat leeg zijn -> Gebruik lege string ''
+        var postalCode = container.find('.sendcloud_zip').val() || '';
 
         if (!window.sendcloud) {
             console.error("Sendcloud script not loaded");
             return;
         }
 
+        // 2. Data opschonen
+        // Postcode spaties weghalen (bijv "3000 " -> "3000")
+        if (postalCode) {
+            postalCode = postalCode.replace(/\s+/g, '');
+        }
+
+        // 3. Configureren
         var config = {
             apiKey: publicKey,
             country: country,
@@ -45,6 +57,9 @@ publicWidget.registry.SendcloudWidget = publicWidget.Widget.extend({
             language: 'nl-be'
         };
 
+        console.log("Sendcloud Map Config (Guest Safe):", config);
+
+        // 4. Kaart openen
         window.sendcloud.servicePoints.open(
             config,
             function(point) {
@@ -53,6 +68,10 @@ publicWidget.registry.SendcloudWidget = publicWidget.Widget.extend({
             },
             function(errors) {
                 console.log("Fouten:", errors);
+                // Optioneel: Toon een alert aan de gebruiker als de API key mist
+                if (String(errors).includes("Missing API key")) {
+                    alert("Configuratie fout: API Key ontbreekt. Neem contact op met de webshop.");
+                }
             }
         );
     },
