@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_consignment_submission_form_sendcloud_add" model="ir.ui.view">
+        <field name="name">otters.consignment.submission.form.sendcloud</field>
+        <field name="model">otters.consignment.submission</field>
+        <field name="inherit_id" ref="otters_consignment.view_consignment_submission_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//header" position="inside">
+                <button name="action_generate_sendcloud_label"
+                        string="Maak Retourlabel"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="sendcloud_label_url != False"/>
+
+                <button name="action_open_label"
+                        string="Open Label"
+                        type="object"
+                        icon="fa-external-link"
+                        invisible="sendcloud_label_url == False"/>
+            </xpath>
+
+            <xpath expr="//field[@name='submission_date']" position="after">
+                <field name="sendcloud_label_url" widget="url" readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

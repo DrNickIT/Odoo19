@@ -12,6 +12,7 @@
         'sale_management',
         'otters_webshop_outofstock_filter',
         'portal',
+        'om_sendcloud_delivery',
     ],
     'data': [
         # 1. SECURITY & CONFIG (Moet EERST geladen worden)
@@ -30,6 +31,7 @@
 
         # 2.2 TWEEDE: Definieer de Root Menu en gebruik de import actie
         'views/views.xml',                # Bevat: menu_consignment_root EN gebruikt action_import_products_wizard
+        'views/sendcloud_extension.xml',
 
         # 2.3 LAATST: Gebruik de Root Menu voor de Submenu's
         'views/image_upload_wizard_views.xml',    # Gebruikt: menu_consignment_root (parent)
