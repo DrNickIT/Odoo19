@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="res_config_settings_view_form_inherit_sendcloud" model="ir.ui.view">
-        <field name="name">res.config.settings.view.form.inherit.sendcloud</field>
+
+    <record id="res_config_settings_view_form_inherit_sendcloud_stock" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.sendcloud.stock</field>
         <field name="model">res.config.settings</field>
-        <field name="inherit_id" ref="delivery.res_config_settings_view_form"/>
-
+        <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
         <field name="arch" type="xml">
-
-            <xpath expr="//setting[@id='delivery']" position="after">
-
-                <setting id="sendcloud_community" help="Bereken verzendkosten en maak labels met Sendcloud (Community)">
-
+            <xpath expr="//block[@name='shipping_connectors_setting_container']" position="inside">
+                <setting id="sendcloud_community_connector_stock" string="Sendcloud (Community)" help="Bereken verzendkosten en maak labels met Sendcloud">
                     <field name="is_sendcloud_enabled"/>
-
                     <div class="content-group" invisible="not is_sendcloud_enabled">
                         <div class="mt16">
                             <label for="sendcloud_public_key" class="o_light_label"/>
@@ -29,8 +25,36 @@
                         </div>
                     </div>
                 </setting>
-
             </xpath>
         </field>
     </record>
+
+    <record id="res_config_settings_view_form_inherit_sendcloud_sale" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.sendcloud.sale</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='sale_shipping_setting_container']" position="inside">
+                <setting id="sendcloud_community_connector_sale" string="Sendcloud (Community)" help="Bereken verzendkosten en maak labels met Sendcloud">
+                    <field name="is_sendcloud_enabled"/>
+                    <div class="content-group" invisible="not is_sendcloud_enabled">
+                        <div class="mt16">
+                            <label for="sendcloud_public_key" class="o_light_label"/>
+                            <field name="sendcloud_public_key" placeholder="Public Key"/>
+                        </div>
+                        <div class="mt8">
+                            <label for="sendcloud_secret_key" class="o_light_label"/>
+                            <field name="sendcloud_secret_key" password="True" placeholder="Secret Key"/>
+                        </div>
+                        <div class="mt8">
+                            <a href="https://app.sendcloud.com/v2/settings/integrations/manage" target="_blank" class="oe_link">
+                                <i class="fa fa-arrow-right"/> Haal je API keys hier op
+                            </a>
+                        </div>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>
