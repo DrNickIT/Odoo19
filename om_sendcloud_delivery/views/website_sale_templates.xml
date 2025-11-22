@@ -11,7 +11,7 @@
 
             <t t-if="dm.delivery_type == 'sendcloud' and dm.sendcloud_method_type == 'pickup'">
                 <div class="sendcloud-pickup-container mt-2" style="display:none; margin-left: 25px;">
-                    <input type="hidden" class="sendcloud_public_key" t-att-value="dm.sendcloud_public_key"/>
+                    <input type="hidden" class="sendcloud_public_key" t-att-value="dm.company_id.sendcloud_public_key"/>
                     <input type="hidden" class="sendcloud_country_code" t-att-value="order.partner_shipping_id.country_id.code"/>
                     <input type="hidden" class="sendcloud_zip" t-att-value="order.partner_shipping_id.zip"/>
 

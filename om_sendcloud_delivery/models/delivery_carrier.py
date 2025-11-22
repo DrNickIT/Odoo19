@@ -11,22 +11,18 @@ class DeliveryCarrier(models.Model):
         ('sendcloud', 'Sendcloud')
     ], ondelete={'sendcloud': 'set default'})
 
-    sendcloud_public_key = fields.Char(string="Public Key", groups="base.group_system")
-    sendcloud_secret_key = fields.Char(string="Secret Key", groups="base.group_system")
-
+    # Configuratie specifiek per verzendmethode
     sendcloud_method_type = fields.Selection([
         ('house', 'Thuislevering'),
         ('pickup', 'Servicepunt Levering')
     ], string="Sendcloud Methode", default='house')
 
-    # NIEUW: Het ID van de methode in Sendcloud
-    sendcloud_shipping_id = fields.Char(string="Sendcloud Verzendmethode ID", help="Bijv. 8 voor PostNL Standaard. Te vinden in Sendcloud API of URL.", groups="base.group_system")
-
+    sendcloud_shipping_id = fields.Char(string="Sendcloud Verzendmethode ID", help="Optioneel ID van de vervoerder in Sendcloud")
 
     def sendcloud_rate_shipment(self, order):
         """
-        We geven 0 terug. Odoo gebruikt de standaard velden 'Extra Marge'
-        en 'Gratis indien...' om de uiteindelijke prijs voor de klant te bepalen.
+        Geeft 0.0 terug. Odoo berekent de uiteindelijke prijs via
+        de standaard velden 'Extra Marge' en 'Gratis vanaf'.
         """
         return {
             'success': True,
@@ -36,15 +32,22 @@ class DeliveryCarrier(models.Model):
         }
 
     def sendcloud_send_shipping(self, pickings):
-        """ Maak label aan bij validatie picking """
+        """ Label aanmaken """
         res = []
+
+        # Haal keys op van het bedrijf
+        public_key = self.env.company.sendcloud_public_key
+        secret_key = self.env.company.sendcloud_secret_key
+
+        if not public_key or not secret_key:
+            raise UserError("Sendcloud API keys zijn niet ingesteld bij Instellingen > Voorraad!")
+
         for picking in pickings:
             try:
                 payload = self._prepare_sendcloud_payload(picking)
 
-                # API Call
                 url = "https://panel.sendcloud.sc/api/v2/parcels"
-                auth = (self.sendcloud_public_key, self.sendcloud_secret_key)
+                auth = (public_key, secret_key)
                 headers = {'Content-Type': 'application/json'}
 
                 response = requests.post(url, json=payload, auth=auth, headers=headers)
@@ -69,28 +72,25 @@ class DeliveryCarrier(models.Model):
 
     def _prepare_sendcloud_payload(self, picking):
         partner = picking.partner_id
-        # --- NIEUWE LOGICA VOOR GEWICHT ---
-        # Pak het gewicht dat Odoo heeft berekend
-        weight = picking.shipping_weight
 
-        # Als het gewicht 0 is (of kleiner), gebruik dan standaard 1.0 kg
+        # Gewicht fix: Nooit 0 doorsturen
+        weight = picking.shipping_weight
         if weight <= 0.0:
             weight = 1.00
-        # ----------------------------------
+
         vals = {
             "name": partner.name,
             "address": partner.street,
             "city": partner.city,
             "postal_code": partner.zip,
             "country": partner.country_id.code,
-            "request_label": False,
+            "request_label": False, # Zet op True voor live labels
             "email": partner.email or "",
             "telephone": partner.phone or "",
             "weight": str(weight),
             "order_number": picking.origin or picking.name
         }
 
-        # NIEUW: Voeg het ID toe als het is ingevuld
         if self.sendcloud_shipping_id:
             vals['shipping_method'] = int(self.sendcloud_shipping_id)
 

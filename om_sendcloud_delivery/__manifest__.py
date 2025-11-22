@@ -7,6 +7,8 @@
     'data': [
         'views/delivery_carrier_views.xml',
         'views/website_sale_templates.xml',
+        'views/res_company_views.xml',
+        'views/res_config_settings_views.xml',
     ],
     'assets': {
         'web.assets_frontend': [
