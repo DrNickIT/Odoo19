@@ -8,10 +8,6 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Sendcloud Configuratie" invisible="delivery_type != 'sendcloud'">
                     <group>
-                        <group string="API Instellingen">
-                            <field name="sendcloud_public_key"/>
-                            <field name="sendcloud_secret_key" password="True"/>
-                        </group>
                         <group string="Methode Instellingen">
                             <field name="sendcloud_method_type" widget="radio"/>
                             <field name="sendcloud_shipping_id"/>

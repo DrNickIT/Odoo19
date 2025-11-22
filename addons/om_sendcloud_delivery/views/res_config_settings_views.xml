@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_sendcloud" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.sendcloud</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="delivery.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//setting[@id='delivery']" position="after">
+
+                <div class="row mt16 o_settings_container" id="sendcloud_community_conf">
+                    <div class="col-12 col-lg-6 o_setting_box">
+
+                        <div class="o_setting_left_pane">
+                            <field name="is_sendcloud_enabled"/>
+                        </div>
+
+                        <div class="o_setting_right_pane">
+                            <label for="is_sendcloud_enabled"/>
+                            <div class="text-muted">
+                                Bereken verzendkosten en maak labels met Sendcloud (Community)
+                            </div>
+
+                            <div class="content-group" invisible="not is_sendcloud_enabled">
+                                <div class="mt16">
+                                    <label for="sendcloud_public_key" class="o_light_label"/>
+                                    <field name="sendcloud_public_key" class="oe_inline" placeholder="Public Key"/>
+                                </div>
+                                <div class="mt8">
+                                    <label for="sendcloud_secret_key" class="o_light_label"/>
+                                    <field name="sendcloud_secret_key" password="True" class="oe_inline" placeholder="Secret Key"/>
+                                </div>
+                                <div class="mt8">
+                                    <a href="https://app.sendcloud.com/v2/settings/integrations/manage" target="_blank" class="oe_link">
+                                        <i class="fa fa-arrow-right"/> Haal je API keys hier op
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </xpath>
+        </field>
+    </record>
+</odoo>
