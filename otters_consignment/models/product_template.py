@@ -4,11 +4,11 @@ from odoo import models, fields
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    _sql_constraints_default_code_unique = models.SQLConstraint(
-        'default_code_unique',
-        'UNIQUE(default_code)',
-        'De interne referentie (code) van het product moet uniek zijn!'
-    )
+    _sql_constraints = [
+        ('default_code_unique',
+         'UNIQUE(default_code)',
+         'De interne referentie (code) van het product moet uniek zijn!')
+    ]
 
     submission_id = fields.Many2one(
         'otters.consignment.submission',
