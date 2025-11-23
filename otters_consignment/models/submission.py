@@ -25,8 +25,21 @@ class ConsignmentSubmission(models.Model):
 
     sendcloud_label_url = fields.Char(string="Sendcloud Label URL", readonly=True, copy=False)
 
-    payout_method = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Payout Method", store=True, readonly=True, tracking=True)
-    payout_percentage = fields.Float(string="Payout Percentage", store=True, readonly=True, tracking=True)
+    payout_method = fields.Selection(
+        [('cash', 'Cash'), ('coupon', 'Coupon')],
+        string="Payout Method",
+        store=True,
+        readonly=True,
+        tracking=True,
+        help="De uitbetaalmethode die definitief is vastgelegd voor deze inzending."
+    )
+    payout_percentage = fields.Float(
+        string="Payout Percentage",
+        store=True,
+        readonly=True,
+        tracking=True,
+        help="Het uitbetalingspercentage dat definitief is vastgelegd voor deze inzending."
+    )
 
     # Tijdelijke velden voor het formulier
     x_sender_name = fields.Char(string="Naam", store=False)
