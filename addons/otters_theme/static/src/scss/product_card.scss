@@ -1,0 +1,88 @@
+/* static/src/scss/product_card.scss */
+
+/* ==============================================
+   1. BASIS OPMAAK (Voor alle frames gelijk)
+============================================== */
+
+/* De container van de foto */
+.oe_product_cart .oe_product_image {
+  aspect-ratio: 1 / 1 !important; /* Vierkant blok */
+  width: 100%;
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  padding: 25px; /* Dikte van de kader-rand */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* De foto zelf (transparant) */
+.oe_product_cart .oe_product_image img {
+  background-color: transparent !important;
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Niet uitrekken */
+}
+
+/* Het tekstblok eronder */
+.oe_product_cart .o_wsale_product_information {
+  background-color: #ffffff !important; /* Altijd wit van binnen */
+  text-align: center !important;
+  padding: 10px !important;
+  color: #000000 !important;
+
+  /* Geen rand boven, wel rondom en onder */
+  border-top: none !important;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+
+  /* Dikte van de gekleurde rand */
+  border-bottom-width: 15px;
+  border-left-width: 15px;
+  border-right-width: 15px;
+  border-style: solid;
+}
+
+
+/* ==============================================
+   2. DE VARIATIES (Koppel Variant X aan Kleur Y)
+   Zorg dat je afbeeldingen in /static/src/img/ staan
+============================================== */
+.variant_1 .oe_product_image {
+  background-image: url('/otters_theme/static/src/img/product_blue.jpg');
+}
+.variant_1 .o_wsale_product_information {
+  border-color: #a8b6d7 !important;
+}
+
+.variant_2 .oe_product_image {
+  background-image: url('/otters_theme/static/src/img/product_green.jpg');
+}
+.variant_2 .o_wsale_product_information {
+  border-color: #a7fa9f !important;
+}
+
+.variant_3 .oe_product_image {
+  background-image: url('/otters_theme/static/src/img/product_orange.jpg');
+}
+.variant_3 .o_wsale_product_information {
+  border-color: #ffb86d !important;
+}
+
+.variant_4 .oe_product_image {
+  background-image: url('/otters_theme/static/src/img/product_pink.jpg');
+}
+.variant_4 .o_wsale_product_information {
+  border-color: #facacb !important;
+}
+
+.variant_5 .oe_product_image {
+  background-image: url('/otters_theme/static/src/img/product_yellow.jpg');
+}
+.variant_5 .o_wsale_product_information {
+  border-color: #faf69f !important;
+}
