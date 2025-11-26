@@ -11,6 +11,7 @@ import logging
 _logger = logging.getLogger(__name__)
 
 class ConsignmentPortal(CustomerPortal):
+    _items_per_page = 20
 
     # Dit voegt de teller toe aan *alle* portal paginas (voor o.a. broodkruimels)
     def _prepare_portal_layout_values(self):

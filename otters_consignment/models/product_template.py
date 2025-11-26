@@ -16,13 +16,6 @@ class ProductTemplate(models.Model):
         ondelete='set null'
     )
 
-    consignment_attribute_values_ids = fields.Many2many(
-        'product.attribute.value',
-        string="Kenmerken Waarden",
-        compute='_compute_consignment_attribute_values_ids',
-        store=False, # Niet opslaan, wordt dynamisch berekend
-    )
-
     # NIEUWE RELATED VELDEN TOEVOEGEN:
 
     consignment_supplier_id = fields.Many2one(
