@@ -22,5 +22,11 @@
             <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="True"/>
         </record>
+        <record id="consignment_report_portal_rule" model="ir.rule">
+            <field name="name">Consignment Report Portal Access</field>
+            <field name="model_id" ref="model_otters_consignment_report"/>
+            <field name="domain_force">[('supplier_id', '=', user.partner_id.id)]</field>
+            <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        </record>
     </data>
 </odoo>
