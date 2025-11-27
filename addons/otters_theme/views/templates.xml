@@ -1,0 +1,9 @@
+<odoo>
+    <data>
+        <template id="products_item_random_frame" inherit_id="website_sale.products_item">
+            <xpath expr="//form" position="attributes">
+                <attribute name="t-attf-class" add="#{'variant_' + str((product.id % 5) + 1)}" separator=" "/>
+            </xpath>
+        </template>
+    </data>
+</odoo>
