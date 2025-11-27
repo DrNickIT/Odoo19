@@ -5,3 +5,4 @@ access_otters_submission_portal,otters.consignment.submission.portal,model_otter
 access_otters_consignment_report,otters.consignment.report,model_otters_consignment_report,base.group_user,1,1,0,0
 access_otters_report_portal,otters.consignment.report.portal,model_otters_consignment_report,base.group_portal,1,0,0,0
 access_import_products_wizard,otters.consignment.import_products_wizard,model_otters_consignment_import_products_wizard,base.group_user,1,1,1,1
+access_otters_migration_wizard,otters.migration.wizard,model_otters_migration_wizard,base.group_user,1,1,1,1

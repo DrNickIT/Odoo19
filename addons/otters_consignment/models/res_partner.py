@@ -29,3 +29,5 @@ class ResPartner(models.Model):
         index=True,
         help="The unique prefix for this contact's consignment submissions."
     )
+
+    x_old_id = fields.Char(string="Oud Klant ID", copy=False, readonly=True, help="ID uit de oude webshop", default="new")

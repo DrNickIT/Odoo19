@@ -36,6 +36,7 @@
         # 2.3 LAATST: Gebruik de Root Menu voor de Submenu's
         'views/image_upload_wizard_views.xml',    # Gebruikt: menu_consignment_root (parent)
         'reports/consignment_report_views.xml', # Gebruikt: menu_consignment_root (parent)
+        'views/migration_wizard_views.xml',
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
