@@ -51,6 +51,7 @@ class ConsignmentSubmission(models.Model):
     x_sender_postal_code = fields.Char(string="Postcode", store=False)
     x_sender_country_code = fields.Char(string="Landcode", store=False)
     x_payout_method_temp = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Tijdelijke Payout", store=False)
+    x_old_id = fields.Char(string="Oud Verzendzak ID", copy=False, readonly=True)
 
     # --- KNOPPEN ACTIES ---
     def action_generate_sendcloud_label(self):

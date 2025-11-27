@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_migration_wizard_form" model="ir.ui.view">
+        <field name="name">otters.migration.wizard.form</field>
+        <field name="model">otters.migration.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Grote Migratie Tool">
+                <sheet>
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Instructie:</strong> Upload de bestanden van de oude website.
+                        De tool koppelt alles automatisch: Klanten -> Verzendzakken -> Producten.
+                    </div>
+
+                    <group>
+                        <group string="1. Klanten">
+                            <field name="file_customers" filename="filename_customers"/>
+                            <field name="filename_customers" invisible="1"/>
+                        </group>
+                        <group string="2. Verzendzakken">
+                            <field name="file_submissions" filename="filename_submissions"/>
+                            <field name="filename_submissions" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="3. Producten">
+                        <field name="file_products" filename="filename_products"/>
+                        <field name="filename_products" invisible="1"/>
+                    </group>
+                    <group string="Instellingen">
+                        <field name="old_site_url"/>
+                    </group>
+                    <footer>
+                        <button name="start_migration" string="Start Migratie 🚀" type="object" class="btn-primary"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_migration_wizard" model="ir.actions.act_window">
+        <field name="name">Migreer Oude Data</field>
+        <field name="res_model">otters.migration.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_migration_wizard"
+              name="Migratie Tool"
+              parent="otters_consignment.menu_consignment_root"
+              action="action_migration_wizard"
+              sequence="99"/>
+</odoo>

@@ -53,3 +53,5 @@ class ProductTemplate(models.Model):
         store=False,
         readonly=True
     )
+
+    x_old_id = fields.Char(string="Oud Product ID", copy=False, readonly=True)
