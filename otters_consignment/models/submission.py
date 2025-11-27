@@ -168,13 +168,13 @@ class ConsignmentSubmission(models.Model):
 
         # ### CHECK DIT: DE AUTOMATISCHE TRIGGER ###
         # Dit stuk zorgt ervoor dat het label direct wordt gemaakt bij het opslaan
-        for submission in submissions:
-            if submission.supplier_id:
-                try:
-                    # We roepen de functie aan. Als dit faalt, wordt het gelogd maar crasht de website niet.
-                    submission.sudo()._create_sendcloud_parcel()
-                except Exception as e:
-                    _logger.error(f"FATALE FOUT: Sendcloud API-call mislukt voor inzending {submission.name}: {e}")
+        if not self.env.context.get('skip_sendcloud'):
+            for submission in submissions:
+                if submission.supplier_id:
+                    try:
+                        submission.sudo()._create_sendcloud_parcel()
+                    except Exception as e:
+                        _logger.error(f"FATALE FOUT: Sendcloud API-call mislukt voor inzending {submission.name}: {e}")
 
         return submissions
 

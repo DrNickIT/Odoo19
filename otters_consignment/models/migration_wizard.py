@@ -35,58 +35,31 @@ class MigrationWizard(models.TransientModel):
             return str(value).strip()
 
     def _update_stock(self, product_tmpl, qty):
-        """
-        Forceert de voorraad in Odoo via een stock.quant aanpassing.
-        Dit is de enige juiste manier voor 'storable' producten.
-        """
         try:
-            # We hebben de product.product (variant) nodig, niet de template
             product_variant = product_tmpl.product_variant_id
-            if not product_variant:
-                return
-
-            # Zoek de standaard voorraadlocatie (meestal WH/Stock)
+            if not product_variant: return
             warehouse = self.env['stock.warehouse'].search([], limit=1)
             location = warehouse.lot_stock_id
-
-            if not location:
-                _logger.warning("Geen standaard voorraadlocatie gevonden!")
-                return
-
-            # Maak of update de Quant (De voorraadregel)
+            if not location: return
             self.env['stock.quant'].with_context(inventory_mode=True).create({
                 'product_id': product_variant.id,
                 'location_id': location.id,
                 'inventory_quantity': float(qty),
             }).action_apply_inventory()
-
         except Exception as e:
-            _logger.warning(f"Kon voorraad niet updaten voor {product_tmpl.name}: {e}")
+            pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE WIZARD (UPDATE MODUS) ===")
-
-        # STAP 1 & 2 blijven hetzelfde (die slaan we over als ze er al zijn)
+        _logger.info("=== START MIGRATIE (MET E-COMMERCE DESCRIPTION) ===")
         customer_map = self._process_customers()
         submission_map = self._process_submissions(customer_map)
-
-        # STAP 3: PRODUCTEN (Nu met UPDATE logica)
         count = self._process_products(submission_map)
-        _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt/geupdate ===")
-
+        _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt ===")
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
-            'params': {
-                'title': 'Update Voltooid',
-                'message': f'{count} producten zijn bijgewerkt met de juiste stock!',
-                'type': 'success',
-                'sticky': True,
-            }
+            'params': {'title': 'Klaar!', 'message': f'{count} producten verwerkt.', 'type': 'success', 'sticky': True}
         }
-
-    # ... _read_csv, _process_customers, _process_submissions blijven ongewijzigd ...
-    # KOPIEER DEZE HIERONDER OPNIEUW VOOR DE VOLLEDIGHEID
 
     def _read_csv(self, binary_data):
         try:
@@ -104,20 +77,18 @@ class MigrationWizard(models.TransientModel):
             old_id = self._clean_id(row.get('klant_id'))
             email = row.get('username')
             if not old_id or not email: continue
-
-            # ... (rest van klant logica blijft identiek, update alleen mapping) ...
             domain = ['|', ('email', '=ilike', email.strip()), ('x_old_id', '=', str(old_id))]
             partner = self.env['res.partner'].search(domain, limit=1)
-
             if not partner:
-                # Alleen aanmaken als niet bestaat
-                voornaam = row.get('voornaam', '')
-                achternaam = row.get('achternaam', '')
-                full_name = f"{voornaam} {achternaam}".strip() or email
+                full_name = f"{row.get('voornaam','')} {row.get('achternaam','')}".strip() or email
                 partner = self.env['res.partner'].create({
                     'name': full_name, 'email': email,
+                    'street': f"{row.get('straat', '')} {row.get('huisnr', '')}".strip(),
+                    'zip': row.get('postcode', ''), 'city': row.get('gemeente', ''),
                     'x_consignment_prefix': f"IMP{old_id}", 'x_old_id': str(old_id)
                 })
+            else:
+                if not partner.x_old_id: partner.write({'x_old_id': str(old_id)})
             mapping[old_id] = partner
         return mapping
 
@@ -128,19 +99,19 @@ class MigrationWizard(models.TransientModel):
             old_bag_id = self._clean_id(row.get('zak_id'))
             old_customer_id = self._clean_id(row.get('KlantId'))
             if not old_bag_id or not old_customer_id: continue
-
             partner = customer_map.get(old_customer_id)
             if not partner: continue
-
             domain = ['|', ('name', '=', f"IMPORT-{old_bag_id}"), ('x_old_id', '=', str(old_bag_id))]
             submission = self.env['otters.consignment.submission'].search(domain, limit=1)
-
             if not submission:
                 date = row.get('datum_ontvangen') or fields.Date.today()
-                submission = self.env['otters.consignment.submission'].create({
-                    'name': f"IMPORT-{old_bag_id}", 'supplier_id': partner.id,
-                    'submission_date': date, 'state': 'processing',
-                    'payout_method': 'coupon', 'payout_percentage': 0.5,
+                submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
+                    'name': f"IMPORT-{old_bag_id}",
+                    'supplier_id': partner.id,
+                    'submission_date': date,
+                    'state': 'processing',
+                    'payout_method': 'coupon',
+                    'payout_percentage': 0.5,
                     'x_old_id': str(old_bag_id)
                 })
             mapping[old_bag_id] = submission
@@ -166,9 +137,27 @@ class MigrationWizard(models.TransientModel):
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
-            default_code = row.get('code')
+            # Commissie
+            commissie_raw = row.get('commissie')
+            if commissie_raw:
+                try:
+                    comm_val = int(float(str(commissie_raw).replace(',', '.')))
+                    method = False; percentage = 0.0
+                    if comm_val == 30: method = 'cash'; percentage = 0.30
+                    elif comm_val == 50: method = 'coupon'; percentage = 0.50
+                    if method:
+                        if submission.payout_method != method:
+                            submission.write({'payout_method': method, 'payout_percentage': percentage})
+                        partner = submission.supplier_id
+                        if partner.x_payout_method != method:
+                            partner.write({
+                                'x_payout_method': method,
+                                'x_cash_payout_percentage': 0.3 if method == 'cash' else 0.0,
+                                'x_coupon_payout_percentage': 0.5 if method == 'coupon' else 0.0
+                            })
+                except Exception: pass
 
-            # --- 1. ZOEK HET PRODUCT (Bestaat het al?) ---
+            default_code = row.get('code')
             domain = []
             if default_code: domain.append(('default_code', '=', default_code))
             if old_product_id:
@@ -177,79 +166,88 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].search(domain, limit=1)
 
-            # --- 2. BEPAAL NIEUWE STOCK ---
+            # Stock
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
+            datum_verkocht = str(row.get('datum_verkocht', '')).strip()
+            datum_uitbetaald = str(row.get('datum_uitbetaald', '')).strip()
+            def is_empty_date(d): return not d or d == '0000-00-00'
             stock_csv = row.get('stock') or '0'
-            try:
-                stock_val = float(stock_csv.replace(',', '.'))
-            except:
-                stock_val = 0.0
+            try: stock_val = float(stock_csv.replace(',', '.'))
+            except: stock_val = 0.0
 
-            # De Regel: Alleen stock als NOG NIET verkocht (offline of online)
-            if verkocht == 'nee' and online_verkocht == 'nee':
+            if (verkocht == 'nee' and online_verkocht == 'nee' and
+                    is_empty_date(datum_verkocht) and is_empty_date(datum_uitbetaald)):
                 final_qty = stock_val
             else:
                 final_qty = 0.0
 
-            # --- 3. MAAK OF UPDATE ---
             product_vals = {
-                'name': name,
-                'submission_id': submission.id,
-                'is_published': True, # Altijd gepubliceerd
-                'type': 'consu', 'is_storable': True,
-                # Als je al bestaat, updaten we de code en ID niet per se, maar wel handig
-                'default_code': default_code,
-                'x_old_id': str(old_product_id),
-                # We updaten omschrijvingen ook
-                'website_description': row.get('lange_omschrijving'),
+                'name': name, 'submission_id': submission.id,
+                'is_published': True, 'type': 'consu', 'is_storable': True,
+                'default_code': default_code, 'x_old_id': str(old_product_id),
+
+                # --- AANGEPAST NAAR description_ecommerce ---
+                'description_ecommerce': row.get('lange_omschrijving'),
                 'description_sale': row.get('korte_omschrijving_nl'),
+
+                'website_meta_title': row.get('seo_titel'),
+                'website_meta_description': row.get('seo_description'),
+                'website_meta_keywords': row.get('seo_keywords'),
             }
 
             if product:
-                # UPDATE BESTAAND PRODUCT
+                # UPDATE
                 product.write(product_vals)
-                # Stock updaten van bestaand product
                 self._update_stock(product, final_qty)
 
-                # We skippen foto download bij update om tijd te besparen (tenzij je dat wil)
-                # count += 1
-                # continue
+                if not product.product_template_image_ids:
+                    extra_fotos = row.get('extra_fotos')
+                    if extra_fotos and str(extra_fotos) != 'nan':
+                        urls = extra_fotos.split(',')
+                        for idx, url in enumerate(urls):
+                            if url:
+                                time.sleep(0.2)
+                                # ID fix
+                                extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
+                                if extra_img:
+                                    self.env['product.image'].create({
+                                        'product_tmpl_id': product.id,
+                                        'name': f"{name} - Extra {idx+1}",
+                                        'image_1920': extra_img
+                                    })
             else:
-                # NIEUW PRODUCT
-                # Alleen bij nieuwe producten downloaden we de foto (traag)
+                # NIEUW
                 time.sleep(0.5)
                 image_url = row.get('foto')
-                product_vals['image_1920'] = self._download_image(image_url)
+                # ID fix
+                product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
 
-                # Prijs alleen zetten bij aanmaken (of wil je die ook updaten?)
                 prijs_raw = row.get('prijs') or '0'
                 try: product_vals['list_price'] = float(str(prijs_raw).replace(',', '.'))
                 except: product_vals['list_price'] = 0.0
 
                 product = self.env['product.template'].create(product_vals)
-
-                # Stock zetten voor nieuw product
                 self._update_stock(product, final_qty)
 
-                # Kenmerken en fotos toevoegen (alleen bij nieuw)
                 if row.get('maat'): self._add_attribute(product, 'Maat', row.get('maat'))
                 if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
                 if row.get('categorie'): self._add_attribute(product, 'Doelgroep', row.get('categorie'))
                 if row.get('type'): self._add_attribute(product, 'Categorie', row.get('type'))
-
                 staat = row.get('staat')
                 if staat in condition_mapping:
                     self._add_attribute(product, 'Conditie', condition_mapping[staat])
 
+                # Extra fotos (Nieuw)
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     urls = extra_fotos.split(',')
                     for idx, url in enumerate(urls):
                         if url:
                             time.sleep(0.2)
-                            extra_img = self._download_image(url.strip())
+                            # ID fix
+                            extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img:
                                 self.env['product.image'].create({
                                     'product_tmpl_id': product.id,
@@ -258,18 +256,39 @@ class MigrationWizard(models.TransientModel):
                                 })
 
             count += 1
-
         return count
 
-    def _download_image(self, url):
+    def _download_image(self, url, fix_old_id=None):
         if not url or str(url) == 'nan': return False
-        if url.startswith('..'): url = self.old_site_url + url.lstrip('.')
-        elif not url.startswith('http'): url = self.old_site_url + '/' + url.lstrip('/')
-        try:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code == 200: return base64.b64encode(r.content)
-        except Exception: pass
+
+        # ID REPARATIE
+        if fix_old_id and '/product//' in url:
+            url = url.replace('/product//', f'/product/{fix_old_id}/')
+            _logger.info(f"URL FIXED: {url}")
+
+        clean_path = url.lstrip('.').strip()
+        clean_path = clean_path.replace('//', '/')
+
+        urls_to_try = []
+
+        if url.startswith('http'):
+            urls_to_try.append(url)
+        else:
+            path_with_slash = '/' + clean_path.lstrip('/')
+            urls_to_try.append(f"{self.old_site_url}/foto.php?src={path_with_slash}")
+            urls_to_try.append(f"{self.old_site_url}{path_with_slash}")
+
+        headers = {'User-Agent': 'Mozilla/5.0'}
+
+        for try_url in urls_to_try:
+            try:
+                r = requests.get(try_url, headers=headers, timeout=10)
+                if r.status_code == 200:
+                    if 'image' in r.headers.get('Content-Type', ''):
+                        return base64.b64encode(r.content)
+            except Exception as e:
+                pass
+
         return False
 
     def _add_attribute(self, product, att_name, val_name):
@@ -283,11 +302,9 @@ class MigrationWizard(models.TransientModel):
             value = self.env['product.attribute.value'].search([('attribute_id', '=', attribute.id), ('name', '=ilike', v)], limit=1)
             if not value: value = self.env['product.attribute.value'].create({'name': v, 'attribute_id': attribute.id})
 
-            # Check of waarde al bestaat op product om dubbels te voorkomen bij update
             exists = False
             for line in product.attribute_line_ids:
-                if line.attribute_id.id == attribute.id and value.id in line.value_ids.ids:
-                    exists = True
+                if line.attribute_id.id == attribute.id and value.id in line.value_ids.ids: exists = True
 
             if not exists:
                 self.env['product.template.attribute.line'].create({
