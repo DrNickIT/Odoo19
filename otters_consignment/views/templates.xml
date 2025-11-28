@@ -1,17 +1,5 @@
 <odoo>
     <data>
-        <template id="add_consignment_menu_link"
-                  inherit_id="website.template_header_default"
-                  name="Link naar Kleding Opsturen">
-            <xpath expr="//t[@t-call='website.navbar_nav']" position="inside">
-                <li class="nav-item">
-                    <a class="nav-link" href="/kleding-opsturen">
-                        <span>Kleding Opsturen</span>
-                    </a>
-                </li>
-            </xpath>
-        </template>
-
         <template id="consignment_thankyou_template" name="Bedankt!">
             <t t-call="website.layout">
                 <div id="wrap">
@@ -30,13 +18,22 @@
 
         <template id="consignment_form_template" name="Kleding Opsturen">
             <t t-call="website.layout">
-                <div id="wrap" class="oe_structure">
-                    <section class="s_website_form" data-vcss="001" data-snippet="s_website_form">
-                        <div class="container">
-                            <h2 class="text-center">Kleding Opsturen</h2>
-                            <p class="text-center">Vul a.u.b. uw gegevens in om een verzendlabel aan te vragen. U ontvangt
-                            <span t-esc="cash_percentage"/>% contant of <span t-esc="coupon_percentage"/>% als tegoedbon van de verkoopprijs.</p>
+                <div id="wrap" class="oe_structure oe_empty">
 
+                    <section class="s_text_block pt40 pb0">
+                        <div class="container">
+                            <div class="row">
+                                <div class="col-lg-12 text-center">
+                                    <h1 class="text-center">Kleding Opsturen</h1>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="oe_structure"/>
+
+                    <section class="s_website_form pt16 pb16" data-vcss="001" data-snippet="s_website_form">
+                        <div class="container">
                             <t t-if="request.params.get('captcha_error') == '1'">
                                 <div class="alert alert-danger" role="alert">
                                     <h4 class="alert-heading">Validatie mislukt</h4>
@@ -44,73 +41,262 @@
                                 </div>
                             </t>
 
-                            <form action="/website/form/" method="post" class="o_mark_required mt-4"
+                            <form action="/website/form/" method="post" class="o_mark_required"
                                   data-mark="*"
                                   data-model_name="otters.consignment.submission"
                                   data-success-mode="redirect"
-                                  data-success-page="/kleding-opsturen/bedankt">
+                                  data-success-page="/kleding-opsturen/bedankt"
+                                  id="consignment_form">
 
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
-                                <div class="mb-3">
-                                    <label for="contact_name" class="form-label">Jouw Naam</label>
-                                    <input type="text" class="form-control" name="x_sender_name" id="x_sender_name" required="1" data-fill-with="x_sender_name"/>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">E-mailadres</label>
-                                    <input type="email" class="form-control" name="x_sender_email" id="x_sender_email" required="1" data-fill-with="x_sender_email"/>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="phone" class="form-label">Telefoonnummer</label>
-                                    <input type="tel" class="form-control" name="x_sender_phone" id="x_sender_phone" required="1" data-name="x_sender_phone"/>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="contact_name" class="form-label">Jouw Naam</label>
+                                        <input type="text" class="form-control" name="x_sender_name" required="1"/>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label">E-mailadres</label>
+                                        <input type="email" class="form-control" name="x_sender_email" required="1"/>
+                                    </div>
                                 </div>
 
                                 <hr/>
-                                <h5>Verzendadres (Afzender)</h5>
+
+                                <h5>Adres</h5>
                                 <div class="row">
                                     <div class="col-md-9 mb-3">
                                         <label for="street" class="form-label">Straat</label>
-                                        <input type="text" class="form-control" name="x_sender_street" id="x_sender_street" required="1" data-name="x_sender_street"/>
+                                        <input type="text" class="form-control" name="x_sender_street" required="1"/>
                                     </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="house_number" class="form-label">Huisnr.</label>
-                                        <input type="text" class="form-control" name="x_sender_house_number" id="x_sender_house_number" required="1" data-name="x_sender_house_number"/>
+                                        <input type="text" class="form-control" name="x_sender_house_number" required="1"/>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label for="postal_code" class="form-label">Postcode</label>
-                                        <input type="text" class="form-control" name="x_sender_postal_code" id="x_sender_postal_code" required="1" data-name="x_sender_postal_code"/>
+                                        <input type="text" class="form-control" name="x_sender_postal_code" required="1"/>
                                     </div>
                                     <div class="col-md-8 mb-3">
                                         <label for="city" class="form-label">Stad/Plaats</label>
-                                        <input type="text" class="form-control" name="x_sender_city" id="x_sender_city" required="1" data-name="x_sender_city"/>
+                                        <input type="text" class="form-control" name="x_sender_city" required="1"/>
                                     </div>
                                 </div>
-                                <input type="hidden" name="country" value="x_sender_country_code" data-name="x_sender_country_code"/>
+                                <input type="hidden" name="country" value="x_sender_country_code"/>
 
-                                <div id="payout_options_wrapper" class="mt-4">
-                                    <label class="form-label">Gewenste uitbetaling*</label>
+                                <hr/>
+
+                                <div class="mb-3">
+                                    <label for="label_count" class="form-label">Aantal verzendzakken/labels nodig?</label>
+                                    <input type="number" class="form-control" name="label_count" value="1" min="1" max="10" required="1" style="max-width: 100px;"/>
+                                    <small class="text-muted">Standaard 1. Heb je heel veel kleding? Vraag er gerust meer aan.</small>
+                                </div>
+
+                                <hr/>
+
+                                <div id="payout_section" class="mb-3">
+                                    <label class="form-label fw-bold">Gewenste uitbetaling*</label>
+
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash" required="1" data-name="x_payout_method_temp"/>
-                                        <label class="form-check-label" for="payoutCash">Contant (<t t-esc="cash_percentage"/>% van de verkoopprijs)</label>
+                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" required="1" checked="checked"/>
+                                        <label class="form-check-label" for="payoutCoupon">
+                                            Kortingsbon (<t t-esc="coupon_percentage"/>% van de verkoopprijs)
+                                        </label>
                                     </div>
+
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" data-name="x_payout_method_temp"/>
-                                        <label class="form-check-label" for="payoutCoupon">Kortingsbon (<t t-esc="coupon_percentage"/>% van de verkoopprijs)</label>
+                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"/>
+                                        <label class="form-check-label" for="payoutCash">
+                                            Contant (<t t-esc="cash_percentage"/>% van de verkoopprijs)
+                                        </label>
                                     </div>
                                 </div>
 
-                                <div class="mb-0 py-2 col-12 s_website_form_submit text-end" data-name="Submit Button">
-                                    <a href="#" role="button" class="btn btn-primary s_website_form_send">
-                                        Verstuur mijn aanvraag en vraag verzendlabel aan
+                                <div id="iban_container" class="d-none bg-light p-3 rounded mb-3 border">
+                                    <label class="form-label">Je rekeningnummer (voor uitbetaling)</label>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" name="x_iban" id="iban" placeholder="BE00 0000 0000 0000"/>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <input type="text" class="form-control" id="x_iban_confirm" placeholder="Bevestig rekeningnummer"/>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">Vul dit enkel in als je voor 'Contant' kiest.</small>
+                                    <div id="iban_error" class="text-danger small d-none">Rekeningnummers komen niet overeen of zijn ongeldig.</div>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken?</label>
+                                    <div class="form-text text-muted mb-2">Dit zijn stukken die niet verkoopbaar zijn.</div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate" checked="checked"/>
+                                        <label class="form-check-label" for="ua_donate">Deze mogen aan een goed doel geschonken worden</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_return" value="return"/>
+                                        <label class="form-check-label" for="ua_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Wat met kleding die na een jaar niet verkocht is?</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="action_unsold" id="us_donate" value="donate" checked="checked"/>
+                                        <label class="form-check-label" for="us_donate">Deze mogen aan een goed doel geschonken worden</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="action_unsold" id="us_return" value="return"/>
+                                        <label class="form-check-label" for="us_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
+                                    </div>
+                                </div>
+
+                                <hr/>
+
+                                <div class="mb-4 form-check">
+                                    <input type="checkbox" class="form-check-input" id="agreed_terms" required="1" name="agreed_to_terms"/>
+                                    <label class="form-check-label" for="agreed_to_terms">
+                                        Ik heb de <a href="/algemene-voorwaarden" target="_blank">algemene voorwaarden</a> gelezen en ga akkoord.
+
+                                        <span class="ms-2 badge bg-info text-dark" style="cursor: help;" id="av_tooltip_trigger">
+                                            ℹ️ Lees samenvatting
+                                        </span>
+                                    </label>
+
+                                    <div id="hover-av" class="hover-av d-none p-3 mt-2 border rounded bg-white shadow-sm">
+                                        <p class="fw-bold">Belangrijk om na te kijken voor je ons de verzendzak vol met kleertjes terugstuurt:</p>
+                                        <ul class="mb-0 ps-3">
+                                            <li>Van goede kwaliteit, zonder vlekjes, gaatjes of ontbrekende knopen, enz.</li>
+                                            <li>Proper &amp; fris gewassen, niet grauw of afgewassen</li>
+                                            <li>Van een merk dat door Otters &amp; Flamingo's wordt verkocht</li>
+                                            <li>In maat 44 tem 164 (0 - 14j)</li>
+                                            <li>Van een recente collectie of passend in een hedendaagse kledingstijl</li>
+                                            <li>Geen basic stuks zoals ondergoed, leggings, broekkousen, enz.</li>
+                                            <li>Minimum 15 stuks</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="mb-0 py-2 col-12 s_website_form_submit text-end">
+                                    <a href="#" role="button" class="btn btn-primary btn-lg" id="submit_btn_custom">
+                                        Verstuur aanvraag
                                     </a>
+
+                                    <a href="#" class="d-none s_website_form_send" id="real_submit_btn">
+                                        Hidden Submit
+                                    </a>
+
                                     <span id="s_website_form_result"/>
                                 </div>
                             </form>
                         </div>
                     </section>
+
+                    <div class="oe_structure"/>
                 </div>
+
+                <script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                    // Elementen ophalen
+                    const radioCash = document.getElementById('payoutCash');
+                    const radioCoupon = document.getElementById('payoutCoupon');
+                    const ibanContainer = document.getElementById('iban_container');
+                    const ibanInput = document.getElementById('x_iban');
+                    const ibanConfirm = document.getElementById('x_iban_confirm');
+                    const errorMsg = document.getElementById('iban_error');
+                    const termsCheckbox = document.getElementById('agreed_terms');
+                    const form = document.getElementById('consignment_form');
+
+                    // DE KNOPPEN
+                    const visibleBtn = document.getElementById('submit_btn_custom');
+                    const realBtn = document.getElementById('real_submit_btn');
+
+                    // 1. IBAN TONEN/VERBERGEN
+                    function toggleIban() {
+                    if (!radioCash || !ibanContainer) return;
+
+                    if (radioCash.checked) {
+                    ibanContainer.classList.remove('d-none');
+                    } else {
+                    ibanContainer.classList.add('d-none');
+                    if(ibanInput) ibanInput.value = '';
+                    if(ibanConfirm) ibanConfirm.value = '';
+                    }
+                    }
+
+                    if(radioCash) radioCash.addEventListener('change', toggleIban);
+                    if(radioCoupon) radioCoupon.addEventListener('change', toggleIban);
+
+                    // 2. VALIDATIE BIJ KLIK OP ZICHTBARE KNOP
+                    if(visibleBtn &amp;&amp; realBtn) {
+                    visibleBtn.addEventListener('click', function(e) {
+                    e.preventDefault(); // Voorkom dat de link iets doet
+                    let isValid = true;
+
+                    // A. Check Algemene Voorwaarden
+                    if (termsCheckbox) {
+                    if (!termsCheckbox.checked) {
+                    // Toon ballonnetje
+                    termsCheckbox.setCustomValidity("Je moet akkoord gaan met de voorwaarden.");
+                    termsCheckbox.reportValidity();
+                    isValid = false;
+                    } else {
+                    termsCheckbox.setCustomValidity("");
+                    }
+                    }
+
+                    // B. Check IBAN (Alleen als Cash aan staat)
+                    if (isValid &amp;&amp; radioCash &amp;&amp; radioCash.checked) {
+                    if (ibanInput &amp;&amp; ibanConfirm) {
+                    if (ibanInput.value !== ibanConfirm.value) {
+                    errorMsg.classList.remove('d-none');
+                    errorMsg.innerText = "De rekeningnummers komen niet overeen.";
+                    ibanInput.focus();
+                    isValid = false;
+                    } else {
+                    // Simpele IBAN regex
+                    const ibanRegex = /^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{1,30}$/;
+                    if (!ibanRegex.test(ibanInput.value.replace(/\s/g, ''))) {
+                    errorMsg.classList.remove('d-none');
+                    errorMsg.innerText = "Dit lijkt geen geldig IBAN nummer.";
+                    ibanInput.focus();
+                    isValid = false;
+                    } else {
+                    errorMsg.classList.add('d-none');
+                    }
+                    }
+                    }
+                    }
+
+                    // C. Check Standaard Velden (Naam, Email, etc.)
+                    if (isValid &amp;&amp; form &amp;&amp; !form.checkValidity()) {
+                    form.reportValidity(); // Toon ballonnetjes voor verplichte velden
+                    isValid = false;
+                    }
+
+                    // D. DE FINALE BESLISSING
+                    if (isValid) {
+                    // Alles is goed! Nu klikken we STIEKEM op de echte Odoo knop
+                    console.log("Validatie OK -> Sending to Odoo...");
+                    realBtn.click();
+                    } else {
+                    console.log("Validatie mislukt -> Stop.");
+                    // We doen niets, dus Odoo wordt nooit aangeroepen
+                    }
+                    });
+                    }
+
+                    // 3. TOOLTIP HOVER
+                    const trigger = document.getElementById('av_tooltip_trigger');
+                    const tooltip = document.getElementById('hover-av');
+
+                    if(trigger &amp;&amp; tooltip){
+                    trigger.addEventListener('mouseenter', () => tooltip.classList.remove('d-none'));
+                    trigger.addEventListener('mouseleave', () => tooltip.classList.add('d-none'));
+                    }
+                    });
+                </script>
             </t>
         </template>
 
@@ -126,6 +312,17 @@
                     </div>
                 </div>
             </t>
+        </template>
+
+        <template id="product_reference_webshop_bottom" inherit_id="website_sale.product" name="Product Reference Bottom">
+            <xpath expr="//div[@id='product_details']" position="inside">
+                <div t-if="product.default_code" class="mt-3 mb-2">
+                    <hr class="text-muted"/>
+                    <small class="text-muted">
+                        Referentie: <span t-field="product.default_code"/>
+                    </small>
+                </div>
+            </xpath>
         </template>
     </data>
 </odoo>
