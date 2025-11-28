@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="menu_consignment_form" model="website.menu">
+            <field name="name">Verzendlabel bestellen</field>
+            <field name="url">/kleding-opsturen</field>
+            <field name="parent_id" ref="website.main_menu"/>
+            <field name="sequence" type="int">90</field>
+        </record>
+    </data>
+</odoo>

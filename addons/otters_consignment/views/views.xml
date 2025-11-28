@@ -71,33 +71,56 @@
             <form>
                 <header>
                     <button name="%(action_import_products_wizard)d"
-                            string="Importeer Producten (CSV)"
-                            type="action"
-                            class="oe_highlight"/>
+                            string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
+
+                    <button name="action_generate_sendcloud_label"
+                            string="Maak Retourlabel"
+                            type="object"
+                            class="btn-secondary"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
                     <group>
-                        <field name="supplier_id"/>
-                        <field name="submission_date"/>
-                        <field name="state"/>
+                        <group string="Inzending Details">
+                            <field name="supplier_id"/>
+                            <field name="submission_date"/>
+                            <field name="state"/>
+                            <field name="label_count" string="Aangevraagde Labels"/>
+                            <field name="agreed_to_terms" string="Voorwaarden Geaccepteerd" readonly="1"/>
+                        </group>
+                        <group string="Financieel &amp; Afhandeling">
+                            <field name="payout_method" widget="radio"/>
+                            <field name="payout_percentage" widget="percentage"/>
+                            <field name="x_iban" invisible="payout_method != 'cash'"/>
+
+                            <separator string="Voorkeuren Kleding"/>
+                            <field name="action_unaccepted" widget="radio" string="Niet weerhouden"/>
+                            <field name="action_unsold" widget="radio" string="Niet verkocht"/>
+                        </group>
                     </group>
-                    <group string="Uitbetalingsafspraken">
-                        <field name="payout_method"/>
-                        <field name="payout_percentage" widget="percentage"/>
+
+                    <group string="Verzendlabels" invisible="not label_ids">
+                        <field name="label_ids" nolabel="1">
+                            <list editable="bottom" create="0" delete="0">
+                                <field name="tracking_number"/>
+                                <field name="label_url" widget="url" text="Download Label"/>
+                                <button name="action_open_url" type="object" icon="fa-external-link" title="Open Label"/>
+                            </list>
+                        </field>
                     </group>
+
                     <notebook>
                         <page string="Producten">
-                            <field name="product_ids" context="{'form_view_ref': 'otters_consignment.view_consignment_product_simple_form', 'default_is_published': True}"
-                                   options="{'no_open': False}">
+                            <field name="product_ids" context="{'default_is_published': True}">
                                 <list>
                                     <field name="name"/>
-                                    <field name="public_categ_ids" widget="many2many_tags"/>
-                                    <field name="attribute_line_ids" string="Kenmerken" widget="many2many"/>
+                                    <field name="default_code" optional="show"/>
+                                    <field name="public_categ_ids" widget="many2many_tags" optional="hide"/>
                                     <field name="list_price"/>
                                     <field name="qty_available" string="Voorraad"/>
-                                    <field name="is_published" string="Gepubliceerd"/>
-                                    <field name="list_price"/>
+                                    <field name="is_published" string="Online"/>
                                 </list>
                             </field>
                         </page>

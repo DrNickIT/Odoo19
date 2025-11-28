@@ -50,7 +50,7 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE (MET E-COMMERCE DESCRIPTION) ===")
+        _logger.info("=== START MIGRATIE (MET NAAM GENERATIE FIX) ===")
         customer_map = self._process_customers()
         submission_map = self._process_submissions(customer_map)
         count = self._process_products(submission_map)
@@ -77,18 +77,35 @@ class MigrationWizard(models.TransientModel):
             old_id = self._clean_id(row.get('klant_id'))
             email = row.get('username')
             if not old_id or not email: continue
+
             domain = ['|', ('email', '=ilike', email.strip()), ('x_old_id', '=', str(old_id))]
             partner = self.env['res.partner'].search(domain, limit=1)
+
+            # Gegevens voorbereiden
+            full_name = f"{row.get('voornaam','')} {row.get('achternaam','')}".strip() or email
+
             if not partner:
-                full_name = f"{row.get('voornaam','')} {row.get('achternaam','')}".strip() or email
+                # NIEUW: GEEN 'x_consignment_prefix' invullen!
+                # Laat Odoo dat zelf berekenen (Kathleen Daems -> KDA)
                 partner = self.env['res.partner'].create({
                     'name': full_name, 'email': email,
                     'street': f"{row.get('straat', '')} {row.get('huisnr', '')}".strip(),
                     'zip': row.get('postcode', ''), 'city': row.get('gemeente', ''),
-                    'x_consignment_prefix': f"IMP{old_id}", 'x_old_id': str(old_id)
+                    # 'x_consignment_prefix': f"IMP{old_id}", <--- DEZE REGEL IS WEG!
+                    'x_old_id': str(old_id)
                 })
             else:
-                if not partner.x_old_id: partner.write({'x_old_id': str(old_id)})
+                vals = {}
+                if not partner.x_old_id:
+                    vals['x_old_id'] = str(old_id)
+
+                # CORRECTIE: Als de klant al een "foute" import-prefix heeft (IMP...), reset hem dan!
+                if partner.x_consignment_prefix and partner.x_consignment_prefix.startswith('IMP'):
+                    vals['x_consignment_prefix'] = False # Leegmaken zodat hij herberekend wordt
+
+                if vals:
+                    partner.write(vals)
+
             mapping[old_id] = partner
         return mapping
 
@@ -101,12 +118,16 @@ class MigrationWizard(models.TransientModel):
             if not old_bag_id or not old_customer_id: continue
             partner = customer_map.get(old_customer_id)
             if not partner: continue
-            domain = ['|', ('name', '=', f"IMPORT-{old_bag_id}"), ('x_old_id', '=', str(old_bag_id))]
-            submission = self.env['otters.consignment.submission'].search(domain, limit=1)
+
+            submission = self.env['otters.consignment.submission'].search([('x_old_id', '=', str(old_bag_id))], limit=1)
+
             if not submission:
                 date = row.get('datum_ontvangen') or fields.Date.today()
+
+                # We sturen 'Nieuw'. Jouw submission.py zal nu zien dat de partner geen prefix heeft (of een nieuwe moet krijgen)
+                # en zal KDA aanmaken in plaats van IMP.
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
-                    'name': f"IMPORT-{old_bag_id}",
+                    'name': 'Nieuw',
                     'supplier_id': partner.id,
                     'submission_date': date,
                     'state': 'processing',
@@ -171,13 +192,13 @@ class MigrationWizard(models.TransientModel):
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             datum_verkocht = str(row.get('datum_verkocht', '')).strip()
             datum_uitbetaald = str(row.get('datum_uitbetaald', '')).strip()
-            def is_empty_date(d): return not d or d == '0000-00-00'
             stock_csv = row.get('stock') or '0'
             try: stock_val = float(stock_csv.replace(',', '.'))
             except: stock_val = 0.0
 
+            def is_empty_date(d): return not d or d == '0000-00-00'
             if (verkocht == 'nee' and online_verkocht == 'nee' and
-                    is_empty_date(datum_verkocht) and is_empty_date(datum_uitbetaald)):
+                is_empty_date(datum_verkocht) and is_empty_date(datum_uitbetaald)):
                 final_qty = stock_val
             else:
                 final_qty = 0.0
@@ -186,11 +207,8 @@ class MigrationWizard(models.TransientModel):
                 'name': name, 'submission_id': submission.id,
                 'is_published': True, 'type': 'consu', 'is_storable': True,
                 'default_code': default_code, 'x_old_id': str(old_product_id),
-
-                # --- AANGEPAST NAAR description_ecommerce ---
                 'description_ecommerce': row.get('lange_omschrijving'),
                 'description_sale': row.get('korte_omschrijving_nl'),
-
                 'website_meta_title': row.get('seo_titel'),
                 'website_meta_description': row.get('seo_description'),
                 'website_meta_keywords': row.get('seo_keywords'),
@@ -208,7 +226,6 @@ class MigrationWizard(models.TransientModel):
                         for idx, url in enumerate(urls):
                             if url:
                                 time.sleep(0.2)
-                                # ID fix
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                                 if extra_img:
                                     self.env['product.image'].create({
@@ -220,7 +237,6 @@ class MigrationWizard(models.TransientModel):
                 # NIEUW
                 time.sleep(0.5)
                 image_url = row.get('foto')
-                # ID fix
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
 
                 prijs_raw = row.get('prijs') or '0'
@@ -246,7 +262,6 @@ class MigrationWizard(models.TransientModel):
                     for idx, url in enumerate(urls):
                         if url:
                             time.sleep(0.2)
-                            # ID fix
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img:
                                 self.env['product.image'].create({

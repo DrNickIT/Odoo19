@@ -23,7 +23,7 @@ class ConsignmentSubmission(models.Model):
     state = fields.Selection([('draft', 'Concept'), ('received', 'Ontvangen'), ('processing', 'In Behandeling'), ('sold', 'Verkocht'), ('done', 'Afgehandeld')], string='Status', default='draft', required=True, tracking=True)
     product_ids = fields.One2many('product.template', 'submission_id', string="Ingezonden Producten")
 
-    sendcloud_label_url = fields.Char(string="Sendcloud Label URL", readonly=True, copy=False)
+    label_ids = fields.One2many('otters.consignment.label', 'submission_id', string="Verzendlabels")
 
     payout_method = fields.Selection(
         [('cash', 'Cash'), ('coupon', 'Coupon')],
@@ -44,7 +44,6 @@ class ConsignmentSubmission(models.Model):
     # Tijdelijke velden voor het formulier
     x_sender_name = fields.Char(string="Naam", store=False)
     x_sender_email = fields.Char(string="E-mail", store=False)
-    x_sender_phone = fields.Char(string="Telefoon", store=False)
     x_sender_street = fields.Char(string="Straat", store=False)
     x_sender_house_number = fields.Char(string="Huisnummer", store=False)
     x_sender_city = fields.Char(string="Stad", store=False)
@@ -52,6 +51,25 @@ class ConsignmentSubmission(models.Model):
     x_sender_country_code = fields.Char(string="Landcode", store=False)
     x_payout_method_temp = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Tijdelijke Payout", store=False)
     x_old_id = fields.Char(string="Oud Verzendzak ID", copy=False, readonly=True)
+
+    # --- NIEUWE VELDEN ---
+    label_count = fields.Integer(string="Aantal Labels", default=1, required=True)
+
+    # IBAN (Tijdelijk opslaan op de submission, we zetten het later op de partner)
+    x_iban = fields.Char(string="IBAN Rekeningnummer")
+
+    # De Keuzevragen
+    action_unaccepted = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Actie niet-weerhouden", default='donate', required=True)
+
+    action_unsold = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Actie niet-verkocht (1 jaar)", default='donate', required=True)
+
+    agreed_to_terms = fields.Boolean(string="Akkoord Voorwaarden", required=True, default=False)
 
     # --- KNOPPEN ACTIES ---
     def action_generate_sendcloud_label(self):
@@ -63,16 +81,6 @@ class ConsignmentSubmission(models.Model):
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {'title': 'Succes', 'message': 'Label aangemaakt!', 'type': 'success', 'sticky': False}
-            }
-
-    def action_open_label(self):
-        """ Knop: Open Label in nieuw tabblad """
-        self.ensure_one()
-        if self.sendcloud_label_url:
-            return {
-                'type': 'ir.actions.act_url',
-                'url': self.sendcloud_label_url,
-                'target': 'new',
             }
 
     # --- HELPER FUNCTIES ---
@@ -127,7 +135,6 @@ class ConsignmentSubmission(models.Model):
                 partner_vals = {
                     'name': vals.pop('x_sender_name'),
                     'email': sender_email,
-                    'phone': vals.pop('x_sender_phone'),
                     'street': vals.pop('x_sender_street'),
                     'street2': vals.pop('x_sender_house_number'),
                     'city': vals.pop('x_sender_city'),
@@ -157,6 +164,20 @@ class ConsignmentSubmission(models.Model):
                         vals['payout_percentage'] = coupon_perc
                     vals['payout_method'] = temp_payout_method
 
+                iban_to_save = vals.get('x_iban')
+                if iban_to_save and partner:
+                    # Check of deze bankrekening al bestaat om dubbels te voorkomen
+                    existing_bank = self.env['res.partner.bank'].search([
+                        ('acc_number', '=', iban_to_save),
+                        ('partner_id', '=', partner.id)
+                    ], limit=1)
+
+                    if not existing_bank:
+                        self.env['res.partner.bank'].create({
+                            'acc_number': iban_to_save,
+                            'partner_id': partner.id
+                        })
+
             if vals.get('name', 'Nieuw') == 'Nieuw' and vals.get('supplier_id'):
                 partner = self.env['res.partner'].browse(vals['supplier_id'])
                 prefix = self._get_or_create_supplier_prefix(partner)
@@ -166,15 +187,15 @@ class ConsignmentSubmission(models.Model):
 
         submissions = super(ConsignmentSubmission, self).create(new_vals_list)
 
-        # ### CHECK DIT: DE AUTOMATISCHE TRIGGER ###
-        # Dit stuk zorgt ervoor dat het label direct wordt gemaakt bij het opslaan
         if not self.env.context.get('skip_sendcloud'):
             for submission in submissions:
                 if submission.supplier_id:
                     try:
-                        submission.sudo()._create_sendcloud_parcel()
+                        # Loop zo vaak als het aantal gevraagde labels
+                        for i in range(submission.label_count):
+                            submission.sudo()._create_sendcloud_parcel()
                     except Exception as e:
-                        _logger.error(f"FATALE FOUT: Sendcloud API-call mislukt voor inzending {submission.name}: {e}")
+                        _logger.error(f"Sendcloud Fout: {e}")
 
         return submissions
 
@@ -275,12 +296,20 @@ class ConsignmentSubmission(models.Model):
             response = requests.post(url, headers=headers, json=payload, auth=auth)
             response.raise_for_status()
             data = response.json()
-            label_url = data.get('parcel', {}).get('label', {}).get('label_printer')
+            # HAAL DE DATA OP
+            parcel_data = data.get('parcel', {})
+            label_url = parcel_data.get('label', {}).get('label_printer')
+            tracking_nr = parcel_data.get('tracking_number') # Sendcloud geeft dit vaak mee
 
             _logger.info(f"Sendcloud Succes: Label gemaakt! URL: {label_url}")
 
-            # OPSLAAN
-            submission.write({'sendcloud_label_url': label_url})
+            if label_url:
+                self.env['otters.consignment.label'].sudo().create({
+                    'submission_id': self.id,
+                    'label_url': label_url,
+                    'tracking_number': tracking_nr
+                })
+
             return True
 
         except Exception as e:
