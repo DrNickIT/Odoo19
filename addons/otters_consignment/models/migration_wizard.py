@@ -50,9 +50,14 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE (MET NAAM GENERATIE FIX) ===")
+        _logger.info("=== START MIGRATIE (MET COMMIT FIX) ===")
+        # We committen ook na de klanten en submissions om zeker te zijn
         customer_map = self._process_customers()
+        self.env.cr.commit()
+
         submission_map = self._process_submissions(customer_map)
+        self.env.cr.commit()
+
         count = self._process_products(submission_map)
         _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt ===")
         return {
@@ -81,9 +86,7 @@ class MigrationWizard(models.TransientModel):
             domain = ['|', ('email', '=ilike', email.strip()), ('x_old_id', '=', str(old_id))]
             partner = self.env['res.partner'].search(domain, limit=1)
 
-            # Adres opbouw
             straat = f"{row.get('straat', '')} {row.get('huisnr', '')}".strip()
-            # Bus toevoegen
             bus = row.get('bus')
             if bus and str(bus) != 'nan':
                 straat2 = f"Bus {bus}"
@@ -106,7 +109,6 @@ class MigrationWizard(models.TransientModel):
                     vals['x_consignment_prefix'] = False
                 if vals: partner.write(vals)
 
-            # IBAN
             iban = row.get('rekeningnummer')
             if iban and str(iban) != 'nan' and str(iban).strip() != '':
                 clean_iban = str(iban).replace(' ', '').strip()
@@ -137,7 +139,6 @@ class MigrationWizard(models.TransientModel):
 
             submission = self.env['otters.consignment.submission'].search([('x_old_id', '=', str(old_bag_id))], limit=1)
 
-            # Schenking logica
             schenking_raw = str(row.get('schenking', '')).lower()
             if 'goed doel' in schenking_raw:
                 action_val = 'donate'
@@ -161,19 +162,15 @@ class MigrationWizard(models.TransientModel):
                     'action_unsold': action_val
                 })
 
-                # --- NIEUWE LOGICA: NOTITIES NAAR NIET-WEERHOUDEN ---
                 notities = row.get('notities')
-
-                # Check of er notities zijn (en geen 'nan' tekst)
                 if notities and str(notities) != 'nan' and str(notities).strip() != '':
                     self.env['otters.consignment.rejected.line'].create({
                         'submission_id': submission.id,
-                        'product_name': 'Notitie uit migratie', # Generieke naam
-                        'reason': 'other',                      # Reden op 'Andere'
-                        'note': notities                        # De echte uitleg
+                        'product_name': 'Notitie uit migratie',
+                        'reason': 'other',
+                        'note': notities
                     })
 
-                # Eventuele Oude Code nog wel in chatter zetten ter info
                 oude_code = row.get('code')
                 if oude_code:
                     submission.message_post(body=f"<b>Oude Code:</b> {oude_code}")
@@ -191,7 +188,13 @@ class MigrationWizard(models.TransientModel):
         }
 
         for row in csv_data:
-            if count > 0 and count % 10 == 0: _logger.info(f"... {count} producten verwerkt ...")
+            # === HIER IS DE FIX VOOR DE LOCK ERROR ===
+            # Elke 10 producten slaan we de database hard op.
+            # Dit voorkomt timeouts en maakt het mogelijk om halverwege te hervatten (soort van)
+            if count > 0 and count % 10 == 0:
+                self.env.cr.commit()
+                _logger.info(f"... {count} producten verwerkt (Committed) ...")
+            # ==========================================
 
             zak_id_product = self._clean_id(row.get('zak_id'))
             old_product_id = self._clean_id(row.get('product_id'))
@@ -243,7 +246,7 @@ class MigrationWizard(models.TransientModel):
 
             def is_empty_date(d): return not d or d == '0000-00-00'
 
-            # De Check: Als het verkocht is OF niet weergegeven mag worden -> Stock 0
+            # De Check
             if (verkocht == 'nee' and
                     online_verkocht == 'nee' and
                     niet_weergeven != 'ja' and
@@ -329,7 +332,6 @@ class MigrationWizard(models.TransientModel):
     def _download_image(self, url, fix_old_id=None):
         if not url or str(url) == 'nan': return False
 
-        # ID REPARATIE
         if fix_old_id and '/product//' in url:
             url = url.replace('/product//', f'/product/{fix_old_id}/')
             _logger.info(f"URL FIXED: {url}")
