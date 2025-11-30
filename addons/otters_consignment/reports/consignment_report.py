@@ -14,6 +14,7 @@ class ConsignmentReport(models.Model):
     order_line_id = fields.Many2one('sale.order.line', string="Verkooporder Lijn", readonly=True)
     date = fields.Datetime(string="Verkoopdatum", readonly=True)
     price_subtotal = fields.Float(string="Netto Verkoopprijs", readonly=True)
+    price_total = fields.Float(string="Bruto Verkoopprijs (Incl. BTW)", readonly=True)
     qty_sold = fields.Float(string="Aantal Verkocht", readonly=True)
     payout_method = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Uitbetaalmethode", readonly=True)
     commission_amount = fields.Float(string="Commissiebedrag", readonly=True)
@@ -37,11 +38,12 @@ class ConsignmentReport(models.Model):
                     sub.supplier_id AS supplier_id,
                     so.date_order AS date,
                     sol.price_subtotal AS price_subtotal,
+                    sol.price_total AS price_total,
                     sol.qty_invoiced AS qty_sold,
                     sub.payout_method AS payout_method,
                     
                     -- === HIER ZIT DE CORRECTIE ===
-                    sub.payout_percentage * sol.price_subtotal AS commission_amount
+                    sub.payout_percentage * sol.price_total AS commission_amount
                     -- === EINDE CORRECTIE ===
                     
                 FROM sale_order_line sol

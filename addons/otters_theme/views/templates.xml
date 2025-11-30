@@ -5,5 +5,11 @@
                 <attribute name="t-attf-class" add="#{'variant_' + str((product.id % 5) + 1)}" separator=" "/>
             </xpath>
         </template>
+
+        <template id="snippet_products_item_random_frame" inherit_id="website_sale.dynamic_filter_template_product_product_products_item">
+            <xpath expr="//div[hasclass('oe_product_cart')]" position="attributes">
+                <attribute name="t-attf-class" add="oe_product_cart #{'variant_' + str((product.id % 5) + 1)}" separator=" "/>
+            </xpath>
+        </template>
     </data>
 </odoo>

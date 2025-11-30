@@ -22,16 +22,6 @@ class ConsignmentController(http.Controller):
         }
         return request.render('otters_consignment.consignment_form_template', render_values)
 
-    @http.route('/kleding-opsturen/check-partner', type='jsonrpc', auth='public', website=True, methods=['POST'], csrf=False)
-    def check_partner_payout(self, **kw):
-        email = kw.get('email')
-        if not email:
-            return {'payout_method_set': False}
-        partner = request.env['res.partner'].sudo().search([('email', '=ilike', email.strip())], limit=1)
-        if partner and partner.x_payout_method:
-            return {'payout_method_set': True}
-        return {'payout_method_set': False}
-
     @http.route('/kleding-opsturen/bedankt', type='http', auth='public', website=True)
     def consignment_form_thankyou(self, **kw):
         return request.render('otters_consignment.consignment_thankyou_template', {})

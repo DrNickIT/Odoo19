@@ -81,31 +81,50 @@ class MigrationWizard(models.TransientModel):
             domain = ['|', ('email', '=ilike', email.strip()), ('x_old_id', '=', str(old_id))]
             partner = self.env['res.partner'].search(domain, limit=1)
 
-            # Gegevens voorbereiden
-            full_name = f"{row.get('voornaam','')} {row.get('achternaam','')}".strip() or email
+            # Adres opbouw
+            straat = f"{row.get('straat', '')} {row.get('huisnr', '')}".strip()
+            # NIEUW: Bus toevoegen
+            bus = row.get('bus')
+            if bus and str(bus) != 'nan':
+                straat2 = f"Bus {bus}"
+            else:
+                straat2 = False
 
             if not partner:
-                # NIEUW: GEEN 'x_consignment_prefix' invullen!
-                # Laat Odoo dat zelf berekenen (Kathleen Daems -> KDA)
+                full_name = f"{row.get('voornaam','')} {row.get('achternaam','')}".strip() or email
                 partner = self.env['res.partner'].create({
                     'name': full_name, 'email': email,
-                    'street': f"{row.get('straat', '')} {row.get('huisnr', '')}".strip(),
+                    'street': straat,
+                    'street2': straat2, # <--- HIER IS DE BUS
                     'zip': row.get('postcode', ''), 'city': row.get('gemeente', ''),
-                    # 'x_consignment_prefix': f"IMP{old_id}", <--- DEZE REGEL IS WEG!
                     'x_old_id': str(old_id)
                 })
             else:
                 vals = {}
-                if not partner.x_old_id:
-                    vals['x_old_id'] = str(old_id)
-
-                # CORRECTIE: Als de klant al een "foute" import-prefix heeft (IMP...), reset hem dan!
+                if not partner.x_old_id: vals['x_old_id'] = str(old_id)
                 if partner.x_consignment_prefix and partner.x_consignment_prefix.startswith('IMP'):
-                    vals['x_consignment_prefix'] = False # Leegmaken zodat hij herberekend wordt
+                    vals['x_consignment_prefix'] = False
+                if vals: partner.write(vals)
+            # --- NIEUW: REKENINGNUMMER TOEVOEGEN ---
+            iban = row.get('rekeningnummer')
+            if iban and str(iban) != 'nan' and str(iban).strip() != '':
+                # Odoo is streng op IBANs. We proberen het schoon te maken (spaties weg)
+                clean_iban = str(iban).replace(' ', '').strip()
 
-                if vals:
-                    partner.write(vals)
+                # Check of deze rekening al bestaat voor deze partner (om dubbels te voorkomen)
+                existing_bank = self.env['res.partner.bank'].search([
+                    ('acc_number', '=', clean_iban),
+                    ('partner_id', '=', partner.id)
+                ], limit=1)
 
+                if not existing_bank:
+                    try:
+                        self.env['res.partner.bank'].create({
+                            'acc_number': clean_iban,
+                            'partner_id': partner.id
+                        })
+                    except Exception as e:
+                        _logger.warning(f"Kon rekeningnummer {clean_iban} niet toevoegen voor {partner.name}: {e}")
             mapping[old_id] = partner
         return mapping
 
@@ -121,20 +140,42 @@ class MigrationWizard(models.TransientModel):
 
             submission = self.env['otters.consignment.submission'].search([('x_old_id', '=', str(old_bag_id))], limit=1)
 
+            # NIEUW: Schenking logica bepalen
+            schenking_raw = str(row.get('schenking', '')).lower()
+            if 'goed doel' in schenking_raw:
+                action_val = 'donate'
+            elif 'terug' in schenking_raw:
+                action_val = 'return'
+            else:
+                action_val = 'donate' # Default fallback
+
             if not submission:
                 date = row.get('datum_ontvangen') or fields.Date.today()
 
-                # We sturen 'Nieuw'. Jouw submission.py zal nu zien dat de partner geen prefix heeft (of een nieuwe moet krijgen)
-                # en zal KDA aanmaken in plaats van IMP.
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
                     'name': 'Nieuw',
                     'supplier_id': partner.id,
-                    'submission_date': date,
-                    'state': 'processing',
-                    'payout_method': 'coupon',
-                    'payout_percentage': 0.5,
-                    'x_old_id': str(old_bag_id)
+                    'submission_date': date, 'state': 'online',
+                    'payout_method': 'coupon', 'payout_percentage': 0.5, 'x_old_id': str(old_bag_id),
+
+                    # NIEUW: Velden invullen
+                    'action_unaccepted': action_val,
+                    'action_unsold': action_val
                 })
+
+                # NIEUW: Notities in de Chatter zetten
+                notities = row.get('notities')
+                oude_code = row.get('code') # bijv 20210241
+
+                msg_body = ""
+                if oude_code:
+                    msg_body += f"<b>Oude Code:</b> {oude_code}<br/>"
+                if notities and str(notities) != 'nan':
+                    msg_body += f"<b>Import Notitie:</b> {notities}"
+
+                if msg_body:
+                    submission.message_post(body=msg_body)
+
             mapping[old_bag_id] = submission
         return mapping
 
