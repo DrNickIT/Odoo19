@@ -3,12 +3,6 @@
     <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu"
               inherit_id="portal.portal_my_home" priority="99">
         <xpath expr="//div[hasclass('o_portal_my_home')]" position="inside">
-            <style>
-                a[href='/my/consignments'] .o_portal_icon img {
-                max-height: 5em !important;
-                width: auto !important;
-                }
-            </style>
             <t t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/otters_consignment/static/src/img/consignment_icon.png'"/>
                 <t t-set="title">Mijn Inzendingen</t>
@@ -67,10 +61,10 @@
     <template id="portal_consignment_submission" name="Consignatie Details">
         <t t-call="portal.portal_layout">
             <t t-set="breadcrumbs" t-value="[
-                ('my_home', {'title': 'Mijn Portaal'}),
-                ('my_consignments', {'title': 'Mijn Inzendingen', 'url': '/my/consignments'}),
-                ('submission', {'title': submission.name})
-            ]"/>
+            ('my_home', {'title': 'Mijn Portaal'}),
+            ('my_consignments', {'title': 'Mijn Inzendingen', 'url': '/my/consignments'}),
+            ('submission', {'title': submission.name})
+        ]"/>
 
             <div class="card o_portal_details">
                 <div class="card-header">
@@ -86,11 +80,26 @@
                         <div class="col-md-4 text-md-end">
                             <small class="text-muted">Uitbetaal-afspraak:</small><br/>
                             <strong t-if="submission.payout_method == 'cash'">
-                                <span t-esc="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Cash
+                                <span t-out="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Cash
                             </strong>
                             <strong t-if="submission.payout_method == 'coupon'">
-                                <span t-esc="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Tegoedbon
+                                <span t-out="'{:.0f}'.format(submission.payout_percentage * 100)"/>% in Tegoedbon
                             </strong>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3 pt-2 border-top">
+                        <div class="col-md-6">
+                            <small class="text-muted">Actie bij niet-weerhouden items:</small><br/>
+                            <i class="fa fa-hand-holding-heart text-info" t-if="submission.action_unaccepted == 'donate'"/>
+                            <i class="fa fa-truck text-warning" t-if="submission.action_unaccepted == 'return'"/>
+                            <span t-field="submission.action_unaccepted"/>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <small class="text-muted">Actie bij niet-verkocht (na 1 jaar):</small><br/>
+                            <span t-field="submission.action_unsold"/>
+                            <i class="fa fa-hand-holding-heart text-info" t-if="submission.action_unsold == 'donate'"/>
+                            <i class="fa fa-truck text-warning" t-if="submission.action_unsold == 'return'"/>
                         </div>
                     </div>
                 </div>
@@ -99,17 +108,22 @@
                     <ul class="nav nav-tabs" role="tablist">
                         <li class="nav-item">
                             <a class="nav-link active" id="stock-tab" data-bs-toggle="tab" href="#stock" role="tab" aria-controls="stock" aria-selected="true">
-                                In Voorraad (<t t-esc="len(stock_products)"/>)
+                                In Voorraad (<t t-out="len(stock_products)"/>)
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" id="unpaid-tab" data-bs-toggle="tab" href="#unpaid" role="tab" aria-controls="unpaid" aria-selected="false">
-                                Nog Uit te Betalen (<t t-esc="len(aggregated_unpaid)"/>)
+                                Nog Uit te Betalen (<t t-out="len(aggregated_unpaid)"/>)
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" id="paid-tab" data-bs-toggle="tab" href="#paid" role="tab" aria-controls="paid" aria-selected="false">
-                                Reeds Uitbetaald (<t t-esc="len(aggregated_paid)"/>)
+                                Reeds Uitbetaald (<t t-out="len(aggregated_paid)"/>)
+                            </a>
+                        </li>
+                        <li class="nav-item" t-if="submission.rejected_line_ids">
+                            <a class="nav-link text-danger" id="rejected-tab" data-bs-toggle="tab" href="#rejected" role="tab" aria-controls="rejected" aria-selected="false">
+                                Niet Weerhouden (<t t-out="len(submission.rejected_line_ids)"/>)
                             </a>
                         </li>
                     </ul>
@@ -147,13 +161,13 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="aggregated_unpaid" t-as="line">
-                                        <td><span t-esc="line['name']"/></td>
-                                        <td class="text-end"><span t-esc="line['qty']"/> st</td>
+                                        <td><span t-out="line['name']"/></td>
+                                        <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
-                                            <span t-esc="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <span t-out="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                         <td class="text-end">
-                                            <span t-esc="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -163,7 +177,7 @@
                                             <strong>Totaal nog uit te betalen:</strong>
                                         </td>
                                         <td class="text-end">
-                                            <strong t-esc="total_payout_unpaid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <strong t-out="total_payout_unpaid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -182,13 +196,13 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="aggregated_paid" t-as="line">
-                                        <td><span t-esc="line['name']"/></td>
-                                        <td class="text-end"><span t-esc="line['qty']"/> st</td>
+                                        <td><span t-out="line['name']"/></td>
+                                        <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
-                                            <span t-esc="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <span t-out="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                         <td class="text-end">
-                                            <span t-esc="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -198,10 +212,33 @@
                                             <strong>Totaal reeds uitbetaald:</strong>
                                         </td>
                                         <td class="text-end">
-                                            <strong t-esc="total_payout_paid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <strong t-out="total_payout_paid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
                                         </td>
                                     </tr>
                                 </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="rejected" role="tabpanel" aria-labelledby="rejected-tab">
+                            <div class="alert alert-light border mb-3">
+                                <i class="fa fa-info-circle text-info"/> Deze items zijn niet online geplaatst.
+                                Zie uw keuze hierboven ("Actie bij niet-weerhouden") voor wat hiermee gebeurt.
+                            </div>
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Omschrijving</th>
+                                        <th>Reden</th>
+                                        <th>Extra Info</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="submission.rejected_line_ids" t-as="line">
+                                        <td><span t-field="line.product_name"/></td>
+                                        <td><span t-field="line.reason"/></td>
+                                        <td><span t-field="line.note"/></td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
 

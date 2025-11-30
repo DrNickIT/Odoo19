@@ -2,18 +2,14 @@
 from odoo import http
 from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
-from odoo.fields import Domain as expression
-
-# --- FIX 1: Imports toegevoegd voor AccessError en MissingError ---
 from odoo.exceptions import AccessError, MissingError
-
 import logging
+
 _logger = logging.getLogger(__name__)
 
 class ConsignmentPortal(CustomerPortal):
     _items_per_page = 20
 
-    # Dit voegt de teller toe aan *alle* portal paginas (voor o.a. broodkruimels)
     def _prepare_portal_layout_values(self):
         values = super(ConsignmentPortal, self)._prepare_portal_layout_values()
         partner = request.env.user.partner_id
@@ -23,8 +19,6 @@ class ConsignmentPortal(CustomerPortal):
         values['consignment_count'] = submission_count
         return values
 
-    # --- FIX 3: Functienaam gewijzigd naar _list ---
-    # Dit is de LIJST-pagina (/my/consignments)
     @http.route(['/my/consignments', '/my/consignments/page/<int:page>'], type='http', auth="user", website=True)
     def portal_my_consignments_list(self, page=1, sortby=None, filterby=None, search=None, search_in='all', **kw):
         values = self._prepare_portal_layout_values()
@@ -56,14 +50,11 @@ class ConsignmentPortal(CustomerPortal):
         })
         return request.render("otters_consignment.portal_my_consignments", values)
 
-    # --- FIX 3: Functienaam gewijzigd naar _detail ---
-    # Dit is de DETAIL-pagina (/my/consignments/<id>)
     @http.route(['/my/consignments/<int:submission_id>'], type='http', auth="user", website=True)
     def portal_my_consignments_detail(self, submission_id, access_token=None, **kw):
         try:
-            # --- FIX 2: 'access_token' verwijderd uit de aanroep ---
             submission_sudo = self._get_submission_check_access(submission_id)
-        except (AccessError, MissingError): # Werkt nu dankzij Fix 1
+        except (AccessError, MissingError):
             return request.redirect('/my')
 
         report_model = request.env['otters.consignment.report']
@@ -84,7 +75,7 @@ class ConsignmentPortal(CustomerPortal):
                 if product not in aggregated_data:
                     aggregated_data[product] = {'name': product.name, 'price_sold': 0, 'payout': 0, 'qty': 0}
 
-                aggregated_data[product]['price_sold'] += line.price_subtotal
+                aggregated_data[product]['price_sold'] += line.price_total
                 aggregated_data[product]['payout'] += line.commission_amount
                 aggregated_data[product]['qty'] += line.qty_sold
             return aggregated_data.values()
@@ -92,29 +83,21 @@ class ConsignmentPortal(CustomerPortal):
         unpaid_lines = all_report_lines.filtered(lambda r: not r.x_is_paid_out)
         paid_lines = all_report_lines.filtered(lambda r: r.x_is_paid_out)
 
-        aggregated_unpaid = aggregate_report_lines(unpaid_lines)
-        aggregated_paid = aggregate_report_lines(paid_lines)
-
-        total_payout_unpaid = sum(l.commission_amount for l in unpaid_lines)
-        # (Ik heb je typo hier ook gecorrigeerd: pMayout -> payout)
-        total_payout_paid = sum(l.commission_amount for l in paid_lines)
-
         values = {
             'submission': submission_sudo,
             'stock_products': stock_products,
-            'aggregated_unpaid': aggregated_unpaid,
-            'aggregated_paid': aggregated_paid,
-            'total_payout_unpaid': total_payout_unpaid,
-            'total_payout_paid': total_payout_paid,
+            'aggregated_unpaid': aggregate_report_lines(unpaid_lines),
+            'aggregated_paid': aggregate_report_lines(paid_lines),
+            'total_payout_unpaid': sum(l.commission_amount for l in unpaid_lines),
+            'total_payout_paid': sum(l.commission_amount for l in paid_lines),
             'page_name': 'consignment_submission',
             'access_token': access_token,
         }
 
         return request.render("otters_consignment.portal_consignment_submission", values)
 
-    # Dit is de helper-functie voor toegangscontrole
     def _get_submission_check_access(self, submission_id):
-        submission = request.env['otters.consignment.submission'].browse([submission_id])
+        submission = request.env['otters.consignment.submission'].browse(submission_id)
         if not submission.exists():
             raise MissingError("Deze inzending bestaat niet.")
 

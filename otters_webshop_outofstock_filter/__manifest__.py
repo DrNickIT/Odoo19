@@ -10,7 +10,10 @@
         'website_sale_stock',
         'stock',
     ],
-    'data': [],
+    'data': [
+        'security/ir.model.access.csv',
+        'security/ir_rule.xml',
+    ],
     'installable': True,
     'auto_install': False,
 }

@@ -46,7 +46,8 @@
                                   data-model_name="otters.consignment.submission"
                                   data-success-mode="redirect"
                                   data-success-page="/kleding-opsturen/bedankt"
-                                  id="consignment_form">
+                                  id="consignment_form"
+                                  enctype="multipart/form-data">
 
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
@@ -84,7 +85,7 @@
                                         <input type="text" class="form-control" name="x_sender_city" required="1"/>
                                     </div>
                                 </div>
-                                <input type="hidden" name="country" value="x_sender_country_code"/>
+                                <input type="hidden" name="country" value="BE"/>
 
                                 <hr/>
 
@@ -96,40 +97,39 @@
 
                                 <hr/>
 
-                                <div id="payout_section" class="mb-3">
-                                    <label class="form-label fw-bold">Gewenste uitbetaling*</label>
-
+                                <div class="mb-4" data-type="char" data-name="Field: x_payout_method_temp">
+                                    <label class="form-label fw-bold">Hoe wil je uitbetaald worden? *</label>
                                     <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" required="1" checked="checked"/>
+                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" checked="checked"/>
                                         <label class="form-check-label" for="payoutCoupon">
-                                            Kortingsbon (<t t-esc="coupon_percentage"/>% van de verkoopprijs)
+                                            Uitbetaald als waardebon (<t t-out="coupon_percentage"/>% van de verkoopprijs)
                                         </label>
                                     </div>
-
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"/>
                                         <label class="form-check-label" for="payoutCash">
-                                            Contant (<t t-esc="cash_percentage"/>% van de verkoopprijs)
+                                            Uitbetaald op rekeningnummer (<t t-out="cash_percentage"/>% van de verkoopprijs)
                                         </label>
                                     </div>
                                 </div>
 
-                                <div id="iban_container" class="d-none bg-light p-3 rounded mb-3 border">
-                                    <label class="form-label">Je rekeningnummer (voor uitbetaling)</label>
+                                <div id="iban_container" class="form-group col-12 d-none mt-3 p-3 bg-light border rounded">
+                                    <h5 class="mb-3">Bankgegevens</h5>
+
                                     <div class="row">
                                         <div class="col-md-6 mb-2">
-                                            <input type="text" class="form-control" name="x_iban" id="iban" placeholder="BE00 0000 0000 0000"/>
+                                            <label for="x_iban">Jouw IBAN Nummer *</label>
+                                            <input type="text" class="form-control" name="x_iban" id="x_iban" placeholder="BE00 0000 0000 0000"/>
                                         </div>
                                         <div class="col-md-6 mb-2">
-                                            <input type="text" class="form-control" id="x_iban_confirm" placeholder="Bevestig rekeningnummer"/>
+                                            <label for="x_iban_confirm">Bevestig IBAN Nummer *</label>
+                                            <input type="text" class="form-control" id="x_iban_confirm" placeholder="Typ nogmaals ter controle"/>
                                         </div>
                                     </div>
-                                    <small class="text-muted">Vul dit enkel in als je voor 'Contant' kiest.</small>
-                                    <div id="iban_error" class="text-danger small d-none">Rekeningnummers komen niet overeen of zijn ongeldig.</div>
+                                    <div id="iban_error" class="alert alert-danger d-none mt-2"></div>
                                 </div>
                                 <div class="mb-4">
-                                    <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken?</label>
-                                    <div class="form-text text-muted mb-2">Dit zijn stukken die niet verkoopbaar zijn.</div>
+                                    <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken? (Nog mooi om dragen, niet verkoopbaar) </label>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate" checked="checked"/>
                                         <label class="form-check-label" for="ua_donate">Deze mogen aan een goed doel geschonken worden</label>
@@ -154,40 +154,60 @@
 
                                 <hr/>
 
-                                <div class="mb-4 form-check">
-                                    <input type="checkbox" class="form-check-input" id="agreed_terms" required="1" name="agreed_to_terms"/>
-                                    <label class="form-check-label" for="agreed_to_terms">
-                                        Ik heb de <a href="/algemene-voorwaarden" target="_blank">algemene voorwaarden</a> gelezen en ga akkoord.
-
-                                        <span class="ms-2 badge bg-info text-dark" style="cursor: help;" id="av_tooltip_trigger">
-                                            ℹ️ Lees samenvatting
-                                        </span>
-                                    </label>
-
-                                    <div id="hover-av" class="hover-av d-none p-3 mt-2 border rounded bg-white shadow-sm">
-                                        <p class="fw-bold">Belangrijk om na te kijken voor je ons de verzendzak vol met kleertjes terugstuurt:</p>
-                                        <ul class="mb-0 ps-3">
-                                            <li>Van goede kwaliteit, zonder vlekjes, gaatjes of ontbrekende knopen, enz.</li>
-                                            <li>Proper &amp; fris gewassen, niet grauw of afgewassen</li>
-                                            <li>Van een merk dat door Otters &amp; Flamingo's wordt verkocht</li>
-                                            <li>In maat 44 tem 164 (0 - 14j)</li>
-                                            <li>Van een recente collectie of passend in een hedendaagse kledingstijl</li>
-                                            <li>Geen basic stuks zoals ondergoed, leggings, broekkousen, enz.</li>
-                                            <li>Minimum 15 stuks</li>
-                                        </ul>
+                                <div class="form-group col-12">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="agreed_to_terms" id="agreed_terms"/>
+                                        <label class="form-check-label" for="agreed_terms">
+                                            Ik ga akkoord met de
+                                            <a href="/algemene-voorwaarden" target="_blank" style="text-decoration: underline;">
+                                            algemene voorwaarden
+                                            </a>
+                                        </label>
                                     </div>
                                 </div>
 
-                                <div class="mb-0 py-2 col-12 s_website_form_submit text-end">
-                                    <a href="#" role="button" class="btn btn-primary btn-lg" id="submit_btn_custom">
-                                        Verstuur aanvraag
-                                    </a>
+                                <div class="form-group col-12 position-relative">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="agreed_to_clothing_terms" id="agreed_to_clothing_terms"/>
 
-                                    <a href="#" class="d-none s_website_form_send" id="real_submit_btn">
-                                        Hidden Submit
-                                    </a>
+                                        <label class="form-check-label" for="agreed_to_clothing_terms">
+                                            Ik ga akkoord met de
+                                            <span id="av_tooltip_trigger" style="text-decoration: underline; cursor: help; color: #00A09D;">
+                                                voorwaarden voor het opsturen van kleding ℹ️
+                                            </span>
+                                        </label>
 
-                                    <span id="s_website_form_result"/>
+                                        <div id="hover-av" class="d-none p-3 shadow-sm border bg-white rounded"
+                                             style="position: absolute; bottom: 100%; left: 20px; width: 300px; z-index: 1000; font-size: 0.9rem;">
+                                            <p>Belangrijk om na te kijken voor je ons de verzendzak vol met kleertjes terugstuurt:</p>
+                                            <ul>
+                                                <li>Van goede kwaliteit, zonder vlekjes, gaatjes of ontbrekende knopen, enz.</li>
+                                                <li>Proper &amp; fris gewassen, niet grauw of afgewassen</li>
+                                                <li>Van een merk dat door Otters &amp; Flamingo's wordt verkocht</li>
+                                                <li>In maat 44 tem 164 (0 - 14j)</li>
+                                                <li>Van een recente collectie of passend in een hedendaagse kledingstijl</li>
+                                                <li>Geen basic stuks zoals ondergoed, leggings, broekkousen, enz.</li>
+                                                <li>Minimum 15 stuks</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group col-12">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" name="agreed_to_shipping_fee" id="agreed_to_shipping_fee"/>
+                                        <label class="form-check-label" for="agreed_to_shipping_fee">
+                                            Ik betaal 8 euro verzendingskosten indien ik de zak niet binnen de 4 weken terug bezorg
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group col-12 text-center mt-4">
+                                    <button type="button" id="submit_btn_custom" class="btn btn-primary btn-lg px-5">
+                                        Verzenden
+                                    </button>
+
+                                    <a href="#" role="button" id="real_submit_btn" class="d-none s_website_form_send">Real Submit</a>
                                 </div>
                             </form>
                         </div>
@@ -195,108 +215,6 @@
 
                     <div class="oe_structure"/>
                 </div>
-
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                    // Elementen ophalen
-                    const radioCash = document.getElementById('payoutCash');
-                    const radioCoupon = document.getElementById('payoutCoupon');
-                    const ibanContainer = document.getElementById('iban_container');
-                    const ibanInput = document.getElementById('x_iban');
-                    const ibanConfirm = document.getElementById('x_iban_confirm');
-                    const errorMsg = document.getElementById('iban_error');
-                    const termsCheckbox = document.getElementById('agreed_terms');
-                    const form = document.getElementById('consignment_form');
-
-                    // DE KNOPPEN
-                    const visibleBtn = document.getElementById('submit_btn_custom');
-                    const realBtn = document.getElementById('real_submit_btn');
-
-                    // 1. IBAN TONEN/VERBERGEN
-                    function toggleIban() {
-                    if (!radioCash || !ibanContainer) return;
-
-                    if (radioCash.checked) {
-                    ibanContainer.classList.remove('d-none');
-                    } else {
-                    ibanContainer.classList.add('d-none');
-                    if(ibanInput) ibanInput.value = '';
-                    if(ibanConfirm) ibanConfirm.value = '';
-                    }
-                    }
-
-                    if(radioCash) radioCash.addEventListener('change', toggleIban);
-                    if(radioCoupon) radioCoupon.addEventListener('change', toggleIban);
-
-                    // 2. VALIDATIE BIJ KLIK OP ZICHTBARE KNOP
-                    if(visibleBtn &amp;&amp; realBtn) {
-                    visibleBtn.addEventListener('click', function(e) {
-                    e.preventDefault(); // Voorkom dat de link iets doet
-                    let isValid = true;
-
-                    // A. Check Algemene Voorwaarden
-                    if (termsCheckbox) {
-                    if (!termsCheckbox.checked) {
-                    // Toon ballonnetje
-                    termsCheckbox.setCustomValidity("Je moet akkoord gaan met de voorwaarden.");
-                    termsCheckbox.reportValidity();
-                    isValid = false;
-                    } else {
-                    termsCheckbox.setCustomValidity("");
-                    }
-                    }
-
-                    // B. Check IBAN (Alleen als Cash aan staat)
-                    if (isValid &amp;&amp; radioCash &amp;&amp; radioCash.checked) {
-                    if (ibanInput &amp;&amp; ibanConfirm) {
-                    if (ibanInput.value !== ibanConfirm.value) {
-                    errorMsg.classList.remove('d-none');
-                    errorMsg.innerText = "De rekeningnummers komen niet overeen.";
-                    ibanInput.focus();
-                    isValid = false;
-                    } else {
-                    // Simpele IBAN regex
-                    const ibanRegex = /^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{1,30}$/;
-                    if (!ibanRegex.test(ibanInput.value.replace(/\s/g, ''))) {
-                    errorMsg.classList.remove('d-none');
-                    errorMsg.innerText = "Dit lijkt geen geldig IBAN nummer.";
-                    ibanInput.focus();
-                    isValid = false;
-                    } else {
-                    errorMsg.classList.add('d-none');
-                    }
-                    }
-                    }
-                    }
-
-                    // C. Check Standaard Velden (Naam, Email, etc.)
-                    if (isValid &amp;&amp; form &amp;&amp; !form.checkValidity()) {
-                    form.reportValidity(); // Toon ballonnetjes voor verplichte velden
-                    isValid = false;
-                    }
-
-                    // D. DE FINALE BESLISSING
-                    if (isValid) {
-                    // Alles is goed! Nu klikken we STIEKEM op de echte Odoo knop
-                    console.log("Validatie OK -> Sending to Odoo...");
-                    realBtn.click();
-                    } else {
-                    console.log("Validatie mislukt -> Stop.");
-                    // We doen niets, dus Odoo wordt nooit aangeroepen
-                    }
-                    });
-                    }
-
-                    // 3. TOOLTIP HOVER
-                    const trigger = document.getElementById('av_tooltip_trigger');
-                    const tooltip = document.getElementById('hover-av');
-
-                    if(trigger &amp;&amp; tooltip){
-                    trigger.addEventListener('mouseenter', () => tooltip.classList.remove('d-none'));
-                    trigger.addEventListener('mouseleave', () => tooltip.classList.add('d-none'));
-                    }
-                    });
-                </script>
             </t>
         </template>
 

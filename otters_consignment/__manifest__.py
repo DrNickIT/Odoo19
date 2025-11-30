@@ -46,6 +46,13 @@
 
         'data/website_data.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            # Hier vertel je Odoo waar je nieuwe bestand staat
+            'otters_consignment/static/src/scss/portal.scss',
+            'otters_consignment/static/src/js/consignment_form.js',
+        ],
+    },
     'installable': True,
     'auto_install': False,
 }

@@ -74,7 +74,7 @@
                             string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
 
                     <button name="action_generate_sendcloud_label"
-                            string="Maak Retourlabel"
+                            string="Maak Verzendlabel"
                             type="object"
                             class="btn-secondary"/>
                 </header>
@@ -88,16 +88,20 @@
                             <field name="submission_date"/>
                             <field name="state"/>
                             <field name="label_count" string="Aangevraagde Labels"/>
-                            <field name="agreed_to_terms" string="Voorwaarden Geaccepteerd" readonly="1"/>
                         </group>
-                        <group string="Financieel &amp; Afhandeling">
-                            <field name="payout_method" widget="radio"/>
-                            <field name="payout_percentage" widget="percentage"/>
+                        <group string="Uitbetaling">
+                            <field name="payout_method"/>
+                            <field name="payout_percentage"/>
                             <field name="x_iban" invisible="payout_method != 'cash'"/>
-
-                            <separator string="Voorkeuren Kleding"/>
-                            <field name="action_unaccepted" widget="radio" string="Niet weerhouden"/>
-                            <field name="action_unsold" widget="radio" string="Niet verkocht"/>
+                        </group>
+                        <group string="Geaccepteerde Voorwaarden">
+                            <field name="agreed_to_terms" readonly="1"/>
+                            <field name="agreed_to_clothing_terms" readonly="1"/>
+                            <field name="agreed_to_shipping_fee" readonly="1"/>
+                        </group>
+                        <group string="Keuzes bij niet geaccepteerd/verkocht">
+                            <field name="action_unaccepted"/>
+                            <field name="action_unsold"/>
                         </group>
                     </group>
 
@@ -123,6 +127,21 @@
                                     <field name="is_published" string="Online"/>
                                 </list>
                             </field>
+                        </page>
+                        <page string="Niet Weerhouden producten">
+                            <field name="rejected_line_ids">
+                                <list editable="bottom">
+                                    <field name="product_name"/>
+                                    <field name="reason"/>
+                                    <field name="note" optional="show"/>
+                                </list>
+                            </field>
+                            <div class="text-muted">
+                                <i>
+                                    Tip: Dit zijn items die niet online komen.
+                                    Ze worden enkel geregistreerd om aan de klant te kunnen melden waarom ze geweigerd zijn.
+                                </i>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>

@@ -20,7 +20,14 @@ class ConsignmentSubmission(models.Model):
     name = fields.Char(string="Inzending ID", required=True, readonly=True, default='Nieuw', copy=False)
     supplier_id = fields.Many2one('res.partner', string="Leverancier", required=True, tracking=True)
     submission_date = fields.Date(string="Inzendingsdatum", default=fields.Date.context_today, required=True, tracking=True)
-    state = fields.Selection([('draft', 'Concept'), ('received', 'Ontvangen'), ('processing', 'In Behandeling'), ('sold', 'Verkocht'), ('done', 'Afgehandeld')], string='Status', default='draft', required=True, tracking=True)
+    state = fields.Selection([
+        ('draft', 'Nieuw'),
+        ('received', 'Ontvangen'),
+        ('processed', 'Verwerkt'),
+        ('online', 'Online'),
+        ('done', 'Afgerond'),
+        ('cancel', 'Geannuleerd'),
+    ], string='Status', default='draft', tracking=True)
     product_ids = fields.One2many('product.template', 'submission_id', string="Ingezonden Producten")
 
     label_ids = fields.One2many('otters.consignment.label', 'submission_id', string="Verzendlabels")
@@ -69,7 +76,17 @@ class ConsignmentSubmission(models.Model):
         ('return', 'Terugsturen (€7,50)')
     ], string="Actie niet-verkocht (1 jaar)", default='donate', required=True)
 
-    agreed_to_terms = fields.Boolean(string="Akkoord Voorwaarden", required=True, default=False)
+    agreed_to_terms = fields.Boolean(string="Akkoord Algemene Voorwaarden", required=True, default=False)
+
+    agreed_to_clothing_terms = fields.Boolean(string="Akkoord Kleding Voorwaarden", required=True, default=False)
+
+    agreed_to_shipping_fee = fields.Boolean(string="Akkoord Verzendkosten (8eur)", required=True, default=False)
+
+    rejected_line_ids = fields.One2many(
+        'otters.consignment.rejected.line',
+        'submission_id',
+        string="Niet Weerhouden Items"
+    )
 
     # --- KNOPPEN ACTIES ---
     def action_generate_sendcloud_label(self):
@@ -268,7 +285,7 @@ class ConsignmentSubmission(models.Model):
 
         payload = {
             "parcel": {
-                "request_label": False,
+                "request_label": True,
                 "is_return": False,
                 "order_number": submission.name,
                 "weight": "5.000",

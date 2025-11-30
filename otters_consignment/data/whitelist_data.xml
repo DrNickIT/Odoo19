@@ -12,11 +12,12 @@
             'x_sender_country_code',
             'x_payout_method_temp',
             'agreed_to_terms',
+            'agreed_to_clothing_terms',
+            'agreed_to_shipping_fee',
             'label_count',
             'x_iban',
             'action_unaccepted',
             'action_unsold',
-            'agreed_to_terms',
         ]"/>
     </function>
 </odoo>
