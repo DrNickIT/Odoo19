@@ -1,3 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_website_outfit_public,website.outfit public,model_website_outfit,base.group_public,1,0,0,0
 access_website_outfit_user,website.outfit user,model_website_outfit,base.group_user,1,1,1,1
+access_website_outfit_portal,website.outfit portal,model_website_outfit,base.group_portal,1,0,0,0
+access_website_outfit_category_public,website.outfit.category public,model_website_outfit_category,base.group_public,1,0,0,0
+access_website_outfit_category_user,website.outfit.category user,model_website_outfit_category,base.group_user,1,1,1,1
+access_website_outfit_category_admin,website.outfit.category admin,model_website_outfit_category,base.group_system,1,1,1,1
+access_website_outfit_category_portal,website.outfit.category portal,model_website_outfit_category,base.group_portal,1,0,0,0
