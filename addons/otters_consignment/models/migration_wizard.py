@@ -83,7 +83,7 @@ class MigrationWizard(models.TransientModel):
 
             # Adres opbouw
             straat = f"{row.get('straat', '')} {row.get('huisnr', '')}".strip()
-            # NIEUW: Bus toevoegen
+            # Bus toevoegen
             bus = row.get('bus')
             if bus and str(bus) != 'nan':
                 straat2 = f"Bus {bus}"
@@ -95,7 +95,7 @@ class MigrationWizard(models.TransientModel):
                 partner = self.env['res.partner'].create({
                     'name': full_name, 'email': email,
                     'street': straat,
-                    'street2': straat2, # <--- HIER IS DE BUS
+                    'street2': straat2,
                     'zip': row.get('postcode', ''), 'city': row.get('gemeente', ''),
                     'x_old_id': str(old_id)
                 })
@@ -105,18 +105,15 @@ class MigrationWizard(models.TransientModel):
                 if partner.x_consignment_prefix and partner.x_consignment_prefix.startswith('IMP'):
                     vals['x_consignment_prefix'] = False
                 if vals: partner.write(vals)
-            # --- NIEUW: REKENINGNUMMER TOEVOEGEN ---
+
+            # IBAN
             iban = row.get('rekeningnummer')
             if iban and str(iban) != 'nan' and str(iban).strip() != '':
-                # Odoo is streng op IBANs. We proberen het schoon te maken (spaties weg)
                 clean_iban = str(iban).replace(' ', '').strip()
-
-                # Check of deze rekening al bestaat voor deze partner (om dubbels te voorkomen)
                 existing_bank = self.env['res.partner.bank'].search([
                     ('acc_number', '=', clean_iban),
                     ('partner_id', '=', partner.id)
                 ], limit=1)
-
                 if not existing_bank:
                     try:
                         self.env['res.partner.bank'].create({
@@ -140,14 +137,14 @@ class MigrationWizard(models.TransientModel):
 
             submission = self.env['otters.consignment.submission'].search([('x_old_id', '=', str(old_bag_id))], limit=1)
 
-            # NIEUW: Schenking logica bepalen
+            # Schenking logica
             schenking_raw = str(row.get('schenking', '')).lower()
             if 'goed doel' in schenking_raw:
                 action_val = 'donate'
             elif 'terug' in schenking_raw:
                 action_val = 'return'
             else:
-                action_val = 'donate' # Default fallback
+                action_val = 'donate'
 
             if not submission:
                 date = row.get('datum_ontvangen') or fields.Date.today()
@@ -155,26 +152,31 @@ class MigrationWizard(models.TransientModel):
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
                     'name': 'Nieuw',
                     'supplier_id': partner.id,
-                    'submission_date': date, 'state': 'online',
-                    'payout_method': 'coupon', 'payout_percentage': 0.5, 'x_old_id': str(old_bag_id),
-
-                    # NIEUW: Velden invullen
+                    'submission_date': date,
+                    'state': 'online',
+                    'payout_method': 'coupon',
+                    'payout_percentage': 0.5,
+                    'x_old_id': str(old_bag_id),
                     'action_unaccepted': action_val,
                     'action_unsold': action_val
                 })
 
-                # NIEUW: Notities in de Chatter zetten
+                # --- NIEUWE LOGICA: NOTITIES NAAR NIET-WEERHOUDEN ---
                 notities = row.get('notities')
-                oude_code = row.get('code') # bijv 20210241
 
-                msg_body = ""
+                # Check of er notities zijn (en geen 'nan' tekst)
+                if notities and str(notities) != 'nan' and str(notities).strip() != '':
+                    self.env['otters.consignment.rejected.line'].create({
+                        'submission_id': submission.id,
+                        'product_name': 'Notitie uit migratie', # Generieke naam
+                        'reason': 'other',                      # Reden op 'Andere'
+                        'note': notities                        # De echte uitleg
+                    })
+
+                # Eventuele Oude Code nog wel in chatter zetten ter info
+                oude_code = row.get('code')
                 if oude_code:
-                    msg_body += f"<b>Oude Code:</b> {oude_code}<br/>"
-                if notities and str(notities) != 'nan':
-                    msg_body += f"<b>Import Notitie:</b> {notities}"
-
-                if msg_body:
-                    submission.message_post(body=msg_body)
+                    submission.message_post(body=f"<b>Oude Code:</b> {oude_code}")
 
             mapping[old_bag_id] = submission
         return mapping
@@ -228,26 +230,37 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].search(domain, limit=1)
 
-            # Stock
+            # --- STOCK & PUBLICATIE LOGICA ---
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
+            niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
             datum_verkocht = str(row.get('datum_verkocht', '')).strip()
             datum_uitbetaald = str(row.get('datum_uitbetaald', '')).strip()
             stock_csv = row.get('stock') or '0'
+
             try: stock_val = float(stock_csv.replace(',', '.'))
             except: stock_val = 0.0
 
             def is_empty_date(d): return not d or d == '0000-00-00'
-            if (verkocht == 'nee' and online_verkocht == 'nee' and
-                is_empty_date(datum_verkocht) and is_empty_date(datum_uitbetaald)):
+
+            # De Check: Als het verkocht is OF niet weergegeven mag worden -> Stock 0
+            if (verkocht == 'nee' and
+                    online_verkocht == 'nee' and
+                    niet_weergeven != 'ja' and
+                    is_empty_date(datum_verkocht) and
+                    is_empty_date(datum_uitbetaald)):
                 final_qty = stock_val
             else:
                 final_qty = 0.0
 
             product_vals = {
-                'name': name, 'submission_id': submission.id,
-                'is_published': True, 'type': 'consu', 'is_storable': True,
-                'default_code': default_code, 'x_old_id': str(old_product_id),
+                'name': name,
+                'submission_id': submission.id,
+                'is_published': True,
+                'type': 'consu',
+                'is_storable': True,
+                'default_code': default_code,
+                'x_old_id': str(old_product_id),
                 'description_ecommerce': row.get('lange_omschrijving'),
                 'description_sale': row.get('korte_omschrijving_nl'),
                 'website_meta_title': row.get('seo_titel'),
@@ -296,7 +309,6 @@ class MigrationWizard(models.TransientModel):
                 if staat in condition_mapping:
                     self._add_attribute(product, 'Conditie', condition_mapping[staat])
 
-                # Extra fotos (Nieuw)
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     urls = extra_fotos.split(',')
