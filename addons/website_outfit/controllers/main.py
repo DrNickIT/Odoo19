@@ -1,37 +1,51 @@
-import logging # Importeer de logger
+import logging
 from odoo import http
 from odoo.http import request
 
+_logger = logging.getLogger(__name__)
+
 class WebsiteOutfit(http.Controller):
-    # --- NIEUWE ROUTE VOOR OVERZICHT ---
-    @http.route(['/outfits', '/outfits/page/<int:page>'], type='http', auth="public", website=True)
-    def outfit_list(self, page=1, **kw):
-        """Toont een lijst van alle outfits met paginering."""
 
-        # Instellingen
-        items_per_page = 12  # Hoeveel outfits per pagina?
+    # --- 1. OVERZICHT PAGINA MET FILTER ---
+    @http.route([
+        '/outfits',
+        '/outfits/page/<int:page>',
+        '/outfits/category/<int:category_id>',
+        '/outfits/category/<int:category_id>/page/<int:page>'
+    ], type='http', auth="public", website=True)
+    def outfit_list(self, page=1, category_id=None, **kw):
+        items_per_page = 12
         Outfit = request.env['website.outfit']
+        Category = request.env['website.outfit.category']
 
-        # Alleen gepubliceerde outfits tonen
+        # Basis domein: alleen gepubliceerde outfits
         domain = [('is_published', '=', True)]
 
-        # Totaal aantal tellen voor de pager
+        # Filter logica
+        active_category = False
+        if category_id:
+            domain.append(('category_id', '=', int(category_id)))
+            active_category = Category.browse(int(category_id))
+
+        # Haal alle categorieën op voor de filter-knoppen
+        categories = Category.search([], order='sequence')
+
+        # Pager en zoeken
         total = Outfit.search_count(domain)
 
-        # De pager berekenen (standaard Odoo functie)
+        # URL bouwen voor pager (zodat filter behouden blijft bij volgende pagina)
+        url = '/outfits'
+        if category_id:
+            url = f"/outfits/category/{category_id}"
+
         pager = request.website.pager(
-            url='/outfits',
+            url=url,
             total=total,
             page=page,
             step=items_per_page,
-            scope=7,
-            url_args=kw
+            scope=7
         )
 
-        # De records ophalen
-        # limit = hoeveelheid per pagina
-        # offset = waar te beginnen (berekend door pager)
-        # order = 'create_date desc' zorgt voor NIEUWSTE bovenaan
         outfits = Outfit.search(
             domain,
             limit=items_per_page,
@@ -41,13 +55,14 @@ class WebsiteOutfit(http.Controller):
 
         return request.render('website_outfit.outfit_list_page', {
             'outfits': outfits,
-            'pager': pager, # Geef pager door aan template
+            'pager': pager,
+            'categories': categories,        # NIEUW
+            'active_category': active_category, # NIEUW
         })
 
-    # Deze route is voor de detailpagina - CORRECT
+    # --- 2. DETAIL PAGINA ---
     @http.route(['/outfit/<string:slug>'], type='http', auth="public", website=True)
     def outfit_detail(self, slug, **kw):
-        """Render de detailpagina voor een specifieke outfit."""
         outfit = request.env['website.outfit'].search([('slug', '=', slug)], limit=1)
 
         if not outfit or not outfit.can_access_from_current_website():
@@ -57,10 +72,8 @@ class WebsiteOutfit(http.Controller):
             'outfit': outfit,
         })
 
-    # Deze route is voor "Hele Outfit Toevoegen" - AANGEPAST
     @http.route(['/outfit/add_all_to_cart'], type='http', auth="public", website=True, methods=['POST'])
     def add_all_to_cart(self, outfit_id, **kw):
-        """Voeg alle producten van een outfit toe aan de winkelwagen."""
         outfit = request.env['website.outfit'].browse(int(outfit_id))
         if not outfit:
             return request.render('website.404')
@@ -78,11 +91,9 @@ class WebsiteOutfit(http.Controller):
 
         return request.redirect("/shop/cart")
 
-    # Deze route is voor "Eén Product Toevoegen" - AANGEPAST
+    # --- 4. EEN PRODUCT TOEVOEGEN ---
     @http.route(['/outfit/add_one_to_cart'], type='http', auth="public", website=True, methods=['POST'])
     def add_one_to_cart(self, product_id, redirect, **kw):
-        """Voeg één product toe en ga terug naar de outfitpagina."""
-
         if not product_id:
             return request.render('website.404')
 
@@ -96,3 +107,16 @@ class WebsiteOutfit(http.Controller):
             quantity=1
         )
         return request.redirect(redirect)
+
+    # --- 5. SNIPPET ROUTE ---
+    @http.route(['/website_outfit/snippet_content'], type='jsonrpc', auth="public", website=True)
+    def snippet_content(self):
+        outfits = request.env['website.outfit'].search(
+            [('is_published', '=', True)],
+            limit=4,
+            order='create_date desc'
+        )
+        return request.env['ir.ui.view']._render_template(
+            'website_outfit.snippet_latest_outfits_content',
+            {'outfits': outfits, 'outfit_title': 'Nieuwste Looks'}
+        )
