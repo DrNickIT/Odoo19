@@ -22,7 +22,11 @@ class MigrationWizard(models.TransientModel):
     file_submissions = fields.Binary(string="2. Verzendzakken (otters_verzendzak.csv)", required=True)
     filename_submissions = fields.Char()
 
-    file_products = fields.Binary(string="3. Producten (otters_producten.csv)", required=True)
+    # NIEUW: Merken bestand
+    file_brands = fields.Binary(string="3. Merken (otters_merken.csv)", required=False)
+    filename_brands = fields.Char()
+
+    file_products = fields.Binary(string="4. Producten (otters_producten.csv)", required=True)
     filename_products = fields.Char()
 
     old_site_url = fields.Char(string="Oude Website URL", default="https://www.ottersenflamingos.be")
@@ -51,15 +55,22 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE (STOCK=0 IS UNPUBLISHED) ===")
+        _logger.info("=== START MIGRATIE (MET MERKEN) ===")
 
+        # 1. Klanten
         customer_map = self._process_customers()
         self.env.cr.commit()
 
+        # 2. Zakken
         submission_map = self._process_submissions(customer_map)
         self.env.cr.commit()
 
-        count = self._process_products(submission_map)
+        # 3. Merken (NIEUW) - Retourneert een mapping van oude ID naar (CategorieID, WaardeID)
+        brand_map = self._process_brands()
+        self.env.cr.commit()
+
+        # 4. Producten
+        count = self._process_products(submission_map, brand_map)
         _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt ===")
 
         return {
@@ -69,6 +80,7 @@ class MigrationWizard(models.TransientModel):
         }
 
     def _read_csv(self, binary_data):
+        if not binary_data: return []
         try:
             file_content = base64.b64decode(binary_data).decode('utf-8')
         except UnicodeDecodeError:
@@ -77,6 +89,7 @@ class MigrationWizard(models.TransientModel):
         delimiter = ';' if ';' in first_line else ','
         return csv.DictReader(io.StringIO(file_content), delimiter=delimiter)
 
+    # ... _process_customers en _process_submissions blijven identiek ...
     def _process_customers(self):
         csv_data = self._read_csv(self.file_customers)
         mapping = {}
@@ -155,11 +168,8 @@ class MigrationWizard(models.TransientModel):
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
                     'name': 'Nieuw',
                     'supplier_id': partner.id,
-                    'submission_date': date,
-                    'state': 'online',
-                    'payout_method': 'coupon',
-                    'payout_percentage': 0.5,
-                    'x_old_id': str(old_bag_id),
+                    'submission_date': date, 'state': 'online',
+                    'payout_method': 'coupon', 'payout_percentage': 0.5, 'x_old_id': str(old_bag_id),
                     'action_unaccepted': action_val,
                     'action_unsold': action_val
                 })
@@ -180,7 +190,76 @@ class MigrationWizard(models.TransientModel):
             mapping[old_bag_id] = submission
         return mapping
 
-    def _process_products(self, submission_map):
+    def _process_brands(self):
+        if not self.file_brands:
+            return {}
+
+        csv_data = self._read_csv(self.file_brands)
+        brand_map = {}
+
+        # Attribuut zoeken/maken
+        brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
+        if not brand_attribute:
+            brand_attribute = self.env['product.attribute'].create({
+                'name': 'Merk',
+                'create_variant': 'no_variant',
+                'display_type': 'select'
+            })
+
+        count = 0
+        for row in csv_data:
+            if count > 0 and count % 50 == 0:
+                self.env.cr.commit()
+
+            old_merk_id = self._clean_id(row.get('merk_id'))
+            name = row.get('naam')
+            if not old_merk_id or not name: continue
+
+            # 1. ZOEK HET MERK (op naam)
+            brand = self.env['otters.brand'].search([('name', '=', name)], limit=1)
+
+            # 2. BEREID DE DATA VOOR (Nu inclusief SEO!)
+            brand_vals = {
+                'name': name,
+                'description': row.get('omschrijving_nl'), # De HTML tekst uit de CSV
+                'is_published': True,
+
+                # --- SEO VELDEN TOEGEVOEGD ---
+                'website_meta_title': row.get('seo_titel'),
+                'website_meta_description': row.get('seo_description'),
+                'website_meta_keywords': row.get('seo_keywords'),
+            }
+
+            # 3. LOGO DOWNLOADEN
+            logo_url = row.get('foto')
+            if logo_url and str(logo_url) != 'nan':
+                # Soms staat er een relatief pad in (../files..), soms een url
+                img_data = self._download_image(logo_url)
+                if img_data:
+                    brand_vals['logo'] = img_data
+
+            # 4. MAAK AAN OF UPDATE
+            if not brand:
+                brand = self.env['otters.brand'].create(brand_vals)
+            else:
+                brand.write(brand_vals)
+
+            # 5. MAAK DE FILTER WAARDE (Attribuut)
+            brand_val = self.env['product.attribute.value'].search([('attribute_id', '=', brand_attribute.id), ('name', '=', name)], limit=1)
+            if not brand_val:
+                brand_val = self.env['product.attribute.value'].create({'name': name, 'attribute_id': brand_attribute.id})
+
+            # Map opslaan
+            brand_map[old_merk_id] = {
+                'brand_id': brand.id,
+                'attr_val_id': brand_val.id,
+                'attr_id': brand_attribute.id
+            }
+            count += 1
+
+        return brand_map
+
+    def _process_products(self, submission_map, brand_map):
         csv_data = self._read_csv(self.file_products)
         count = 0
 
@@ -189,7 +268,6 @@ class MigrationWizard(models.TransientModel):
             '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
         }
 
-        # Lijst van Accessoires
         accessoires_types = [
             'muts & sjaal', 'hoedjes & petjes', 'tutjes',
             'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen',
@@ -209,7 +287,7 @@ class MigrationWizard(models.TransientModel):
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
-            # Commissie
+            # Commissie (Code uit vorige stappen)
             commissie_raw = row.get('commissie')
             if commissie_raw:
                 try:
@@ -238,7 +316,7 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].search(domain, limit=1)
 
-            # --- STOCK BEREKENING ---
+            # Stock & Publicatie
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
@@ -251,7 +329,6 @@ class MigrationWizard(models.TransientModel):
 
             def is_empty_date(d): return not d or d == '0000-00-00'
 
-            # Stock Logic: Als het verkocht/verborgen is -> 0
             if (verkocht == 'nee' and
                     online_verkocht == 'nee' and
                     niet_weergeven != 'ja' and
@@ -261,18 +338,15 @@ class MigrationWizard(models.TransientModel):
             else:
                 final_qty = 0.0
 
-            # --- PUBLICATIE LOGICA ---
             is_published = True
             internal_description = False
 
-            # 1. Expliciet verborgen in CSV?
             if niet_weergeven == 'ja':
                 is_published = False
                 reden = row.get('waarom_niet_weergeven')
                 if reden and str(reden) != 'nan':
                     internal_description = f"Oorspronkelijk verborgen: {reden}"
 
-            # 2. Is de stock 0? Dan ook offline halen!
             if final_qty <= 0:
                 is_published = False
 
@@ -301,11 +375,9 @@ class MigrationWizard(models.TransientModel):
 
             if type_lower in accessoires_types:
                 target_cat_name = 'Accessoires'
-
             elif 'kousen' in type_lower or 'sokken' in type_lower:
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Kousen'
-
             elif 'schoen' in type_lower or 'laars' in type_lower or 'sneaker' in type_lower or 'sandaal' in type_lower or 'pantoffel' in type_lower:
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Schoenen'
@@ -323,18 +395,30 @@ class MigrationWizard(models.TransientModel):
                 except Exception:
                     pass
 
-            # Categorieën aanmaken
+            # Categorie aanmaken/zoeken
             main_cat = self.env['product.public.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
-            final_cat_id = main_cat.id
+
+            final_categ_ids = [main_cat.id] # Lijst met categorieën om te koppelen
 
             if target_sub_name:
                 sub_cat = self.env['product.public.category'].search([('name', '=', target_sub_name), ('parent_id', '=', main_cat.id)], limit=1)
                 if not sub_cat: sub_cat = self.env['product.public.category'].create({'name': target_sub_name, 'parent_id': main_cat.id})
-                final_cat_id = sub_cat.id
+                final_categ_ids.append(sub_cat.id)
 
-            product_vals['public_categ_ids'] = [(6, 0, [final_cat_id])]
+            old_merk_id = self._clean_id(row.get('merk_id'))
+            if old_merk_id and old_merk_id in brand_map:
+                brand_data = brand_map[old_merk_id]
 
+                # A. Koppel aan het nieuwe veld (voor logo/link)
+                product_vals['brand_id'] = brand_data['brand_id']
+
+                # B. Voeg toe als attribuut (voor filter)
+                self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
+            product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
+
+            # Interne Categorie (alleen de hoofd/sub, niet het merk)
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
             final_int_id = int_main.id
@@ -376,6 +460,7 @@ class MigrationWizard(models.TransientModel):
                 product = self.env['product.template'].create(product_vals)
                 self._update_stock(product, final_qty)
 
+                # Attributen
                 if maat_raw:
                     attr_name = 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat'
                     self._add_attribute(product, attr_name, maat_raw)
@@ -390,6 +475,13 @@ class MigrationWizard(models.TransientModel):
                 staat = row.get('staat')
                 if staat in condition_mapping:
                     self._add_attribute(product, 'Conditie', condition_mapping[staat])
+
+                # === MERK ATTRIBUUT TOEVOEGEN ===
+                old_merk_id = self._clean_id(row.get('merk_id'))
+                if old_merk_id and old_merk_id in brand_map:
+                    brand_data = brand_map[old_merk_id]
+                    # We gebruiken de interne methode om dit attribuut toe te voegen
+                    self._add_attribute_by_id(product, brand_data['attribute_id'], brand_data['val_id'])
 
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
@@ -461,3 +553,16 @@ class MigrationWizard(models.TransientModel):
                     'attribute_id': attribute.id,
                     'value_ids': [(6, 0, [value.id])]
                 })
+
+    def _add_attribute_by_id(self, product, attribute_id, value_id):
+        """ Helper om direct op ID te koppelen (voor merken) """
+        exists = False
+        for line in product.attribute_line_ids:
+            if line.attribute_id.id == attribute_id and value_id in line.value_ids.ids: exists = True
+
+        if not exists:
+            self.env['product.template.attribute.line'].create({
+                'product_tmpl_id': product.id,
+                'attribute_id': attribute_id,
+                'value_ids': [(6, 0, [value_id])]
+            })

@@ -8,26 +8,33 @@
                 <sheet>
                     <div class="alert alert-warning" role="alert">
                         <strong>Instructie:</strong> Upload de bestanden van de oude website.
-                        De tool koppelt alles automatisch: Klanten -> Verzendzakken -> Producten.
+                        De tool koppelt alles automatisch: Klanten -> Verzendzakken -> Merken -> Producten.
                     </div>
 
                     <group>
-                        <group string="1. Klanten">
+                        <group string="1. Basis Data">
                             <field name="file_customers" filename="filename_customers"/>
                             <field name="filename_customers" invisible="1"/>
-                        </group>
-                        <group string="2. Verzendzakken">
+
                             <field name="file_submissions" filename="filename_submissions"/>
                             <field name="filename_submissions" invisible="1"/>
                         </group>
+
+                        <group string="2. Verrijking">
+                            <field name="file_brands" filename="filename_brands"/>
+                            <field name="filename_brands" invisible="1"/>
+                        </group>
                     </group>
+
                     <group string="3. Producten">
                         <field name="file_products" filename="filename_products"/>
                         <field name="filename_products" invisible="1"/>
                     </group>
+
                     <group string="Instellingen">
                         <field name="old_site_url"/>
                     </group>
+
                     <footer>
                         <button name="start_migration" string="Start Migratie 🚀" type="object" class="btn-primary"/>
                         <button string="Annuleren" class="btn-secondary" special="cancel"/>

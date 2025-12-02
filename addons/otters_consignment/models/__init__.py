@@ -7,5 +7,6 @@ from . import sale_order_line
 from . import migration_wizard
 from . import submission_label
 from . import submission_rejected_line
+from . import brand
 
 

@@ -36,6 +36,7 @@
         'views/image_upload_wizard_views.xml',    # Gebruikt: menu_consignment_root (parent)
         'reports/consignment_report_views.xml', # Gebruikt: menu_consignment_root (parent)
         'views/migration_wizard_views.xml',
+        'views/brand_views.xml',
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
@@ -44,6 +45,7 @@
         'views/templates.xml',            # Publieke Consignment formulier
         'views/portal_templates.xml',     # Portal Views (Mijn Inzendingen)
         'views/product_recommendation.xml',
+        'views/brand_templates.xml',
 
         'data/website_data.xml',
     ],
