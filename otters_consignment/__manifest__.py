@@ -43,6 +43,7 @@
         # 4. PORTAAL & WEBSITE
         'views/templates.xml',            # Publieke Consignment formulier
         'views/portal_templates.xml',     # Portal Views (Mijn Inzendingen)
+        'views/product_recommendation.xml',
 
         'data/website_data.xml',
     ],

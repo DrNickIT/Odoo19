@@ -7,6 +7,7 @@ import io
 import logging
 import requests
 import time
+import re
 
 _logger = logging.getLogger(__name__)
 
@@ -50,8 +51,8 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE (MET COMMIT FIX) ===")
-        # We committen ook na de klanten en submissions om zeker te zijn
+        _logger.info("=== START MIGRATIE (STOCK=0 IS UNPUBLISHED) ===")
+
         customer_map = self._process_customers()
         self.env.cr.commit()
 
@@ -60,6 +61,7 @@ class MigrationWizard(models.TransientModel):
 
         count = self._process_products(submission_map)
         _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt ===")
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -123,7 +125,7 @@ class MigrationWizard(models.TransientModel):
                             'partner_id': partner.id
                         })
                     except Exception as e:
-                        _logger.warning(f"Kon rekeningnummer {clean_iban} niet toevoegen voor {partner.name}: {e}")
+                        pass
             mapping[old_id] = partner
         return mapping
 
@@ -187,14 +189,17 @@ class MigrationWizard(models.TransientModel):
             '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
         }
 
+        # Lijst van Accessoires
+        accessoires_types = [
+            'muts & sjaal', 'hoedjes & petjes', 'tutjes',
+            'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen',
+            'slab', 'speenkoord', 'badcape', 'dekentje'
+        ]
+
         for row in csv_data:
-            # === HIER IS DE FIX VOOR DE LOCK ERROR ===
-            # Elke 10 producten slaan we de database hard op.
-            # Dit voorkomt timeouts en maakt het mogelijk om halverwege te hervatten (soort van)
             if count > 0 and count % 10 == 0:
                 self.env.cr.commit()
                 _logger.info(f"... {count} producten verwerkt (Committed) ...")
-            # ==========================================
 
             zak_id_product = self._clean_id(row.get('zak_id'))
             old_product_id = self._clean_id(row.get('product_id'))
@@ -233,7 +238,7 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].search(domain, limit=1)
 
-            # --- STOCK & PUBLICATIE LOGICA ---
+            # --- STOCK BEREKENING ---
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
@@ -246,7 +251,7 @@ class MigrationWizard(models.TransientModel):
 
             def is_empty_date(d): return not d or d == '0000-00-00'
 
-            # De Check
+            # Stock Logic: Als het verkocht/verborgen is -> 0
             if (verkocht == 'nee' and
                     online_verkocht == 'nee' and
                     niet_weergeven != 'ja' and
@@ -256,14 +261,26 @@ class MigrationWizard(models.TransientModel):
             else:
                 final_qty = 0.0
 
+            # --- PUBLICATIE LOGICA ---
+            is_published = True
+            internal_description = False
+
+            # 1. Expliciet verborgen in CSV?
+            if niet_weergeven == 'ja':
+                is_published = False
+                reden = row.get('waarom_niet_weergeven')
+                if reden and str(reden) != 'nan':
+                    internal_description = f"Oorspronkelijk verborgen: {reden}"
+
+            # 2. Is de stock 0? Dan ook offline halen!
+            if final_qty <= 0:
+                is_published = False
+
             product_vals = {
-                'name': name,
-                'submission_id': submission.id,
-                'is_published': True,
-                'type': 'consu',
-                'is_storable': True,
-                'default_code': default_code,
-                'x_old_id': str(old_product_id),
+                'name': name, 'submission_id': submission.id,
+                'is_published': is_published,
+                'type': 'consu', 'is_storable': True,
+                'default_code': default_code, 'x_old_id': str(old_product_id),
                 'description_ecommerce': row.get('lange_omschrijving'),
                 'description_sale': row.get('korte_omschrijving_nl'),
                 'website_meta_title': row.get('seo_titel'),
@@ -271,8 +288,65 @@ class MigrationWizard(models.TransientModel):
                 'website_meta_keywords': row.get('seo_keywords'),
             }
 
+            if internal_description:
+                product_vals['description'] = internal_description
+
+            # === CATEGORIE LOGICA ===
+            type_raw = str(row.get('type', '')).strip()
+            type_lower = type_raw.lower()
+            maat_raw = str(row.get('maat', '')).strip()
+
+            target_cat_name = 'Kleding'
+            target_sub_name = type_raw.capitalize()
+
+            if type_lower in accessoires_types:
+                target_cat_name = 'Accessoires'
+
+            elif 'kousen' in type_lower or 'sokken' in type_lower:
+                target_cat_name = 'Schoenen & Kousen'
+                target_sub_name = 'Kousen'
+
+            elif 'schoen' in type_lower or 'laars' in type_lower or 'sneaker' in type_lower or 'sandaal' in type_lower or 'pantoffel' in type_lower:
+                target_cat_name = 'Schoenen & Kousen'
+                target_sub_name = 'Schoenen'
+
+            # Override maat <= 45
+            if maat_raw:
+                try:
+                    clean_maat = re.match(r"(\d+)", maat_raw)
+                    if clean_maat:
+                        size_num = int(clean_maat.group(1))
+                        if size_num <= 45:
+                            if target_cat_name != 'Accessoires' and target_sub_name != 'Kousen':
+                                target_cat_name = 'Schoenen & Kousen'
+                                target_sub_name = 'Schoenen'
+                except Exception:
+                    pass
+
+            # Categorieën aanmaken
+            main_cat = self.env['product.public.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
+            if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
+            final_cat_id = main_cat.id
+
+            if target_sub_name:
+                sub_cat = self.env['product.public.category'].search([('name', '=', target_sub_name), ('parent_id', '=', main_cat.id)], limit=1)
+                if not sub_cat: sub_cat = self.env['product.public.category'].create({'name': target_sub_name, 'parent_id': main_cat.id})
+                final_cat_id = sub_cat.id
+
+            product_vals['public_categ_ids'] = [(6, 0, [final_cat_id])]
+
+            int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
+            if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
+            final_int_id = int_main.id
+
+            if target_sub_name:
+                int_sub = self.env['product.category'].search([('name', '=', target_sub_name), ('parent_id', '=', int_main.id)], limit=1)
+                if not int_sub: int_sub = self.env['product.category'].create({'name': target_sub_name, 'parent_id': int_main.id})
+                final_int_id = int_sub.id
+
+            product_vals['categ_id'] = final_int_id
+
             if product:
-                # UPDATE
                 product.write(product_vals)
                 self._update_stock(product, final_qty)
 
@@ -282,7 +356,7 @@ class MigrationWizard(models.TransientModel):
                         urls = extra_fotos.split(',')
                         for idx, url in enumerate(urls):
                             if url:
-                                time.sleep(0.2)
+                                time.sleep(0.3)
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                                 if extra_img:
                                     self.env['product.image'].create({
@@ -291,8 +365,7 @@ class MigrationWizard(models.TransientModel):
                                         'image_1920': extra_img
                                     })
             else:
-                # NIEUW
-                time.sleep(0.5)
+                time.sleep(0.3)
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
 
@@ -303,11 +376,17 @@ class MigrationWizard(models.TransientModel):
                 product = self.env['product.template'].create(product_vals)
                 self._update_stock(product, final_qty)
 
-                if row.get('maat'): self._add_attribute(product, 'Maat', row.get('maat'))
+                if maat_raw:
+                    attr_name = 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat'
+                    self._add_attribute(product, attr_name, maat_raw)
+
                 if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
-                if row.get('categorie'): self._add_attribute(product, 'Doelgroep', row.get('categorie'))
-                if row.get('type'): self._add_attribute(product, 'Categorie', row.get('type'))
+
+                if row.get('categorie'): self._add_attribute(product, 'Geslacht', row.get('categorie'))
+
+                if row.get('type'): self._add_attribute(product, 'Type', row.get('type'))
+
                 staat = row.get('staat')
                 if staat in condition_mapping:
                     self._add_attribute(product, 'Conditie', condition_mapping[staat])
@@ -317,7 +396,7 @@ class MigrationWizard(models.TransientModel):
                     urls = extra_fotos.split(',')
                     for idx, url in enumerate(urls):
                         if url:
-                            time.sleep(0.2)
+                            time.sleep(0.3)
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img:
                                 self.env['product.image'].create({
