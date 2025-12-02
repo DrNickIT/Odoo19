@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="brands_overview_page" name="Onze Merken">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <div class="container py-5">
+
+                    <div class="row mb-5 text-center">
+                        <div class="col-12">
+                            <h1 class="text-primary fw-bold">Onze Merken 🦦</h1>
+                            <p class="lead text-muted">Ontdek prachtige tweedehands stuks van je favoriete merken</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-5 justify-content-center">
+                        <div class="col-md-6">
+                            <input type="text" id="brandSearch" class="form-control form-control-lg border-0 shadow-sm" placeholder="Zoek een merk..."/>
+                        </div>
+                    </div>
+
+                    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-4" id="brandsGrid">
+                        <t t-foreach="brands" t-as="brand">
+                            <div class="col brand-item" t-att-data-name="brand.name.lower()">
+                                <a t-att-href="'/brand/%s' % slug(brand)" class="text-decoration-none">
+                                    <div class="card h-100 border-0 shadow-sm hover-scale text-center">
+                                        <div class="card-body d-flex flex-column align-items-center justify-content-center p-4">
+                                            <div style="height: 80px; display: flex; align-items: center; justify-content: center; width: 100%;">
+                                                <t t-if="brand.logo">
+                                                    <img t-att-src="image_data_uri(brand.logo)" style="max-height: 80px; max-width: 100%; object-fit: contain;" alt="Logo"/>
+                                                </t>
+                                                <t t-else="">
+                                                    <span class="text-muted fa fa-tag fa-2x"/>
+                                                </t>
+                                            </div>
+                                            <h6 class="card-title text-dark fw-bold mt-3 mb-0">
+                                                <span t-field="brand.name"/>
+                                            </h6>
+                                            <small class="text-muted"><t t-esc="brand.product_count"/> stuks</small>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </t>
+                    </div>
+
+                    <div id="noBrands" class="text-center d-none mt-5">
+                        <h4 class="text-muted">Geen merken gevonden...</h4>
+                    </div>
+                </div>
+            </div>
+            <script>
+                document.getElementById('brandSearch').addEventListener('keyup', function() {
+                let filter = this.value.toLowerCase();
+                let items = document.querySelectorAll('.brand-item');
+                let visibleCount = 0;
+                items.forEach(function(item) {
+                let name = item.getAttribute('data-name');
+                if (name.includes(filter)) { item.classList.remove('d-none'); visibleCount++; }
+                else { item.classList.add('d-none'); }
+                });
+                document.getElementById('noBrands').classList.toggle('d-none', visibleCount > 0);
+                });
+            </script>
+            <style>.hover-scale { transition: transform 0.2s; } .hover-scale:hover { transform: translateY(-5px); }</style>
+        </t>
+    </template>
+
+    <template id="brand_detail_page" name="Merk Detail">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <div class="container py-5">
+
+                    <div class="row align-items-center mb-5 bg-light p-4 rounded shadow-sm">
+                        <div class="col-md-3 text-center">
+                            <t t-if="brand.logo">
+                                <img t-att-src="image_data_uri(brand.logo)" class="img-fluid" style="max-height: 150px; object-fit: contain;"/>
+                            </t>
+                            <t t-else="">
+                                <span class="fa fa-tag fa-4x text-muted"/>
+                            </t>
+                        </div>
+                        <div class="col-md-9">
+                            <h1 class="fw-bold text-primary"><span t-field="brand.name"/></h1>
+                            <div class="text-muted" t-field="brand.description"/>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <t t-if="not products">
+                            <div class="col-12 text-center py-5">
+                                <h3>Momenteel geen stuks van <span t-field="brand.name"/> binnen.</h3>
+                                <a href="/shop" class="btn btn-primary mt-3">Bekijk alle kleding</a>
+                            </div>
+                        </t>
+
+                        <t t-else="">
+                            <div class="o_wsale_products_grid_table_wrapper">
+                                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+                                    <t t-foreach="products" t-as="product">
+                                        <div class="col o_wsale_product_grid_wrapper position-relative h-100">
+
+                                            <t t-set="product_href" t-value="'/shop/product/%s' % slug(product)"/>
+                                            <t t-set="website" t-value="request.website"/>
+
+                                            <t t-set="show_variations" t-value="False"/>
+                                            <t t-set="previewed_attribute_values" t-value="{}"/>
+                                            <t t-set="product_ptavs_data" t-value="False"/>
+                                            <t t-set="product_variant" t-value="product.product_variant_ids[:1]"/>
+
+                                            <t t-set="show_ribbons" t-value="False"/>
+
+                                            <t t-set="product_actions" t-value="False"/>
+                                            <t t-set="extra_actions" t-value="False"/>
+
+                                            <t t-set="combination_info" t-value="product._get_combination_info(only_template=True, add_qty=1)"/>
+
+                                            <t t-set="product_price">
+                                                <div class="product_price" itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer">
+                                                    <span class="h5 mb-0"
+                                                          t-esc="combination_info['price']"
+                                                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                                    <t t-if="combination_info['has_discounted_price']">
+                                                        <del class="text-muted me-1 h6 mb-0" style="white-space: nowrap;">
+                                                            <span t-esc="combination_info['list_price']"
+                                                                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                                        </del>
+                                                    </t>
+                                                </div>
+                                            </t>
+
+                                            <t t-call="website_sale.products_item"/>
+
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

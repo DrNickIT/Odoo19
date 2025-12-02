@@ -55,3 +55,10 @@ class ProductTemplate(models.Model):
     )
 
     x_old_id = fields.Char(string="Oud Product ID", copy=False, readonly=True)
+
+    brand_id = fields.Many2one(
+        'otters.brand',
+        string="Merk",
+        index=True,
+        ondelete='set null'
+    )

@@ -28,5 +28,15 @@
             <field name="domain_force">[('supplier_id', '=', user.partner_id.id)]</field>
             <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
         </record>
+        <record id="rule_otters_brand_published_only_public" model="ir.rule">
+            <field name="name">Brand Published Only Public</field>
+            <field name="model_id" ref="model_otters_brand"/>
+            <field name="domain_force">[('is_published', '=', True)]</field>
+            <field name="groups" eval="[(4, ref('base.group_public')), (4, ref('base.group_portal'))]"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="0"/>
+            <field name="perm_create" eval="0"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
     </data>
 </odoo>
