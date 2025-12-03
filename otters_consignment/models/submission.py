@@ -213,6 +213,45 @@ class ConsignmentSubmission(models.Model):
                             submission.sudo()._create_sendcloud_parcel()
                     except Exception as e:
                         _logger.error(f"Sendcloud Fout: {e}")
+        _logger.info("============ START MAIL DEBUG ============")
+
+        # 1. Check of template gevonden wordt
+        template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
+
+        if not template:
+            _logger.error("FOUT: E-mail template niet gevonden! Heb je de module geüpdatet?")
+        else:
+            _logger.info(f"SUCCES: Template gevonden met ID {template.id}")
+
+        for submission in submissions:
+            partner_email = submission.supplier_id.email
+            _logger.info(f"Checken voor submission {submission.id}. Email klant: {partner_email}")
+
+            if template and partner_email:
+                try:
+                    _logger.info("Proberen mail te sturen met force_send=True...")
+                    template.send_mail(submission.id, force_send=True)
+                    _logger.info("Mail instructie gegeven aan Odoo!")
+                except Exception as e:
+                    # DIT IS BELANGRIJK: Als hier een fout komt, ligt het aan je SMTP instelling
+                    _logger.error(f"CRASH BIJ VERZENDEN: {e}")
+            else:
+                _logger.warning("Mail overgeslagen: Geen template of geen e-mailadres bij klant.")
+
+        _logger.info("============ EINDE MAIL DEBUG ============")
+
+        return submissions
+        # === MAIL VERSTUREN ===
+        # We zoeken de template op basis van de ID die we in de XML gaven
+        template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
+
+        for submission in submissions:
+            if template and submission.supplier_id.email:
+                try:
+                    template.send_mail(submission.id, force_send=True)
+                except Exception as e:
+                    _logger.warning(f"Kon bevestigingsmail niet sturen: {e}")
+        # ======================
 
         return submissions
 
