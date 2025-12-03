@@ -27,6 +27,12 @@ services:
       - odoo-db-data:/var/lib/postgresql
     ports:
       - "5444:5432"
+  # === NIEUWE SERVICE ===
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"  # Web interface
+      - "1025:1025"  # SMTP poort
 
 volumes:
   odoo-db-data:

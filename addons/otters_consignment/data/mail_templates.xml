@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <record id="mail_template_consignment_label_order" model="mail.template">
+            <field name="name">Consignatie: Bestelling Verzendlabels</field>
+            <field name="model_id" ref="otters_consignment.model_otters_consignment_submission"/>
+            <field name="subject">Bestelling verzendlabels - Otters &amp; Flamingo's</field>
+            <field name="email_from">{{ (object.env.company.email or user.email_formatted) }}</field>
+            <field name="partner_to"></field>
+            <field name="email_to">{{ object.supplier_id.email }}</field>
+            <field name="description">Bevestiging van aanvraag verzendlabels</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px; font-family: 'Lucida Grande', 'Lucida Sans Unicode', Arial, Helvetica, sans-serif; font-size: 13px;">
+
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <img t-att-src="'/web/image/res.company/%s/logo' % object.env.company.id"
+                             style="max-height: 80px; width: auto;"
+                             alt="Otters &amp; Flamingo's"/>
+                    </div>
+
+                    <div style="text-align: left; max-width: 600px; margin: 0 auto;">
+
+                        <h1 style="font-size: 20px; font-weight: bold; color: #333333; margin-bottom: 20px;">
+                            Bestelling verzendlabels - Otters &amp; Flamingo's
+                        </h1>
+
+                        <p style="margin-bottom: 15px;">
+                            Beste <t t-out="object.supplier_id.name or 'Klant'">Klant</t>,
+                        </p>
+
+                        <p style="margin-bottom: 15px;">
+                            Bedankt voor het bestellen van <strong><t t-out="object.label_count"/></strong> verzendlabel(s). We versturen dit zo snel mogelijk via mail.
+                        </p>
+
+                        <p style="margin-bottom: 15px;">
+                            Print het label af, en plak het op een stevige doos of zak. Zorg dat deze goed is dichtgemaakt!
+                        </p>
+
+                        <p style="margin-bottom: 25px;">
+                            We kijken uit naar jouw verzending!
+                        </p>
+
+                        <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #00A09D; margin-bottom: 25px;">
+                            <strong>Ter info:</strong><br/>
+                            0-10kg<br/>
+                            Maximale afmetingen: lengte 150 cm<br/>
+                            Maximale totale grootte: 300 cm (Calculate lengte + 2 x breedte + 2 x hoogte.)
+                        </div>
+
+                        <p style="margin-bottom: 0px;">
+                            Met vriendelijke groeten<br/>
+                            Het Otters &amp; Flamingo's-team
+                        </p>
+                    </div>
+
+                </div>
+            </field>
+        </record>
+    </data>
+</odoo>

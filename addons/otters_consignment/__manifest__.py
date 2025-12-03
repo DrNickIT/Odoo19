@@ -48,6 +48,7 @@
         'views/brand_templates.xml',
 
         'data/website_data.xml',
+        'data/mail_templates.xml',
     ],
     'assets': {
         'web.assets_frontend': [
