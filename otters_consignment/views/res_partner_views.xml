@@ -7,7 +7,7 @@
             <field name="inherit_id" ref="base.view_partner_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//notebook" position="inside">
-                    <page string="Consignment" name="consignment">
+                    <page string="Verzendlabels" name="consignment">
                         <group>
                             <group string="Uitbetalingsmethode">
                                 <field name="x_payout_method"/>
@@ -15,7 +15,7 @@
                                 <field name="x_coupon_payout_percentage" widget="percentage"/>
                                 <field name="user_id" string="Gerelateerde Portal Gebruiker"/>
                             </group>
-                            <group string="Consignment ID">
+                            <group string="Verzendlabels ID">
                                 <field name="x_consignment_prefix"/>
                             </group>
                         </group>
