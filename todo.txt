@@ -1,12 +1,14 @@
+OK --> * Indien user is ingelogged bij verzendlabel aanvragen de data al invullen. --> OK
+OK --> * Alle huidige klanten zijn akkoord met de voorwaarden? OK
+OK --> * email versturen bij verzendlabel OK
 * Bestellingen inladen
 * cadeabonnen enzo
 * actiecodes
 * mollie
 * sendcloud --> gewoon de api
 * google analytics --> Marleen
-* Alle huidige klanten zijn akkoord met de voorwaarden? OK
-* 20 stuks voorwaarden
-* Consignment --> Verzendlabels
+OK --> * 20 stuks voorwaarden
+OK --> * Consignment --> Verzendlabels
 ** Jaar toevoegen
 ** 1 sendcloud label per zak
 ** 1 zak / doos = 1 verzendlabel
@@ -34,6 +36,6 @@
 * email opmaak
 * Rekening nummer
 * telefoon niet verplicht
-* email versturen bij verzendlabel
-* Indien user is ingelogged bij verzendlabel aanvragen de data al invullen.
+* Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
+
 
