@@ -52,7 +52,7 @@ class ConsignmentSubmission(models.Model):
     x_sender_name = fields.Char(string="Naam", store=False)
     x_sender_email = fields.Char(string="E-mail", store=False)
     x_sender_street = fields.Char(string="Straat", store=False)
-    x_sender_house_number = fields.Char(string="Huisnummer", store=False)
+    x_sender_street2 = fields.Char(string="Bus / Toevoeging", store=False)
     x_sender_city = fields.Char(string="Stad", store=False)
     x_sender_postal_code = fields.Char(string="Postcode", store=False)
     x_sender_country_code = fields.Char(string="Landcode", store=False)
@@ -149,14 +149,24 @@ class ConsignmentSubmission(models.Model):
             if vals.get('x_sender_email'):
                 sender_email = vals.pop('x_sender_email')
                 temp_payout_method = vals.pop('x_payout_method_temp')
+
+                name_val = vals.pop('x_sender_name', False)
+                street_val = vals.pop('x_sender_street', False)
+
+                street2_val = vals.pop('x_sender_street2', '')
+
+                city_val = vals.pop('x_sender_city', False)
+                zip_val = vals.pop('x_sender_postal_code', False)
+                country_code_val = vals.pop('x_sender_country_code', 'BE')
+
                 partner_vals = {
-                    'name': vals.pop('x_sender_name'),
+                    'name': name_val,
                     'email': sender_email,
-                    'street': vals.pop('x_sender_street'),
-                    'street2': vals.pop('x_sender_house_number'),
-                    'city': vals.pop('x_sender_city'),
-                    'zip': vals.pop('x_sender_postal_code'),
-                    'country_id': self.env['res.country'].search([('code', '=', vals.pop('x_sender_country_code', 'BE'))], limit=1).id,
+                    'street': street_val,   # Gaat naar Odoo 'street'
+                    'street2': street2_val, # Gaat naar Odoo 'street2'
+                    'city': city_val,
+                    'zip': zip_val,
+                    'country_id': self.env['res.country'].search([('code', '=', country_code_val)], limit=1).id,
                 }
                 if temp_payout_method: partner_vals['x_payout_method'] = temp_payout_method
 
@@ -204,54 +214,39 @@ class ConsignmentSubmission(models.Model):
 
         submissions = super(ConsignmentSubmission, self).create(new_vals_list)
 
+        # === HIER ZIT DE WIJZIGING ===
+        # We checken de flag 'skip_sendcloud' (die de migratie wizard op True zet).
+        # Als die True is, slaan we ZOWEL Sendcloud ALS de e-mails over.
+
         if not self.env.context.get('skip_sendcloud'):
+            # 1. Sendcloud Labels
             for submission in submissions:
                 if submission.supplier_id:
                     try:
-                        # Loop zo vaak als het aantal gevraagde labels
                         for i in range(submission.label_count):
                             submission.sudo()._create_sendcloud_parcel()
                     except Exception as e:
                         _logger.error(f"Sendcloud Fout: {e}")
-        _logger.info("============ START MAIL DEBUG ============")
 
-        # 1. Check of template gevonden wordt
-        template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
+            # 2. E-mails versturen
+            _logger.info("============ START MAIL DEBUG ============")
+            template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
 
-        if not template:
-            _logger.error("FOUT: E-mail template niet gevonden! Heb je de module geüpdatet?")
-        else:
-            _logger.info(f"SUCCES: Template gevonden met ID {template.id}")
-
-        for submission in submissions:
-            partner_email = submission.supplier_id.email
-            _logger.info(f"Checken voor submission {submission.id}. Email klant: {partner_email}")
-
-            if template and partner_email:
-                try:
-                    _logger.info("Proberen mail te sturen met force_send=True...")
-                    template.send_mail(submission.id, force_send=True)
-                    _logger.info("Mail instructie gegeven aan Odoo!")
-                except Exception as e:
-                    # DIT IS BELANGRIJK: Als hier een fout komt, ligt het aan je SMTP instelling
-                    _logger.error(f"CRASH BIJ VERZENDEN: {e}")
+            if not template:
+                _logger.error("FOUT: E-mail template niet gevonden!")
             else:
-                _logger.warning("Mail overgeslagen: Geen template of geen e-mailadres bij klant.")
+                for submission in submissions:
+                    partner_email = submission.supplier_id.email
+                    if partner_email:
+                        try:
+                            template.sudo().send_mail(submission.id, force_send=True)
+                            _logger.info(f"Mail verstuurd naar {partner_email}")
+                        except Exception as e:
+                            _logger.error(f"CRASH BIJ VERZENDEN: {e}")
+            _logger.info("============ EINDE MAIL DEBUG ============")
 
-        _logger.info("============ EINDE MAIL DEBUG ============")
-
-        return submissions
-        # === MAIL VERSTUREN ===
-        # We zoeken de template op basis van de ID die we in de XML gaven
-        template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
-
-        for submission in submissions:
-            if template and submission.supplier_id.email:
-                try:
-                    template.send_mail(submission.id, force_send=True)
-                except Exception as e:
-                    _logger.warning(f"Kon bevestigingsmail niet sturen: {e}")
-        # ======================
+        else:
+            _logger.info("Migratie bezig: Sendcloud en E-mails onderdrukt.")
 
         return submissions
 
@@ -280,7 +275,7 @@ class ConsignmentSubmission(models.Model):
         post = {
             'phone': partner.phone,
             'street': partner.street,
-            'house_number': partner.street2,
+            'street2': partner.street2,
             'city': partner.city,
             'postal_code': partner.zip,
             'country': partner.country_id.code,
@@ -324,7 +319,7 @@ class ConsignmentSubmission(models.Model):
 
         payload = {
             "parcel": {
-                "request_label": True,
+                "request_label": False,
                 "is_return": False,
                 "order_number": submission.name,
                 "weight": "5.000",
@@ -339,7 +334,7 @@ class ConsignmentSubmission(models.Model):
                 "telephone": store_phone_formatted,
                 "from_name": partner.name,
                 "from_address_1": post.get('street'),
-                "from_house_number": post.get('house_number'),
+                "from_house_number": post.get('street2'),
                 "from_city": post.get('city'),
                 "from_postal_code": post.get('postal_code'),
                 "from_country": post.get('country'),

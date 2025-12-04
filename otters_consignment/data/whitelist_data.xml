@@ -6,7 +6,7 @@
             'x_sender_name',
             'x_sender_email',
             'x_sender_street',
-            'x_sender_house_number',
+            'x_sender_street2',
             'x_sender_city',
             'x_sender_postal_code',
             'x_sender_country_code',
