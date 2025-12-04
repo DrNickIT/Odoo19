@@ -68,15 +68,19 @@
 
                                 <h5>Adres</h5>
                                 <div class="row">
-                                    <div class="col-md-9 mb-3">
-                                        <label for="street" class="form-label">Straat</label>
+                                    <div class="col-md-8 mb-3">
+                                        <label for="street" class="form-label">Straat + Huisnr.</label>
                                         <input type="text" class="form-control" name="x_sender_street" required="1"
+                                               placeholder="bv. Krokusstraat 16"
                                                t-att-value="default_street"/>
                                     </div>
-                                    <div class="col-md-3 mb-3">
-                                        <label for="house_number" class="form-label">Huisnr.</label>
-                                        <input type="text" class="form-control" name="x_sender_house_number" required="1"
+                                    <div class="col-md-4 mb-3">
+                                        <label for="street2" class="form-label">Bus / Toevoeging</label>
+
+                                        <input type="text" class="form-control" name="x_sender_street2"
+                                               placeholder="bv. Bus 2"
                                                t-att-value="default_street2"/>
+
                                     </div>
                                 </div>
                                 <div class="row">

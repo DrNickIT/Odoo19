@@ -13,6 +13,7 @@
         'otters_webshop_outofstock_filter',
         'portal',
         'om_sendcloud_delivery',
+        'auth_signup',
     ],
     'data': [
         # 1. SECURITY & CONFIG (Moet EERST geladen worden)

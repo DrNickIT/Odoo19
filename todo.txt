@@ -4,7 +4,7 @@
 * mollie
 * sendcloud --> gewoon de api
 * google analytics --> Marleen
-* Alle huidige klanten zijn akkoord met de voorwaarden?
+* Alle huidige klanten zijn akkoord met de voorwaarden? OK
 * 20 stuks voorwaarden
 * Consignment --> Verzendlabels
 ** Jaar toevoegen
