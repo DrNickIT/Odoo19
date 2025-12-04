@@ -54,11 +54,13 @@
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label for="contact_name" class="form-label">Jouw Naam</label>
-                                        <input type="text" class="form-control" name="x_sender_name" required="1"/>
+                                        <input type="text" class="form-control" name="x_sender_name" required="1"
+                                               t-att-value="default_name"/>
                                     </div>
                                     <div class="col-md-6">
                                         <label for="email" class="form-label">E-mailadres</label>
-                                        <input type="email" class="form-control" name="x_sender_email" required="1"/>
+                                        <input type="email" class="form-control" name="x_sender_email" required="1"
+                                               t-att-value="default_email"/>
                                     </div>
                                 </div>
 
@@ -68,21 +70,25 @@
                                 <div class="row">
                                     <div class="col-md-9 mb-3">
                                         <label for="street" class="form-label">Straat</label>
-                                        <input type="text" class="form-control" name="x_sender_street" required="1"/>
+                                        <input type="text" class="form-control" name="x_sender_street" required="1"
+                                               t-att-value="default_street"/>
                                     </div>
                                     <div class="col-md-3 mb-3">
                                         <label for="house_number" class="form-label">Huisnr.</label>
-                                        <input type="text" class="form-control" name="x_sender_house_number" required="1"/>
+                                        <input type="text" class="form-control" name="x_sender_house_number" required="1"
+                                               t-att-value="default_street2"/>
                                     </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
                                         <label for="postal_code" class="form-label">Postcode</label>
-                                        <input type="text" class="form-control" name="x_sender_postal_code" required="1"/>
+                                        <input type="text" class="form-control" name="x_sender_postal_code" required="1"
+                                               t-att-value="default_zip"/>
                                     </div>
                                     <div class="col-md-8 mb-3">
                                         <label for="city" class="form-label">Stad/Plaats</label>
-                                        <input type="text" class="form-control" name="x_sender_city" required="1"/>
+                                        <input type="text" class="form-control" name="x_sender_city" required="1"
+                                               t-att-value="default_city"/>
                                     </div>
                                 </div>
                                 <input type="hidden" name="country" value="BE"/>
@@ -119,11 +125,15 @@
                                     <div class="row">
                                         <div class="col-md-6 mb-2">
                                             <label for="x_iban">Jouw IBAN Nummer *</label>
-                                            <input type="text" class="form-control" name="x_iban" id="x_iban" placeholder="BE00 0000 0000 0000"/>
+                                            <input type="text" class="form-control" name="x_iban" id="x_iban"
+                                                   placeholder="BE00 0000 0000 0000"
+                                                   t-att-value="default_iban"/>
                                         </div>
                                         <div class="col-md-6 mb-2">
                                             <label for="x_iban_confirm">Bevestig IBAN Nummer *</label>
-                                            <input type="text" class="form-control" id="x_iban_confirm" placeholder="Typ nogmaals ter controle"/>
+                                            <input type="text" class="form-control" id="x_iban_confirm"
+                                                   placeholder="Typ nogmaals ter controle"
+                                                   t-att-value="default_iban"/>
                                         </div>
                                     </div>
                                     <div id="iban_error" class="alert alert-danger d-none mt-2"></div>

@@ -28,11 +28,20 @@ services:
     ports:
       - "5444:5432"
   # === NIEUWE SERVICE ===
-  mailhog:
-    image: mailhog/mailhog
+  mailpit:
+    image: axllent/mailpit
+    container_name: mailpit
+    restart: always
     ports:
-      - "8025:8025"  # Web interface
-      - "1025:1025"  # SMTP poort
+      - "8025:8025"  # De web interface (dezelfde poort als MailHog)
+      - "1025:1025"  # De SMTP poort (dezelfde poort als MailHog)
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/database.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - ./mailpit-data:/data
 
 volumes:
   odoo-db-data:
