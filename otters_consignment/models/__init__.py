@@ -9,5 +9,6 @@ from . import submission_label
 from . import submission_rejected_line
 from . import brand
 from . import res_users
+from . import res_config_settings
 
 

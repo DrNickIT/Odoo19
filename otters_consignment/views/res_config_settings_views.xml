@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_otters" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.otters</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="90"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Consignatie" name="otters_consignment">
+                    <block title="Website Instellingen" id="consignment_website_settings">
+                        <setting help="Blokkeer het aanvragen van labels op de website (bv. bij vakantie of vol magazijn).">
+                            <field name="otters_consignment_closed"/>
+                            <div class="content-group" invisible="not otters_consignment_closed">
+                                <div class="row mt16">
+                                    <label for="otters_consignment_closed_message" class="col-lg-3 o_light_label"/>
+                                    <field name="otters_consignment_closed_message"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_otters_config_settings" model="ir.actions.act_window">
+        <field name="name">Instellingen</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'module' : 'otters_consignment'}</field>
+    </record>
+
+    <menuitem id="menu_otters_config_settings"
+              name="Configuratie"
+              parent="otters_consignment.menu_consignment_root"
+              action="action_otters_config_settings"
+              sequence="100"/>
+</odoo>
