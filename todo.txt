@@ -19,7 +19,7 @@ OK --> ** historiek status bijhouden wanneer is wat gebeurd
 OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 ** Korting op verzendlabel --> mee rekening houden in portaal
 * Outfit publiceren
-** outfit pagina niet publiceren gaat dat?
+OK --> ** outfit pagina niet publiceren gaat dat? Geen link maken naar de pagina + outfits niet publishen
 OK --> ** Verzendlabel pagina hetzelfde
 OK --> ** kenmerk categoriën?
 OK --> * Meer uit deze kleerkast de mooie kadertjes er rond aub
@@ -37,7 +37,12 @@ OK --> * Overslaan na bestelling waarom? Waarschijnlijk de demo modus
 OK --> * Rekening nummer
 * telefoon niet verplicht
 OK --> * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
-* Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot
+OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zien dat report.url en web.base.url juist staan
+    voor docker
+    Sleutel,Waarde,Uitleg
+    web.base.url,http://localhost:8071,Zodat je logo in de mail laadt.
+    report.url,http://127.0.0.1:8069,Zodat je PDF's (facturen/labels) werken.
+    web.base.url.freeze,True,Zodat Odoo het niet per ongeluk terugzet.
 * Klanten moeten nog zien hoeveel producten ze in de zak hebben
 
 
