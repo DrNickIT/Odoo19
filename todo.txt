@@ -26,10 +26,10 @@ OK --> * Meer uit deze kleerkast de mooie kadertjes er rond aub
 OK --> * Specificaties niet dupliceren bij harmonica ?
 OK --> * info icoontje bij verzendlabel bestellen mag weg
 OK --> * 30.0 --> 30
-* Merken en Product variant merk linken aan elkaar
+OK --> * Merken en Product variant merk linken aan elkaar
 * Merken die niet gepubliceerd zijn wat gebeurt daar mee?
 * Merken pagineerbaar
-* Wacthwoord complexer
+OK --> * Wacthwoord complexer
 * Portal overal verkocht bijzetten bij die tabjes
 OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
 * Overslaan na bestelling waarom?
@@ -38,5 +38,6 @@ OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
 * telefoon niet verplicht
 * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
 * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot
+* Klanten moeten nog zien hoeveel producten ze in de zak hebben
 
 
