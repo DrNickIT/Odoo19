@@ -29,7 +29,7 @@
                 <field name="name"/>
                 <field name="supplier_id"/>
 
-                <field name="x_submission_year" optional="show" options="{'format': false}"/>
+                <field name="x_submission_year" optional="show" widget="char"/>
 
                 <field name="submission_date"/>
                 <field name="payout_method"/>
