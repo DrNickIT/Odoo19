@@ -54,28 +54,40 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        _logger.info("=== START MIGRATIE (FULL RUN) ===")
+        _logger.info("==========================================")
+        _logger.info("=== 🚀 START MIGRATIE PROCES ===")
+        _logger.info("==========================================")
 
         # 1. Klanten
+        _logger.info(">>> Stap 1: Klanten verwerken...")
         customer_map = self._process_customers()
         self.env.cr.commit()
+        _logger.info(f"✅ Stap 1 Klaar: {len(customer_map)} klanten in geheugen.")
 
         # 2. Zakken
+        _logger.info(">>> Stap 2: Verzendzakken verwerken...")
         submission_map = self._process_submissions(customer_map)
         self.env.cr.commit()
+        _logger.info(f"✅ Stap 2 Klaar: {len(submission_map)} zakken in geheugen.")
 
         # 3. Merken
+        _logger.info(">>> Stap 3: Merken verwerken...")
         brand_map = self._process_brands()
         self.env.cr.commit()
+        _logger.info(f"✅ Stap 3 Klaar: {len(brand_map)} merken in geheugen.")
 
         # 4. Producten
+        _logger.info(">>> Stap 4: Producten verwerken (Dit kan even duren)...")
         count = self._process_products(submission_map, brand_map)
-        _logger.info(f"=== PRODUCTEN KLAAR: {count} verwerkt ===")
+
+        _logger.info("==========================================")
+        _logger.info(f"=== 🏁 MIGRATIE VOLTOOID: {count} PRODUCTEN ===")
+        _logger.info("==========================================")
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
-            'params': {'title': 'Klaar!', 'message': f'{count} producten verwerkt.', 'type': 'success', 'sticky': True}
+            'params': {'title': 'Klaar!', 'message': f'{count} producten verwerkt. Check de logs voor details.', 'type': 'success', 'sticky': True}
         }
 
     def _read_csv(self, binary_data):
@@ -91,7 +103,13 @@ class MigrationWizard(models.TransientModel):
     def _process_customers(self):
         csv_data = self._read_csv(self.file_customers)
         mapping = {}
+        count = 0
         for row in csv_data:
+            # Logging heartbeat elke 100 klanten
+            count += 1
+            if count % 100 == 0:
+                _logger.info(f"   ... {count} klanten verwerkt")
+
             old_id = self._clean_id(row.get('klant_id'))
             email = row.get('username')
             if not old_id or not email: continue
@@ -147,7 +165,12 @@ class MigrationWizard(models.TransientModel):
     def _process_submissions(self, customer_map):
         csv_data = self._read_csv(self.file_submissions)
         mapping = {}
+        count = 0
         for row in csv_data:
+            count += 1
+            if count % 100 == 0:
+                _logger.info(f"   ... {count} verzendzakken verwerkt")
+
             old_bag_id = self._clean_id(row.get('zak_id'))
             old_customer_id = self._clean_id(row.get('KlantId'))
             if not old_bag_id or not old_customer_id: continue
@@ -166,7 +189,9 @@ class MigrationWizard(models.TransientModel):
                 action_val = 'donate'
 
             if not submission:
+                # Datum ophalen (veld submission_date triggert x_year automatisch)
                 date = row.get('datum_ontvangen') or fields.Date.today()
+
                 partner_iban = partner.bank_ids[:1].acc_number if partner.bank_ids else False
 
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
@@ -211,7 +236,11 @@ class MigrationWizard(models.TransientModel):
 
         count = 0
         for row in csv_data:
-            if count > 0 and count % 50 == 0: self.env.cr.commit()
+            count += 1
+            if count % 50 == 0:
+                self.env.cr.commit()
+                # _logger.info(f"   ... {count} merken verwerkt") # Merken gaat meestal snel, minder logs nodig
+
             old_merk_id = self._clean_id(row.get('merk_id'))
             name = row.get('naam')
             if not old_merk_id or not name: continue
@@ -233,7 +262,7 @@ class MigrationWizard(models.TransientModel):
             brand_val = self.env['product.attribute.value'].search([('attribute_id', '=', brand_attribute.id), ('name', '=', name)], limit=1)
             if not brand_val: brand_val = self.env['product.attribute.value'].create({'name': name, 'attribute_id': brand_attribute.id})
             brand_map[old_merk_id] = {'brand_id': brand.id, 'attr_val_id': brand_val.id, 'attr_id': brand_attribute.id}
-            count += 1
+
         return brand_map
 
     def _process_products(self, submission_map, brand_map):
@@ -243,7 +272,12 @@ class MigrationWizard(models.TransientModel):
         accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
 
         for row in csv_data:
-            if count > 0 and count % 10 == 0: self.env.cr.commit()
+            count += 1
+            # Logging heartbeat elke 50 producten (Dit is de belangrijkste!)
+            if count % 10 == 0:
+                self.env.cr.commit()
+                _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
+
             zak_id_product = self._clean_id(row.get('zak_id'))
             old_product_id = self._clean_id(row.get('product_id'))
             name = row.get('naam')
@@ -316,12 +350,11 @@ class MigrationWizard(models.TransientModel):
                 if not sub_cat: sub_cat = self.env['product.public.category'].create({'name': target_sub_name, 'parent_id': main_cat.id})
                 final_categ_ids.append(sub_cat.id)
 
-            # --- MERK VOORBEREIDING (Nog geen koppeling maken!) ---
             old_merk_id = self._clean_id(row.get('merk_id'))
             brand_data = None
             if old_merk_id and old_merk_id in brand_map:
                 brand_data = brand_map[old_merk_id]
-                product_vals['brand_id'] = brand_data['brand_id'] # Dit mag wel in vals, dit is een Many2one veld
+                product_vals['brand_id'] = brand_data['brand_id']
 
             product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
@@ -333,14 +366,10 @@ class MigrationWizard(models.TransientModel):
                 final_int_id = int_sub.id
             product_vals['categ_id'] = final_int_id
 
-            # --- DE CRUCIALE SPLITSING ---
             if product:
                 product.write(product_vals)
                 self._update_stock(product, final_qty)
-
-                # MERK KOPPELEN (NU HET PRODUCT ZEKER BESTAAT)
-                if brand_data:
-                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
                 if not product.product_template_image_ids:
                     extra_fotos = row.get('extra_fotos')
@@ -356,23 +385,15 @@ class MigrationWizard(models.TransientModel):
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
                 try: product_vals['list_price'] = float(str(row.get('prijs') or '0').replace(',', '.'))
                 except: product_vals['list_price'] = 0.0
-
-                # PRODUCT AANMAKEN
                 product = self.env['product.template'].create(product_vals)
                 self._update_stock(product, final_qty)
-
-                # ATTRIBUTEN TOEVOEGEN (NU KAN HET VEILIG)
                 if maat_raw: self._add_attribute(product, 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat', maat_raw)
                 if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
                 if row.get('categorie'): self._add_attribute(product, 'Geslacht', row.get('categorie'))
                 if row.get('type'): self._add_attribute(product, 'Type', row.get('type'))
                 if row.get('staat') in condition_mapping: self._add_attribute(product, 'Conditie', condition_mapping[row.get('staat')])
-
-                # MERK KOPPELEN
-                if brand_data:
-                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
-
+                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     for idx, url in enumerate(extra_fotos.split(',')):
@@ -380,7 +401,7 @@ class MigrationWizard(models.TransientModel):
                             time.sleep(0.3)
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img: self.env['product.image'].create({'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx+1}", 'image_1920': extra_img})
-            count += 1
+
         return count
 
     def _download_image(self, url, fix_old_id=None):

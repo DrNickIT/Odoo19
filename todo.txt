@@ -9,7 +9,7 @@ OK --> * email versturen bij verzendlabel OK
 * google analytics --> Marleen
 OK --> * 20 stuks voorwaarden
 OK --> * Consignment --> Verzendlabels
-** Jaar toevoegen
+OK --> ** Jaar toevoegen
 ** 1 sendcloud label per zak
 ** 1 zak / doos = 1 verzendlabel
 ** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
@@ -37,5 +37,6 @@ OK --> * Consignment --> Verzendlabels
 * Rekening nummer
 * telefoon niet verplicht
 * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
+* Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot
 
 
