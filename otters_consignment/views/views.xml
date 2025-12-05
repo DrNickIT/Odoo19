@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="view_consignment_submission_search" model="ir.ui.view">
+        <field name="name">consignment.submission.search</field>
+        <field name="model">otters.consignment.submission</field>
+        <field name="arch" type="xml">
+            <search string="Zoek Inzendingen">
+                <field name="name"/>
+                <field name="supplier_id"/>
+                <field name="x_submission_year"/>
+
+                <separator/>
+                <filter string="Nieuw" name="status_draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Online" name="status_online" domain="[('state', '=', 'online')]"/>
+                <separator/>
+
+                <filter string="Leverancier" name="group_supplier" context="{'group_by': 'supplier_id'}"/>
+                <filter string="Jaar" name="group_year" context="{'group_by': 'x_submission_year'}"/>
+                <filter string="Status" name="group_state" context="{'group_by': 'state'}"/>
+            </search>
+        </field>
+    </record>
+
     <record id="view_consignment_submission_list" model="ir.ui.view">
         <field name="name">consignment.submission.list</field>
         <field name="model">otters.consignment.submission</field>
@@ -7,6 +28,9 @@
             <list>
                 <field name="name"/>
                 <field name="supplier_id"/>
+
+                <field name="x_submission_year" optional="show" options="{'format': false}"/>
+
                 <field name="submission_date"/>
                 <field name="payout_method"/>
                 <field name="payout_percentage" widget="percentage"/>
@@ -70,13 +94,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="%(action_import_products_wizard)d"
-                            string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
-
-                    <button name="action_generate_sendcloud_label"
-                            string="Maak Verzendlabel"
-                            type="object"
-                            class="btn-secondary"/>
+                    <button name="%(action_import_products_wizard)d" string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
+                    <button name="action_generate_sendcloud_label" string="Maak Verzendlabel" type="object" class="btn-secondary"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -86,6 +105,9 @@
                         <group string="Inzending Details">
                             <field name="supplier_id"/>
                             <field name="submission_date"/>
+
+                            <field name="x_submission_year" readonly="1" options="{'format': false}"/>
+
                             <field name="state"/>
                             <field name="label_count" string="Aangevraagde Labels"/>
                         </group>
@@ -104,7 +126,6 @@
                             <field name="action_unsold"/>
                         </group>
                     </group>
-
                     <group string="Verzendlabels" invisible="not label_ids">
                         <field name="label_ids" nolabel="1">
                             <list editable="bottom" create="0" delete="0">
@@ -114,7 +135,6 @@
                             </list>
                         </field>
                     </group>
-
                     <notebook>
                         <page string="Producten">
                             <field name="product_ids" context="{'default_is_published': True}">
@@ -136,12 +156,6 @@
                                     <field name="note" optional="show"/>
                                 </list>
                             </field>
-                            <div class="text-muted">
-                                <i>
-                                    Tip: Dit zijn items die niet online komen.
-                                    Ze worden enkel geregistreerd om aan de klant te kunnen melden waarom ze geweigerd zijn.
-                                </i>
-                            </div>
                         </page>
                     </notebook>
                 </sheet>
@@ -152,11 +166,10 @@
     <record id="action_consignment_submission" model="ir.actions.act_window">
         <field name="name">Inzendingen</field>
         <field name="res_model">otters.consignment.submission</field>
-        <field name="view_mode">list,form</field> </record>
-    <menuitem id="menu_consignment_root" name="Verzendlabels" sequence="10"/>
-    <menuitem
-            id="menu_consignment_submission"
-            name="Inzendingen"
-            parent="otters_consignment.menu_consignment_root"  action="action_consignment_submission"
-            sequence="10"/>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_consignment_submission_search"/>
+    </record>
+
+    <menuitem id="menu_consignment_root" name="Inzendingen" sequence="10"/>
+    <menuitem id="menu_consignment_submission" name="Inzendingen" parent="otters_consignment.menu_consignment_root" action="action_consignment_submission" sequence="10"/>
 </odoo>
