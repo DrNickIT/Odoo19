@@ -33,7 +33,7 @@
 
                 <field name="submission_date"/>
                 <field name="payout_method"/>
-                <field name="payout_percentage" widget="percentage"/>
+                <field name="payout_percentage" widget="percentage" options="{'digits': [1, 0]}"/>
                 <field name="state" widget="badge"/>
                 <field name="product_count" sum="Totaal Stuks" string="Aantal OK"/>
                 <field name="rejected_count" sum="Totaal Geweigerd" string="Geweigerd" optional="show" decoration-danger="rejected_count > 0"/>
@@ -133,7 +133,7 @@
                         <group string="Uitbetaling">
                             <field name="x_is_locked" invisible="1"/>
                             <field name="payout_method" readonly="x_is_locked"/>
-                            <field name="payout_percentage" readonly="x_is_locked"/>
+                            <field name="payout_percentage" readonly="x_is_locked" widget="percentage" options="{'digits': [1, 0]}"/>
                             <field name="x_iban" invisible="payout_method != 'cash'"/>
                         </group>
                         <group string="Geaccepteerde Voorwaarden">
