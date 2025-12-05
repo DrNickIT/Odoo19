@@ -35,6 +35,8 @@
                 <field name="payout_method"/>
                 <field name="payout_percentage" widget="percentage"/>
                 <field name="state" widget="badge"/>
+                <field name="product_count" sum="Totaal Stuks" string="Aantal OK"/>
+                <field name="rejected_count" sum="Totaal Geweigerd" string="Geweigerd" optional="show" decoration-danger="rejected_count > 0"/>
             </list>
         </field>
     </record>
@@ -105,6 +107,15 @@
                     />
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-shirtsinbulk" disabled="1">
+                            <field name="product_count" widget="statinfo" string="Producten"/>
+                        </button>
+
+                        <button class="oe_stat_button" icon="fa-ban" disabled="1">
+                            <field name="rejected_count" widget="statinfo" string="Geweigerd"/>
+                        </button>
+                    </div>
                     <widget name="web_ribbon" title="Contract Vast" bg_color="text-bg-danger" invisible="not x_is_locked"/>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
