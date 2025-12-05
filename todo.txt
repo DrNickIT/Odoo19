@@ -20,9 +20,9 @@ OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 ** Korting op verzendlabel --> mee rekening houden in portaal
 * Outfit publiceren
 ** outfit pagina niet publiceren gaat dat?
-** Verzendlabel pagina hetzelfde
+OK --> ** Verzendlabel pagina hetzelfde
 ** kenmerk categoriën?
-* Meer uit deze kleerkast de mooie kadertjes er rond aub
+OK --> * Meer uit deze kleerkast de mooie kadertjes er rond aub
 * Specificaties niet dupliceren bij harmonica ?
 OK --> * info icoontje bij verzendlabel bestellen mag weg
 * 30.0 --> 30
