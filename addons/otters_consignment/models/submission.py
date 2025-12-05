@@ -27,13 +27,16 @@ class ConsignmentSubmission(models.Model):
     state = fields.Selection([
         ('draft', 'Nieuw'),
         ('received', 'Ontvangen'),
-        ('processed', 'Verwerkt'),
         ('online', 'Online'),
         ('done', 'Afgerond'),
         ('cancel', 'Geannuleerd'),
     ], string='Status', default='draft', tracking=True)
 
     product_ids = fields.One2many('product.template', 'submission_id', string="Ingezonden Producten")
+    # NIEUWE TELLERS (Berekend en opgeslagen voor snelheid)
+    product_count = fields.Integer(string="Aantal Producten", compute='_compute_counts', store=True)
+    rejected_count = fields.Integer(string="Aantal Geweigerd", compute='_compute_counts', store=True)
+
     label_ids = fields.One2many('otters.consignment.label', 'submission_id', string="Verzendlabels")
 
     payout_method = fields.Selection(
@@ -81,6 +84,12 @@ class ConsignmentSubmission(models.Model):
     agreed_to_shipping_fee = fields.Boolean(string="Akkoord Verzendkosten (8eur)", required=True, default=False)
 
     rejected_line_ids = fields.One2many('otters.consignment.rejected.line', 'submission_id', string="Niet Weerhouden Items")
+
+    @api.depends('product_ids', 'rejected_line_ids')
+    def _compute_counts(self):
+        for record in self:
+            record.product_count = len(record.product_ids)
+            record.rejected_count = len(record.rejected_line_ids)
 
     # 3. ACTIE: Handmatig vastleggen
     def action_lock_contract(self):

@@ -13,10 +13,10 @@ OK --> ** Jaar toevoegen
 ** 1 sendcloud label per zak
 ** 1 zak / doos = 1 verzendlabel
 ** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
-** Aantal producten in een zak zien (niet editeerbaar)
+OK --> ** Aantal producten in een zak zien (niet editeerbaar)
 ** status Verwerkt weg doen
 ** historiek status bijhouden wanneer is wat gebeurd
-** aantal stuks niet weerhouden (niet editeerbaar)
+OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 ** Korting op verzendlabel --> mee rekening houden in portaal
 * Outfit publiceren
 ** outfit pagina niet publiceren gaat dat?
@@ -24,7 +24,7 @@ OK --> ** Jaar toevoegen
 ** kenmerk categoriën?
 * Meer uit deze kleerkast de mooie kadertjes er rond aub
 * Specificaties niet dupliceren bij harmonica ?
-* info icoontje bij verzendlabel bestellen mag weg
+OK --> * info icoontje bij verzendlabel bestellen mag weg
 * 30.0 --> 30
 * Merken en Product variant merk linken aan elkaar
 * Merken die niet gepubliceerd zijn wat gebeurt daar mee?
