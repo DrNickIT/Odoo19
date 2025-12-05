@@ -28,15 +28,15 @@ OK --> * info icoontje bij verzendlabel bestellen mag weg
 OK --> * 30.0 --> 30
 OK --> * Merken en Product variant merk linken aan elkaar
 OK --> * Merken die niet gepubliceerd zijn wat gebeurt daar mee? Worden gewoon niet getoond op de merken pagina
-* Merken pagineerbaar
+OK --> * Merken pagineerbaar
 OK --> * Wacthwoord complexer
-* Portal overal verkocht bijzetten bij die tabjes
+OK --> * Portal overal verkocht bijzetten bij die tabjes
 OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
-* Overslaan na bestelling waarom?
+OK --> * Overslaan na bestelling waarom? Waarschijnlijk de demo modus
 * email opmaak
-* Rekening nummer
+OK --> * Rekening nummer
 * telefoon niet verplicht
-* Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
+OK --> * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
 * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot
 * Klanten moeten nog zien hoeveel producten ze in de zak hebben
 
