@@ -14,8 +14,8 @@ OK --> ** Jaar toevoegen
 ** 1 zak / doos = 1 verzendlabel
 ** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
 OK --> ** Aantal producten in een zak zien (niet editeerbaar)
-** status Verwerkt weg doen
-** historiek status bijhouden wanneer is wat gebeurd
+OK --> ** status Verwerkt weg doen
+OK --> ** historiek status bijhouden wanneer is wat gebeurd
 OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 ** Korting op verzendlabel --> mee rekening houden in portaal
 * Outfit publiceren
