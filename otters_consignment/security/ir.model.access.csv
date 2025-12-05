@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_otters_consignment_submission,otters.consignment.submission,model_otters_consignment_submission,base.group_user,1,1,1,1
+access_otters_consignment_submission_public,otters.consignment.submission.public,model_otters_consignment_submission,base.group_public,1,0,1,0
 access_otters_image_upload_wizard,Image Upload Wizard Access,model_otters_image_upload_wizard,base.group_user,1,1,1,1
 access_otters_submission_portal,otters.consignment.submission.portal,model_otters_consignment_submission,base.group_portal,1,0,0,0
 access_otters_consignment_report,otters.consignment.report,model_otters_consignment_report,base.group_user,1,1,0,0

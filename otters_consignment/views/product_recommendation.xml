@@ -9,44 +9,61 @@
                 <t t-set="wardrobe_items"
                    t-value="product.submission_id.product_ids.filtered(lambda p: p.id != product.id and p.is_published and p.qty_available > 0)[:4]"/>
 
-                <div t-if="wardrobe_items" class="container-fluid bg-light py-5">
-                    <div class="container">
-                        <div class="row mb-4">
-                            <div class="col-12 text-center">
-                                <h3 class="text-primary">🦦 Meer uit deze kleerkast 🦩</h3>
-                                <hr class="w-25 mx-auto border-primary"/>
-                            </div>
-                        </div>
+                <div t-if="wardrobe_items" class="container py-5">
 
-                        <div class="row">
-                            <t t-foreach="wardrobe_items" t-as="item">
-                                <div class="col-6 col-md-3 mb-4">
-                                    <div class="card h-100 border-0 shadow-sm">
-                                        <a t-att-href="'/shop/product/%s' % slug(item)" style="text-decoration: none;">
-                                            <div class="position-relative overflow-hidden" style="height: 250px;">
-                                                <img t-att-src="image_data_uri(item.image_512)"
-                                                     class="card-img-top w-100 h-100"
-                                                     style="object-fit: cover;"
-                                                     alt="Product Image"/>
-
-                                                <span t-if="item.x_old_id == 'new'" class="badge bg-success position-absolute top-0 end-0 m-2">Nieuw</span>
-                                            </div>
-
-                                            <div class="card-body p-3 text-center bg-white">
-                                                <h6 class="card-title text-dark text-truncate mb-2">
-                                                    <span t-field="item.name"/>
-                                                </h6>
-                                                <div class="fw-bold text-primary" style="font-size: 1.1em;">
-                                                    <span t-field="item.list_price"
-                                                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    </div>
-                                </div>
-                            </t>
+                    <div class="row mb-4">
+                        <div class="col-12 text-center">
+                            <h3 class="text-primary">🦦 Meer uit deze kleerkast 🦩</h3>
+                            <hr class="w-25 mx-auto border-primary"/>
                         </div>
                     </div>
+
+                    <div class="o_wsale_products_grid_table_wrapper">
+                        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+
+                            <t t-foreach="wardrobe_items" t-as="item">
+                                <div class="col o_wsale_product_grid_wrapper position-relative h-100">
+
+                                    <t t-set="product" t-value="item"/>
+
+                                    <t t-set="website" t-value="request.website"/>
+
+                                    <t t-set="product_href" t-value="'/shop/product/%s' % slug(product)"/>
+
+                                    <t t-set="combination_info" t-value="product._get_combination_info(only_template=True, add_qty=1)"/>
+
+                                    <t t-set="show_variations" t-value="False"/>
+                                    <t t-set="previewed_attribute_values" t-value="{}"/>
+                                    <t t-set="product_ptavs_data" t-value="False"/>
+                                    <t t-set="product_variant" t-value="product.product_variant_ids[:1]"/>
+                                    <t t-set="show_ribbons" t-value="False"/>
+                                    <t t-set="product_actions" t-value="False"/>
+                                    <t t-set="extra_actions" t-value="False"/>
+
+                                    <t t-set="product_price">
+                                        <div class="product_price" itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer">
+                                            <span class="h5 mb-0"
+                                                  t-esc="combination_info['price']"
+                                                  t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                            <t t-if="combination_info['has_discounted_price']">
+                                                <del class="text-muted me-1 h6 mb-0" style="white-space: nowrap;">
+                                                    <span t-esc="combination_info['list_price']"
+                                                          t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                                                </del>
+                                            </t>
+                                        </div>
+                                    </t>
+
+                                    <t t-call="website_sale.products_item">
+                                        <t t-set="product_image_big" t-value="False"/>
+                                    </t>
+
+                                </div>
+                            </t>
+
+                        </div>
+                    </div>
+
                 </div>
             </t>
         </xpath>
