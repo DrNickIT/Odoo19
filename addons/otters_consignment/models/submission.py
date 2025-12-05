@@ -218,22 +218,11 @@ class ConsignmentSubmission(models.Model):
                     'country_id': self.env['res.country'].search([('code', '=', country_code_val)], limit=1).id,
                 }
 
-                Partner = self.env['res.partner'].sudo()
-                partner = False
-                if not self.env.user._is_public():
-                    partner = self.env.user.partner_id
-                    partner.write(partner_vals)
-                else:
-                    if raw_email:
-                        partner = Partner.search([('email', '=ilike', raw_email)], limit=1)
-                        if partner:
-                            partner.write(partner_vals)
-                        else:
-                            partner = Partner.create(partner_vals)
-
-                if not partner: partner = Partner.create(partner_vals)
-
                 if temp_payout_method: partner_vals['x_payout_method'] = temp_payout_method
+                Partner = self.env['res.partner'].sudo()
+                partner = Partner.search([('email', '=ilike', raw_email)], limit=1)
+                if partner: partner.write(partner_vals)
+                else: partner = Partner.create(partner_vals)
 
                 vals['supplier_id'] = partner.id
 
