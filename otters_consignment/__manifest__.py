@@ -14,6 +14,7 @@
         'portal',
         'om_sendcloud_delivery',
         'auth_signup',
+        'auth_password_policy_signup',
     ],
     'data': [
         # 1. SECURITY & CONFIG (Moet EERST geladen worden)
