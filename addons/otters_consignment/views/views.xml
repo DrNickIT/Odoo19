@@ -96,8 +96,16 @@
                 <header>
                     <button name="%(action_import_products_wizard)d" string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
                     <button name="action_generate_sendcloud_label" string="Maak Verzendlabel" type="object" class="btn-secondary"/>
+                    <button name="action_lock_contract" string="Vergrendel Contract" type="object" invisible="x_is_locked"/>
+                    <button name="action_unlock_contract"
+                            string="Contract Wijzigen (Unlock)"
+                            type="object"
+                            invisible="not x_is_locked"
+                            confirm="OPGELET! &#10;&#10;Als u het percentage wijzigt, worden de commissies voor REEDS VERKOCHTE artikelen met terugwerkende kracht herberekend!&#10;&#10;De klant zal dus andere bedragen zien in zijn portaal voor items die al verkocht zijn.&#10;&#10;Bent u zeker dat u wilt doorgaan?"
+                    />
                 </header>
                 <sheet>
+                    <widget name="web_ribbon" title="Contract Vast" bg_color="text-bg-danger" invisible="not x_is_locked"/>
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
@@ -106,14 +114,15 @@
                             <field name="supplier_id"/>
                             <field name="submission_date"/>
 
-                            <field name="x_submission_year" readonly="1" options="{'format': false}"/>
+                            <field name="x_submission_year" readonly="1" widget="char"/>
 
                             <field name="state"/>
                             <field name="label_count" string="Aangevraagde Labels"/>
                         </group>
                         <group string="Uitbetaling">
-                            <field name="payout_method"/>
-                            <field name="payout_percentage"/>
+                            <field name="x_is_locked" invisible="1"/>
+                            <field name="payout_method" readonly="x_is_locked"/>
+                            <field name="payout_percentage" readonly="x_is_locked"/>
                             <field name="x_iban" invisible="payout_method != 'cash'"/>
                         </group>
                         <group string="Geaccepteerde Voorwaarden">
@@ -170,6 +179,6 @@
         <field name="search_view_id" ref="view_consignment_submission_search"/>
     </record>
 
-    <menuitem id="menu_consignment_root" name="Inzendingen" sequence="10"/>
+    <menuitem id="menu_consignment_root" name="Verzendlabels" sequence="10"/>
     <menuitem id="menu_consignment_submission" name="Inzendingen" parent="otters_consignment.menu_consignment_root" action="action_consignment_submission" sequence="10"/>
 </odoo>

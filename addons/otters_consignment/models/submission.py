@@ -40,17 +40,16 @@ class ConsignmentSubmission(models.Model):
         [('cash', 'Cash'), ('coupon', 'Coupon')],
         string="Payout Method",
         store=True,
-        readonly=True,
         tracking=True,
         help="De uitbetaalmethode die definitief is vastgelegd voor deze inzending."
     )
     payout_percentage = fields.Float(
         string="Payout Percentage",
         store=True,
-        readonly=True,
         tracking=True,
         help="Het uitbetalingspercentage dat definitief is vastgelegd voor deze inzending."
     )
+    x_is_locked = fields.Boolean(string="Contract Vergrendeld", default=False, tracking=True, help="Indien aangevinkt, kunnen de uitbetalingsvoorwaarden niet meer gewijzigd worden.")
 
     # Tijdelijke velden voor het formulier
     x_sender_name = fields.Char(string="Naam", store=False)
@@ -62,6 +61,7 @@ class ConsignmentSubmission(models.Model):
     x_sender_country_code = fields.Char(string="Landcode", store=False)
     x_payout_method_temp = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Tijdelijke Payout", store=False)
     x_old_id = fields.Char(string="Oud Verzendzak ID", copy=False, readonly=True)
+
 
     label_count = fields.Integer(string="Aantal Labels", default=1, required=True)
     x_iban = fields.Char(string="IBAN Rekeningnummer")
@@ -81,6 +81,43 @@ class ConsignmentSubmission(models.Model):
     agreed_to_shipping_fee = fields.Boolean(string="Akkoord Verzendkosten (8eur)", required=True, default=False)
 
     rejected_line_ids = fields.One2many('otters.consignment.rejected.line', 'submission_id', string="Niet Weerhouden Items")
+
+    # 3. ACTIE: Handmatig vastleggen
+    def action_lock_contract(self):
+        self.write({'x_is_locked': True})
+
+    # (Optioneel: actie om te ontgrendelen voor noodgevallen)
+    def action_unlock_contract(self):
+        self.write({'x_is_locked': False})
+
+    def _compute_has_sales(self):
+        for record in self:
+            # 1. Haal alle varianten van de producten in deze inzending op
+            variants = record.product_ids.product_variant_ids
+
+            if not variants:
+                record.x_has_sales = False
+                continue
+
+            # 2. Tel hoe vaak deze varianten voorkomen in bevestigde verkooporders
+            sale_count = self.env['sale.order.line'].sudo().search_count([
+                ('product_id', 'in', variants.ids),
+                ('order_id.state', 'in', ['sale', 'done']) # Alleen bevestigde orders tellen
+            ])
+
+            # 3. Als teller > 0, dan zijn er verkopen en gaat het slot erop
+            record.x_has_sales = sale_count > 0
+
+    @api.onchange('payout_method')
+    def _onchange_payout_method(self):
+        if not self.payout_method:
+            return
+
+        ICP = self.env['ir.config_parameter'].sudo()
+        if self.payout_method == 'cash':
+            self.payout_percentage = float(ICP.get_param('otters_consignment.cash_payout_percentage', '0.3'))
+        else:
+            self.payout_percentage = float(ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5'))
 
     @api.depends('submission_date')
     def _compute_year(self):
@@ -142,14 +179,22 @@ class ConsignmentSubmission(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         new_vals_list = []
-        for vals in vals_list:
+
+        # We houden bij welke records van de website komen (op basis van index in de lijst)
+        indices_from_website = set()
+
+        for i, vals in enumerate(vals_list):
+            # Check: Komt dit van de website? (Heeft het de tijdelijke velden?)
             if vals.get('x_sender_email'):
+                indices_from_website.add(i) # Ja, zet index op de lijst voor automatische verwerking
+
+                # --- PARTNER LOGICA (Website only) ---
                 raw_email = vals.pop('x_sender_email', '').strip()
                 temp_payout_method = vals.pop('x_payout_method_temp')
 
                 name_val = vals.pop('x_sender_name', False)
                 street_val = vals.pop('x_sender_street', False)
-                street2_val = vals.pop('x_sender_street2', '') # Fallback naar empty string
+                street2_val = vals.pop('x_sender_street2', '')
                 city_val = vals.pop('x_sender_city', False)
                 zip_val = vals.pop('x_sender_postal_code', False)
                 country_code_val = vals.pop('x_sender_country_code', 'BE')
@@ -182,9 +227,12 @@ class ConsignmentSubmission(models.Model):
                 if temp_payout_method: partner_vals['x_payout_method'] = temp_payout_method
 
                 vals['supplier_id'] = partner.id
+
+                # Cleanup overige x_sender velden
                 for key in list(vals.keys()):
                     if key.startswith('x_sender_'): vals.pop(key, None)
 
+                # Percentages instellen
                 if temp_payout_method:
                     ICP = self.env['ir.config_parameter'].sudo()
                     cash_perc = float(ICP.get_param('otters_consignment.cash_payout_percentage', '0.3'))
@@ -197,6 +245,7 @@ class ConsignmentSubmission(models.Model):
                         vals['payout_percentage'] = coupon_perc
                     vals['payout_method'] = temp_payout_method
 
+                # IBAN opslaan
                 iban_to_save = vals.get('x_iban')
                 if iban_to_save and partner:
                     clean_iban = iban_to_save.replace(' ', '').strip()
@@ -207,38 +256,46 @@ class ConsignmentSubmission(models.Model):
                     if not existing_bank:
                         self.env['res.partner.bank'].create({'acc_number': clean_iban, 'partner_id': partner.id})
 
+            # Naam genereren (Prefix) - Dit gebeurt voor ZOWEL website als backend
             if vals.get('name', 'Nieuw') == 'Nieuw' and vals.get('supplier_id'):
                 partner = self.env['res.partner'].browse(vals['supplier_id'])
                 prefix = self._get_or_create_supplier_prefix(partner)
                 next_number = self.env['ir.sequence'].next_by_code('otters.consignment.submission') or '00000'
                 vals['name'] = f'{prefix}_{next_number}'
+
             new_vals_list.append(vals)
 
+        # De daadwerkelijke aanmaak in de database
         submissions = super(ConsignmentSubmission, self).create(new_vals_list)
 
+        # --- AUTOMATISATIE (Alleen als NIET migratie) ---
         if not self.env.context.get('skip_sendcloud'):
-            for submission in submissions:
-                if submission.supplier_id:
-                    try:
-                        for i in range(submission.label_count):
-                            submission.sudo()._create_sendcloud_parcel()
-                    except Exception as e:
-                        _logger.error(f"Sendcloud Fout: {e}")
 
-            _logger.info("============ START MAIL DEBUG ============")
+            # 1. MAIL TEMPLATE OPHALEN
             template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
-            if not template:
-                _logger.error("FOUT: E-mail template niet gevonden!")
-            else:
-                for submission in submissions:
-                    partner_email = submission.supplier_id.email
-                    if partner_email:
+
+            for i, submission in enumerate(submissions):
+
+                # CRUCIALE CHECK: Is dit een website submission? (index staat in de set)
+                # Zo nee (backend aanmaak), dan doen we NIETS.
+                if i in indices_from_website:
+
+                    if submission.supplier_id:
+                        # A. Sendcloud Label
                         try:
-                            template.sudo().send_mail(submission.id, force_send=True)
-                            _logger.info(f"Mail verstuurd naar {partner_email}")
+                            for _ in range(submission.label_count):
+                                submission.sudo()._create_sendcloud_parcel()
                         except Exception as e:
-                            _logger.error(f"CRASH BIJ VERZENDEN: {e}")
-            _logger.info("============ EINDE MAIL DEBUG ============")
+                            _logger.error(f"Sendcloud Fout: {e}")
+
+                        # B. E-mail versturen
+                        partner_email = submission.supplier_id.email
+                        if template and partner_email:
+                            try:
+                                template.sudo().send_mail(submission.id, force_send=True)
+                                _logger.info(f"Mail verstuurd naar {partner_email}")
+                            except Exception as e:
+                                _logger.error(f"CRASH BIJ VERZENDEN: {e}")
         else:
             _logger.info("Migratie bezig: Sendcloud en E-mails onderdrukt.")
 

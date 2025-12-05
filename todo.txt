@@ -31,7 +31,7 @@ OK --> ** Jaar toevoegen
 * Merken pagineerbaar
 * Wacthwoord complexer
 * Portal overal verkocht bijzetten bij die tabjes
-* Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
+OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
 * Overslaan na bestelling waarom?
 * email opmaak
 * Rekening nummer
