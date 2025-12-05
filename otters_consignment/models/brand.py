@@ -11,16 +11,19 @@ class OttersBrand(models.Model):
     description = fields.Html(string="Omschrijving")
     logo = fields.Image(string="Logo", max_width=512, max_height=512)
 
-    # Koppeling naar producten
     product_ids = fields.One2many('product.template', 'brand_id', string="Producten")
 
-    # Slimme teller
-    product_count = fields.Integer(compute='_compute_product_count', string="Aantal Stuks")
+    product_count = fields.Integer(compute='_compute_product_count', string="Aantal Stuks", store=False)
 
-    @api.depends('product_ids')
     def _compute_product_count(self):
         for record in self:
-            record.product_count = len(record.product_ids)
+            # We tellen alleen de producten die:
+            # 1. Gepubliceerd zijn op de website
+            # 2. Vrij zijn voor verkoop (Virtuele stock > 0)
+            available_products = record.product_ids.filtered(
+                lambda p: p.is_published and p.virtual_available > 0
+            )
+            record.product_count = len(available_products)
 
     @api.model_create_multi
     def create(self, vals_list):

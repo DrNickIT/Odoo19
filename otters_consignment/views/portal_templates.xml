@@ -113,12 +113,12 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" id="unpaid-tab" data-bs-toggle="tab" href="#unpaid" role="tab" aria-controls="unpaid" aria-selected="false">
-                                Nog Uit te Betalen (<t t-out="len(aggregated_unpaid)"/>)
+                                Verkocht: Nog te Betalen (<t t-out="len(aggregated_unpaid)"/>)
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" id="paid-tab" data-bs-toggle="tab" href="#paid" role="tab" aria-controls="paid" aria-selected="false">
-                                Reeds Uitbetaald (<t t-out="len(aggregated_paid)"/>)
+                                Verkocht: Reeds Uitbetaald (<t t-out="len(aggregated_paid)"/>)
                             </a>
                         </li>
                         <li class="nav-item" t-if="submission.rejected_line_ids">

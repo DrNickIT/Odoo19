@@ -137,6 +137,9 @@
                                     </t>
                                 </div>
                             </div>
+                            <div class="d-flex justify-content-center mt-5">
+                                <t t-call="website.pager"/>
+                            </div>
                         </t>
 
                     </div>
