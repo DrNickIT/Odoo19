@@ -34,6 +34,14 @@
 
                     <section class="s_website_form pt16 pb16" data-vcss="001" data-snippet="s_website_form">
                         <div class="container">
+                            <t t-if="is_closed">
+                                <div class="alert alert-warning text-center" role="alert">
+                                    <h3><i class="fa fa-exclamation-triangle"/> Tijdelijke Stop</h3>
+                                    <p class="mb-0" style="font-size: 1.2em;">
+                                        <t t-out="closed_message"/>
+                                    </p>
+                                </div>
+                            </t>
                             <t t-if="request.params.get('captcha_error') == '1'">
                                 <div class="alert alert-danger" role="alert">
                                     <h4 class="alert-heading">Validatie mislukt</h4>
@@ -50,179 +58,180 @@
                                   enctype="multipart/form-data">
 
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label for="contact_name" class="form-label">Jouw Naam</label>
-                                        <input type="text" class="form-control" name="x_sender_name" required="1"
-                                               t-att-value="default_name"/>
+                                <fieldset t-att-disabled="'disabled' if is_closed else None">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="contact_name" class="form-label">Jouw Naam</label>
+                                            <input type="text" class="form-control" name="x_sender_name" required="1"
+                                                   t-att-value="default_name"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="email" class="form-label">E-mailadres</label>
+                                            <input type="email" class="form-control" name="x_sender_email" required="1"
+                                                   t-att-value="default_email"/>
+                                        </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label for="email" class="form-label">E-mailadres</label>
-                                        <input type="email" class="form-control" name="x_sender_email" required="1"
-                                               t-att-value="default_email"/>
-                                    </div>
-                                </div>
 
-                                <hr/>
+                                    <hr/>
 
-                                <h5>Adres</h5>
-                                <div class="row">
-                                    <div class="col-md-8 mb-3">
-                                        <label for="street" class="form-label">Straat + Huisnr.</label>
-                                        <input type="text" class="form-control" name="x_sender_street" required="1"
-                                               placeholder="bv. Krokusstraat 16"
-                                               t-att-value="default_street"/>
-                                    </div>
-                                    <div class="col-md-4 mb-3">
-                                        <label for="street2" class="form-label">Bus / Toevoeging</label>
-
-                                        <input type="text" class="form-control" name="x_sender_street2"
-                                               placeholder="bv. Bus 2"
-                                               t-att-value="default_street2"/>
-
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <label for="postal_code" class="form-label">Postcode</label>
-                                        <input type="text" class="form-control" name="x_sender_postal_code" required="1"
-                                               t-att-value="default_zip"/>
-                                    </div>
-                                    <div class="col-md-8 mb-3">
-                                        <label for="city" class="form-label">Stad/Plaats</label>
-                                        <input type="text" class="form-control" name="x_sender_city" required="1"
-                                               t-att-value="default_city"/>
-                                    </div>
-                                </div>
-                                <input type="hidden" name="country" value="BE"/>
-
-                                <hr/>
-
-                                <div class="mb-3">
-                                    <label for="label_count" class="form-label">Aantal verzendzakken/labels nodig?</label>
-                                    <input type="number" class="form-control" name="label_count" value="1" min="1" max="10" required="1" style="max-width: 100px;"/>
-                                    <small class="text-muted">Standaard 1. Heb je heel veel kleding? Vraag er gerust meer aan.</small>
-                                </div>
-
-                                <hr/>
-
-                                <div class="mb-4" data-type="char" data-name="Field: x_payout_method_temp">
-                                    <label class="form-label fw-bold">Hoe wil je uitbetaald worden? *</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" checked="checked"/>
-                                        <label class="form-check-label" for="payoutCoupon">
-                                            Uitbetaald als waardebon (<t t-out="coupon_percentage"/>% van de verkoopprijs)
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"/>
-                                        <label class="form-check-label" for="payoutCash">
-                                            Uitbetaald op rekeningnummer (<t t-out="cash_percentage"/>% van de verkoopprijs)
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div id="iban_container" class="form-group col-12 d-none mt-3 p-3 bg-light border rounded">
-                                    <h5 class="mb-3">Bankgegevens</h5>
-
+                                    <h5>Adres</h5>
                                     <div class="row">
-                                        <div class="col-md-6 mb-2">
-                                            <label for="x_iban">Jouw IBAN Nummer *</label>
-                                            <input type="text" class="form-control" name="x_iban" id="x_iban"
-                                                   placeholder="BE00 0000 0000 0000"
-                                                   t-att-value="default_iban"/>
+                                        <div class="col-md-8 mb-3">
+                                            <label for="street" class="form-label">Straat + Huisnr.</label>
+                                            <input type="text" class="form-control" name="x_sender_street" required="1"
+                                                   placeholder="bv. Krokusstraat 16"
+                                                   t-att-value="default_street"/>
                                         </div>
-                                        <div class="col-md-6 mb-2">
-                                            <label for="x_iban_confirm">Bevestig IBAN Nummer *</label>
-                                            <input type="text" class="form-control" id="x_iban_confirm"
-                                                   placeholder="Typ nogmaals ter controle"
-                                                   t-att-value="default_iban"/>
-                                        </div>
-                                    </div>
-                                    <div id="iban_error" class="alert alert-danger d-none mt-2"></div>
-                                </div>
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken? (Nog mooi om dragen, niet verkoopbaar) </label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate" checked="checked"/>
-                                        <label class="form-check-label" for="ua_donate">Deze mogen aan een goed doel geschonken worden</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_return" value="return"/>
-                                        <label class="form-check-label" for="ua_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
-                                    </div>
-                                </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="street2" class="form-label">Bus / Toevoeging</label>
 
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold">Wat met kleding die na een jaar niet verkocht is?</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="action_unsold" id="us_donate" value="donate" checked="checked"/>
-                                        <label class="form-check-label" for="us_donate">Deze mogen aan een goed doel geschonken worden</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="action_unsold" id="us_return" value="return"/>
-                                        <label class="form-check-label" for="us_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
-                                    </div>
-                                </div>
+                                            <input type="text" class="form-control" name="x_sender_street2"
+                                                   placeholder="bv. Bus 2"
+                                                   t-att-value="default_street2"/>
 
-                                <hr/>
-
-                                <div class="form-group col-12">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" name="agreed_to_terms" id="agreed_terms"/>
-                                        <label class="form-check-label" for="agreed_terms">
-                                            Ik ga akkoord met de
-                                            <a href="/algemene-voorwaarden" target="_blank" style="text-decoration: underline;">
-                                            algemene voorwaarden
-                                            </a>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="form-group col-12 position-relative">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" name="agreed_to_clothing_terms" id="agreed_to_clothing_terms"/>
-
-                                        <label class="form-check-label" for="agreed_to_clothing_terms">
-                                            Ik ga akkoord met de
-                                            <span id="av_tooltip_trigger" style="text-decoration: underline; cursor: help; color: #00A09D;">
-                                                voorwaarden voor het opsturen van kleding
-                                            </span>
-                                        </label>
-
-                                        <div id="hover-av" class="d-none p-3 shadow-sm border bg-white rounded"
-                                             style="position: absolute; bottom: 100%; left: 20px; width: 300px; z-index: 1000; font-size: 0.9rem;">
-                                            <p>Belangrijk om na te kijken voor je ons de verzendzak vol met kleertjes terugstuurt:</p>
-                                            <ul>
-                                                <li>Van goede kwaliteit, zonder vlekjes, gaatjes of ontbrekende knopen, enz.</li>
-                                                <li>Proper &amp; fris gewassen, niet grauw of afgewassen</li>
-                                                <li>Van een merk dat door Otters &amp; Flamingo's wordt verkocht</li>
-                                                <li>In maat 44 tem 164 (0 - 14j)</li>
-                                                <li>Van een recente collectie of passend in een hedendaagse kledingstijl</li>
-                                                <li>Geen basic stuks zoals ondergoed, leggings, broekkousen, enz.</li>
-                                                <li>Minimum 20 stuks</li>
-                                            </ul>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="form-group col-12">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" name="agreed_to_shipping_fee" id="agreed_to_shipping_fee"/>
-                                        <label class="form-check-label" for="agreed_to_shipping_fee">
-                                            Ik betaal 8 euro verzendingskosten indien ik de zak niet binnen de 4 weken terug bezorg
-                                        </label>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="postal_code" class="form-label">Postcode</label>
+                                            <input type="text" class="form-control" name="x_sender_postal_code" required="1"
+                                                   t-att-value="default_zip"/>
+                                        </div>
+                                        <div class="col-md-8 mb-3">
+                                            <label for="city" class="form-label">Stad/Plaats</label>
+                                            <input type="text" class="form-control" name="x_sender_city" required="1"
+                                                   t-att-value="default_city"/>
+                                        </div>
                                     </div>
-                                </div>
+                                    <input type="hidden" name="country" value="BE"/>
 
-                                <div class="form-group col-12 text-center mt-4">
-                                    <button type="button" id="submit_btn_custom" class="btn btn-primary btn-lg px-5">
-                                        Verzenden
-                                    </button>
+                                    <hr/>
 
-                                    <a href="#" role="button" id="real_submit_btn" class="d-none s_website_form_send">Real Submit</a>
-                                </div>
+                                    <div class="mb-3">
+                                        <label for="label_count" class="form-label">Aantal verzendzakken/labels nodig?</label>
+                                        <input type="number" class="form-control" name="label_count" value="1" min="1" max="10" required="1" style="max-width: 100px;"/>
+                                        <small class="text-muted">Standaard 1. Heb je heel veel kleding? Vraag er gerust meer aan.</small>
+                                    </div>
+
+                                    <hr/>
+
+                                    <div class="mb-4" data-type="char" data-name="Field: x_payout_method_temp">
+                                        <label class="form-label fw-bold">Hoe wil je uitbetaald worden? *</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" checked="checked"/>
+                                            <label class="form-check-label" for="payoutCoupon">
+                                                Uitbetaald als waardebon (<t t-out="coupon_percentage"/>% van de verkoopprijs)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"/>
+                                            <label class="form-check-label" for="payoutCash">
+                                                Uitbetaald op rekeningnummer (<t t-out="cash_percentage"/>% van de verkoopprijs)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div id="iban_container" class="form-group col-12 d-none mt-3 p-3 bg-light border rounded">
+                                        <h5 class="mb-3">Bankgegevens</h5>
+
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label for="x_iban">Jouw IBAN Nummer *</label>
+                                                <input type="text" class="form-control" name="x_iban" id="x_iban"
+                                                       placeholder="BE00 0000 0000 0000"
+                                                       t-att-value="default_iban"/>
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label for="x_iban_confirm">Bevestig IBAN Nummer *</label>
+                                                <input type="text" class="form-control" id="x_iban_confirm"
+                                                       placeholder="Typ nogmaals ter controle"
+                                                       t-att-value="default_iban"/>
+                                            </div>
+                                        </div>
+                                        <div id="iban_error" class="alert alert-danger d-none mt-2"></div>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken? (Nog mooi om dragen, niet verkoopbaar) </label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate" checked="checked"/>
+                                            <label class="form-check-label" for="ua_donate">Deze mogen aan een goed doel geschonken worden</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_return" value="return"/>
+                                            <label class="form-check-label" for="ua_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Wat met kleding die na een jaar niet verkocht is?</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_donate" value="donate" checked="checked"/>
+                                            <label class="form-check-label" for="us_donate">Deze mogen aan een goed doel geschonken worden</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_return" value="return"/>
+                                            <label class="form-check-label" for="us_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
+                                        </div>
+                                    </div>
+
+                                    <hr/>
+
+                                    <div class="form-group col-12">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="agreed_to_terms" id="agreed_terms"/>
+                                            <label class="form-check-label" for="agreed_terms">
+                                                Ik ga akkoord met de
+                                                <a href="/algemene-voorwaarden" target="_blank" style="text-decoration: underline;">
+                                                algemene voorwaarden
+                                                </a>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group col-12 position-relative">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="agreed_to_clothing_terms" id="agreed_to_clothing_terms"/>
+
+                                            <label class="form-check-label" for="agreed_to_clothing_terms">
+                                                Ik ga akkoord met de
+                                                <span id="av_tooltip_trigger" style="text-decoration: underline; cursor: help; color: #00A09D;">
+                                                    voorwaarden voor het opsturen van kleding
+                                                </span>
+                                            </label>
+
+                                            <div id="hover-av" class="d-none p-3 shadow-sm border bg-white rounded"
+                                                 style="position: absolute; bottom: 100%; left: 20px; width: 300px; z-index: 1000; font-size: 0.9rem;">
+                                                <p>Belangrijk om na te kijken voor je ons de verzendzak vol met kleertjes terugstuurt:</p>
+                                                <ul>
+                                                    <li>Van goede kwaliteit, zonder vlekjes, gaatjes of ontbrekende knopen, enz.</li>
+                                                    <li>Proper &amp; fris gewassen, niet grauw of afgewassen</li>
+                                                    <li>Van een merk dat door Otters &amp; Flamingo's wordt verkocht</li>
+                                                    <li>In maat 44 tem 164 (0 - 14j)</li>
+                                                    <li>Van een recente collectie of passend in een hedendaagse kledingstijl</li>
+                                                    <li>Geen basic stuks zoals ondergoed, leggings, broekkousen, enz.</li>
+                                                    <li>Minimum 20 stuks</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group col-12">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="agreed_to_shipping_fee" id="agreed_to_shipping_fee"/>
+                                            <label class="form-check-label" for="agreed_to_shipping_fee">
+                                                Ik betaal 8 euro verzendingskosten indien ik de zak niet binnen de 4 weken terug bezorg
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group col-12 text-center mt-4">
+                                        <button type="button" id="submit_btn_custom" class="btn btn-primary btn-lg px-5">
+                                            Verzenden
+                                        </button>
+
+                                        <a href="#" role="button" id="real_submit_btn" class="d-none s_website_form_send">Real Submit</a>
+                                    </div>
+                                </fieldset>
                             </form>
                         </div>
                     </section>

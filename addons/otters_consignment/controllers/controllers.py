@@ -10,10 +10,16 @@ class ConsignmentController(http.Controller):
     @http.route('/kleding-opsturen', type='http', auth='public', website=True)
     def consignment_form(self, **kw):
         ICP = request.env['ir.config_parameter'].sudo()
+        # 1. CHECK STATUS
+        is_closed = ICP.get_param('otters_consignment.is_closed')
+        closed_message = ICP.get_param('otters_consignment.closed_message', 'Tijdelijk gesloten.')
+
         cash_perc_float = float(ICP.get_param('otters_consignment.cash_payout_percentage', '0.3'))
         coupon_perc_float = float(ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5'))
 
         values = {
+            'is_closed': is_closed,       # Geef door aan template
+            'closed_message': closed_message, # Geef bericht door
             'cash_percentage': cash_perc_float * 100,
             'coupon_percentage': coupon_perc_float * 100,
             'partner': {},
