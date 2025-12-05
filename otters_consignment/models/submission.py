@@ -197,7 +197,7 @@ class ConsignmentSubmission(models.Model):
             if vals.get('x_sender_email'):
                 indices_from_website.add(i) # Ja, zet index op de lijst voor automatische verwerking
 
-                # --- PARTNER LOGICA (Website only) ---
+                # --- 1. DATA OPHALEN ---
                 raw_email = vals.pop('x_sender_email', '').strip()
                 temp_payout_method = vals.pop('x_payout_method_temp')
 
@@ -218,12 +218,44 @@ class ConsignmentSubmission(models.Model):
                     'country_id': self.env['res.country'].search([('code', '=', country_code_val)], limit=1).id,
                 }
 
-                if temp_payout_method: partner_vals['x_payout_method'] = temp_payout_method
+                # --- 2. PARTNER ZOEKEN (VEILIGE MODUS) ---
                 Partner = self.env['res.partner'].sudo()
-                partner = Partner.search([('email', '=ilike', raw_email)], limit=1)
-                if partner: partner.write(partner_vals)
-                else: partner = Partner.create(partner_vals)
+                partner = False
 
+                current_user = self.env.user
+
+                # CHECK: Is dit een "echte" klant?
+                # (Dus: NIET Publiek, en NIET een Interne Medewerker/Admin)
+                is_real_customer = not current_user._is_public() and not current_user.has_group('base.group_user')
+
+                if is_real_customer:
+                    # SCENARIO A: Echte klant (Portal) is ingelogd -> Gebruik ZIJN kaart
+                    partner = current_user.partner_id
+                    partner.write(partner_vals)
+                else:
+                    # SCENARIO B: Bezoeker (Incognito) OF Admin die test
+                    # We blijven AF van de current_user.partner_id (zodat we Admin/Public user niet overschrijven)
+                    # We zoeken puur op e-mail.
+                    if raw_email:
+                        # Zoek partners met dit e-mailadres
+                        found_partners = Partner.search([('email', '=ilike', raw_email)])
+
+                        # Filteren: Pak de eerste partner die GEEN interne gebruiker is
+                        # (Dit voorkomt dat je per ongeluk het account van een collega overneemt als die klant toevallig dezelfde email heeft)
+                        for p in found_partners:
+                            if not any(u.has_group('base.group_user') for u in p.user_ids):
+                                partner = p
+                                break
+
+                        if partner:
+                            partner.write(partner_vals)
+                        else:
+                            partner = Partner.create(partner_vals)
+                    else:
+                        # Geen email? Maak nieuw.
+                        partner = Partner.create(partner_vals)
+
+                # Koppel de partner
                 vals['supplier_id'] = partner.id
 
                 # Cleanup overige x_sender velden
@@ -254,9 +286,11 @@ class ConsignmentSubmission(models.Model):
                     if not existing_bank:
                         self.env['res.partner.bank'].create({'acc_number': clean_iban, 'partner_id': partner.id})
 
-            # Naam genereren (Prefix) - Dit gebeurt voor ZOWEL website als backend
+            # --- 3. PREFIX GENEREREN ---
+            # Dit gebeurt voor ZOWEL website als backend
             if vals.get('name', 'Nieuw') == 'Nieuw' and vals.get('supplier_id'):
                 partner = self.env['res.partner'].browse(vals['supplier_id'])
+                # Hier wordt nu de JUISTE partner gebruikt (Yentl), dus de functie vindt 'YEMI'
                 prefix = self._get_or_create_supplier_prefix(partner)
                 next_number = self.env['ir.sequence'].next_by_code('otters.consignment.submission') or '00000'
                 vals['name'] = f'{prefix}_{next_number}'
@@ -266,16 +300,15 @@ class ConsignmentSubmission(models.Model):
         # De daadwerkelijke aanmaak in de database
         submissions = super(ConsignmentSubmission, self).create(new_vals_list)
 
-        # --- AUTOMATISATIE (Alleen als NIET migratie) ---
+        # --- 4. AUTOMATISATIE (Alleen als NIET migratie) ---
         if not self.env.context.get('skip_sendcloud'):
 
-            # 1. MAIL TEMPLATE OPHALEN
+            # Template ophalen
             template = self.env.ref('otters_consignment.mail_template_consignment_label_order', raise_if_not_found=False)
 
             for i, submission in enumerate(submissions):
 
-                # CRUCIALE CHECK: Is dit een website submission? (index staat in de set)
-                # Zo nee (backend aanmaak), dan doen we NIETS.
+                # CRUCIALE CHECK: Is dit een website submission?
                 if i in indices_from_website:
 
                     if submission.supplier_id:
