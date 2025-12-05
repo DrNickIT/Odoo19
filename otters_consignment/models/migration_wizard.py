@@ -207,7 +207,8 @@ class MigrationWizard(models.TransientModel):
                     'agreed_to_terms': True,
                     'agreed_to_clothing_terms': True,
                     'agreed_to_shipping_fee': True,
-                    'x_iban': partner_iban
+                    'x_iban': partner_iban,
+                    'x_is_locked': True
                 })
 
                 notities = row.get('notities')
