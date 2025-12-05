@@ -23,7 +23,7 @@ OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 OK --> ** Verzendlabel pagina hetzelfde
 ** kenmerk categoriën?
 OK --> * Meer uit deze kleerkast de mooie kadertjes er rond aub
-* Specificaties niet dupliceren bij harmonica ?
+OK --> * Specificaties niet dupliceren bij harmonica ?
 OK --> * info icoontje bij verzendlabel bestellen mag weg
 * 30.0 --> 30
 * Merken en Product variant merk linken aan elkaar

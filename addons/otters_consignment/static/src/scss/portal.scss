@@ -2,3 +2,14 @@ a[href='/my/consignments'] .o_portal_icon img {
   max-height: 5em !important;
   width: auto !important;
 }
+
+/* Verberg de simpele attributen tabel als de accordeon bestaat */
+body:has(#product_accordion) #product_attributes_simple {
+  display: none !important;
+}
+
+/* Fallback voor oudere browsers die :has() niet ondersteunen */
+/* Als je zeker weet dat je ALTIJD de accordeon gebruikt, kan je dit doen: */
+#product_attributes_simple {
+  display: none !important;
+}
