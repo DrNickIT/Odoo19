@@ -42,6 +42,9 @@
                             </div>
                         </t>
                     </div>
+                    <div class="d-flex justify-content-center mt-5">
+                        <t t-call="website.pager"/>
+                    </div>
 
                     <div id="noBrands" class="text-center d-none mt-5">
                         <h4 class="text-muted">Geen merken gevonden...</h4>
