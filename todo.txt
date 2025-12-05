@@ -21,13 +21,13 @@ OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 * Outfit publiceren
 ** outfit pagina niet publiceren gaat dat?
 OK --> ** Verzendlabel pagina hetzelfde
-** kenmerk categoriën?
+OK --> ** kenmerk categoriën?
 OK --> * Meer uit deze kleerkast de mooie kadertjes er rond aub
 OK --> * Specificaties niet dupliceren bij harmonica ?
 OK --> * info icoontje bij verzendlabel bestellen mag weg
 OK --> * 30.0 --> 30
 OK --> * Merken en Product variant merk linken aan elkaar
-* Merken die niet gepubliceerd zijn wat gebeurt daar mee?
+OK --> * Merken die niet gepubliceerd zijn wat gebeurt daar mee? Worden gewoon niet getoond op de merken pagina
 * Merken pagineerbaar
 OK --> * Wacthwoord complexer
 * Portal overal verkocht bijzetten bij die tabjes
