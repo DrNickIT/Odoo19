@@ -8,6 +8,7 @@ import logging
 import requests
 import time
 import re
+import os
 
 _logger = logging.getLogger(__name__)
 
@@ -33,6 +34,12 @@ class MigrationWizard(models.TransientModel):
 
     file_actioncodes = fields.Binary(string="6. Actiecodes (otters_actiecodes.csv)", required=False)
     filename_actioncodes = fields.Char()
+
+    # NIEUW VELD: Lokaal pad
+    image_base_path = fields.Char(
+        string="Lokaal Pad naar Foto's (Server)",
+        help="Bv. /mnt/images_source. Als dit is ingevuld, zoekt het script de foto's hier in plaats van te downloaden."
+    )
 
     old_site_url = fields.Char(string="Oude Website URL", default="https://www.ottersenflamingos.be")
 
@@ -184,12 +191,8 @@ class MigrationWizard(models.TransientModel):
     def _process_submissions(self, customer_map):
         csv_data = self._read_csv(self.file_submissions)
         mapping = {}
-        count = 0
         for row in csv_data:
-            count += 1
-            if count % 100 == 0:
-                _logger.info(f"   ... {count} verzendzakken verwerkt")
-
+            # ... (bestaande checks voor id en customer) ...
             old_bag_id = self._clean_id(row.get('zak_id'))
             old_customer_id = self._clean_id(row.get('KlantId'))
             if not old_bag_id or not old_customer_id: continue
@@ -208,15 +211,25 @@ class MigrationWizard(models.TransientModel):
                 action_val = 'donate'
 
             if not submission:
-                # Datum ophalen (veld submission_date triggert x_year automatisch)
-                date = row.get('datum_ontvangen') or fields.Date.today()
+                # === DATUM FIX ===
+                raw_date = row.get('datum_ontvangen')
+                date = fields.Date.today() # Standaard vandaag
 
+                if raw_date and raw_date not in ['0000-00-00', 'nan', '']:
+                    try:
+                        # Check of het formaat geldig is
+                        fields.Date.from_string(raw_date)
+                        date = raw_date
+                    except ValueError:
+                        pass # Bij fout, hou 'vandaag' aan
+
+                # ... (Partner IBAN ophalen) ...
                 partner_iban = partner.bank_ids[:1].acc_number if partner.bank_ids else False
 
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
                     'name': 'Nieuw',
                     'supplier_id': partner.id,
-                    'submission_date': date,
+                    'submission_date': date,  # Gebruik de veilige datum
                     'state': 'online',
                     'payout_method': 'coupon',
                     'payout_percentage': 0.5,
@@ -333,9 +346,14 @@ class MigrationWizard(models.TransientModel):
         accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
 
         for row in csv_data:
+            # === TEST LIMIET ===
+            if count >= 150:
+                _logger.info("🛑 TEST MODUS: Gestopt na 150 producten om tijd te besparen.")
+                break
+            # ===================
+
             count += 1
-            # Logging heartbeat elke 50 producten (Dit is de belangrijkste!)
-            if count % 10 == 0:
+            if count % 10 == 0: # Iets frequentere logs voor korte test
                 self.env.cr.commit()
                 _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
 
@@ -432,16 +450,18 @@ class MigrationWizard(models.TransientModel):
                 self._update_stock(product, final_qty)
                 if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
+                # Foto's updaten (alleen als nog leeg, of als we willen forceren)
+                # Omdat we lokaal werken is het snel, dus we kunnen checken
                 if not product.product_template_image_ids:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
                         for idx, url in enumerate(extra_fotos.split(',')):
                             if url:
-                                time.sleep(0.3)
+                                # time.sleep(0.01) # Kleine pauze
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                                 if extra_img: self.env['product.image'].create({'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx+1}", 'image_1920': extra_img})
             else:
-                time.sleep(0.3)
+                # time.sleep(0.01)
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
                 try: product_vals['list_price'] = float(str(row.get('prijs') or '0').replace(',', '.'))
@@ -459,23 +479,67 @@ class MigrationWizard(models.TransientModel):
                 if extra_fotos and str(extra_fotos) != 'nan':
                     for idx, url in enumerate(extra_fotos.split(',')):
                         if url:
-                            time.sleep(0.3)
+                            # time.sleep(0.01)
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img: self.env['product.image'].create({'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx+1}", 'image_1920': extra_img})
 
         return count
 
     def _download_image(self, url, fix_old_id=None):
+        """
+        Probeert afbeelding op te halen.
+        1. Eerst lokaal in map: {base_path}/{product_id}/{filename}
+        2. Anders via download (fallback)
+        """
         if not url or str(url) == 'nan': return False
-        if fix_old_id and '/product//' in url: url = url.replace('/product//', f'/product/{fix_old_id}/')
+
+        # --- OPTIE 1: LOKAAL ZOEKEN (VIA PRODUCT ID MAP) ---
+        if self.image_base_path and fix_old_id:
+            try:
+                # 1. Haal de bestandsnaam uit de URL (alles na de laatste /)
+                # Bv. "https://site.be/images/jasje.jpg" -> "jasje.jpg"
+                # Bv. "../producten/jasje.jpg" -> "jasje.jpg"
+                filename = os.path.basename(url.strip())
+
+                # 2. Bouw het pad: /mnt/images_source / 1234 / jasje.jpg
+                local_path = os.path.join(self.image_base_path, str(fix_old_id), filename)
+
+                # 3. Check of bestand bestaat
+                if os.path.exists(local_path):
+                    _logger.info(f"   :) :)  Ik neem de FOTO lokaal  :) :)")
+                    with open(local_path, 'rb') as f:
+                        return base64.b64encode(f.read())
+                else:
+                    # Debug optie: uncomment als je wil weten wat hij niet vindt
+                    # _logger.info(f"Lokaal niet gevonden: {local_path}")
+                    pass
+            except Exception as e:
+                _logger.error(f"Fout bij lezen lokaal bestand {local_path}: {e}")
+
+        # --- OPTIE 2: FALLBACK DOWNLOAD (Voor Merken of als lokaal faalt) ---
         clean_path = url.lstrip('.').strip().replace('//', '/')
-        urls_to_try = [url] if url.startswith('http') else [f"{self.old_site_url}/foto.php?src={('/' + clean_path.lstrip('/'))}", f"{self.old_site_url}{('/' + clean_path.lstrip('/'))}"]
+        if fix_old_id and '/product//' in url:
+            clean_path = clean_path.replace('/product//', f'/product/{fix_old_id}/')
+
+        urls_to_try = []
+        if url.startswith('http'):
+            urls_to_try.append(url)
+        else:
+            path_with_slash = '/' + clean_path.lstrip('/')
+            urls_to_try.append(f"{self.old_site_url}/foto.php?src={path_with_slash}")
+            urls_to_try.append(f"{self.old_site_url}{path_with_slash}")
+
         headers = {'User-Agent': 'Mozilla/5.0'}
         for try_url in urls_to_try:
             try:
-                r = requests.get(try_url, headers=headers, timeout=10)
-                if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''): return base64.b64encode(r.content)
-            except: pass
+                _logger.info(f"   !!!!!!!!!!  Ik download de FOTO !!!!!")
+                r = requests.get(try_url, headers=headers, timeout=5)
+                if r.status_code == 200:
+                    if 'image' in r.headers.get('Content-Type', ''):
+                        return base64.b64encode(r.content)
+            except Exception:
+                pass
+
         return False
 
     def _add_attribute(self, product, att_name, val_name):

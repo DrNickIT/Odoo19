@@ -39,6 +39,7 @@
 
                     <group string="Instellingen">
                         <field name="old_site_url"/>
+                        <field name="image_base_path" placeholder="/mnt/images_source"/>
                     </group>
 
                     <footer>

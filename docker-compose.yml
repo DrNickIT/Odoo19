@@ -12,6 +12,7 @@ services:
       - ./addons:/mnt/extra-addons
       - ./etc:/etc/odoo
       - odoo-web-data:/var/lib/odoo
+      - ./OttersDownload/Fotos/fotos:/mnt/images_source
     environment:
       - HOST=db
       - USER=odoo
