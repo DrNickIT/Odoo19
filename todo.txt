@@ -18,6 +18,7 @@ OK --> ** status Verwerkt weg doen
 OK --> ** historiek status bijhouden wanneer is wat gebeurd
 OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 OK --> ** Korting op verzendlabel --> mee rekening houden in portaal
+OK --> ** BULK korting op meerdere zakken
 * Outfit publiceren
 OK --> ** outfit pagina niet publiceren gaat dat? Geen link maken naar de pagina + outfits niet publishen
 OK --> ** Verzendlabel pagina hetzelfde

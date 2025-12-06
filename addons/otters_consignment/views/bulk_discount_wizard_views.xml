@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_bulk_discount_wizard_form" model="ir.ui.view">
+        <field name="name">otters.bulk.discount.wizard.form</field>
+        <field name="model">otters.consignment.bulk.discount.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bulk Korting Toepassen">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Je staat op het punt om een korting toe te passen op de
+                        <strong>geselecteerde inzendingen</strong>.
+                        <br/>
+                        Dit past enkel de prijzen aan van producten die nog <strong>niet verkocht</strong> zijn.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="discount_percentage"/>
+                            <field name="discount_reason"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_apply_bulk" string="Toepassen 🚀" type="object" class="btn-primary"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bulk_discount_wizard" model="ir.actions.act_window">
+        <field name="name">Korting Toepassen</field>
+        <field name="res_model">otters.consignment.bulk.discount.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field> <field name="binding_model_id" ref="model_otters_consignment_submission"/>
+        <field name="binding_view_types">list</field> </record>
+
+</odoo>
