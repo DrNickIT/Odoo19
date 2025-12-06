@@ -73,7 +73,13 @@ class ConsignmentPortal(CustomerPortal):
             for line in lines:
                 product = line.product_id
                 if product not in aggregated_data:
-                    aggregated_data[product] = {'name': product.name, 'price_sold': 0, 'payout': 0, 'qty': 0}
+                    aggregated_data[product] = {
+                        'product': product, # <--- DEZE REGEL TOEVOEGEN
+                        'name': product.name,
+                        'price_sold': 0,
+                        'payout': 0,
+                        'qty': 0
+                    }
 
                 aggregated_data[product]['price_sold'] += line.price_total
                 aggregated_data[product]['payout'] += line.commission_amount

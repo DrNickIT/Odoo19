@@ -33,7 +33,6 @@ class ConsignmentSubmission(models.Model):
     ], string='Status', default='draft', tracking=True)
 
     product_ids = fields.One2many('product.template', 'submission_id', string="Ingezonden Producten")
-    # NIEUWE TELLERS (Berekend en opgeslagen voor snelheid)
     product_count = fields.Integer(string="Aantal Producten", compute='_compute_counts', store=True)
     rejected_count = fields.Integer(string="Aantal Geweigerd", compute='_compute_counts', store=True)
 
@@ -52,6 +51,9 @@ class ConsignmentSubmission(models.Model):
         tracking=True,
         help="Het uitbetalingspercentage dat definitief is vastgelegd voor deze inzending."
     )
+    discount_percentage = fields.Integer(string="Korting (%)", default=0, help="Korting toegepast op alle producten van deze inzending.")
+    discount_reason = fields.Char(string="Reden Korting", help="Bv. Solden, Einde seizoen, ...")
+
     x_is_locked = fields.Boolean(string="Contract Vergrendeld", default=False, tracking=True, help="Indien aangevinkt, kunnen de uitbetalingsvoorwaarden niet meer gewijzigd worden.")
 
     # Tijdelijke velden voor het formulier
@@ -426,3 +428,38 @@ class ConsignmentSubmission(models.Model):
         except Exception as e:
             _logger.error(f"Sendcloud API Fout: {str(e)}")
             return False
+
+    def action_apply_discount(self):
+        """
+        Past de korting toe op producten die nog NIET verkocht zijn.
+        """
+        self.ensure_one()
+
+        # We filteren de producten: Alleen diegene die nog 'vrij' zijn voor verkoop
+        available_products = self.product_ids.filtered(lambda p: p.virtual_available > 0)
+
+        for product in available_products:
+            # Stap 1: Bepaal de BASIS prijs (De originele prijs)
+            original_price = product.compare_list_price or product.list_price
+
+            if self.discount_percentage > 0:
+                # KORTING TOEPASSEN
+                if not product.compare_list_price:
+                    product.compare_list_price = original_price
+
+                discount_factor = 1 - (self.discount_percentage / 100)
+                new_price = original_price * discount_factor
+
+                product.list_price = new_price
+
+            else:
+                # KORTING VERWIJDEREN
+                if product.compare_list_price:
+                    product.list_price = product.compare_list_price
+                    product.compare_list_price = 0.0
+
+        # Logbericht
+        if self.discount_percentage > 0:
+            self.message_post(body=f"Korting van {self.discount_percentage}% toegepast op {len(available_products)} beschikbare items. Reden: {self.discount_reason}")
+        else:
+            self.message_post(body=f"Korting verwijderd van {len(available_products)} beschikbare items.")
