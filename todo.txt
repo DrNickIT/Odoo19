@@ -2,7 +2,7 @@ OK --> * Indien user is ingelogged bij verzendlabel aanvragen de data al invulle
 OK --> * Alle huidige klanten zijn akkoord met de voorwaarden? OK
 OK --> * email versturen bij verzendlabel OK
 * Bestellingen inladen
-* cadeabonnen enzo
+OK --> * cadeabonnen enzo
 * actiecodes
 * mollie
 * sendcloud --> gewoon de api
@@ -19,6 +19,7 @@ OK --> ** historiek status bijhouden wanneer is wat gebeurd
 OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 OK --> ** Korting op verzendlabel --> mee rekening houden in portaal
 OK --> ** BULK korting op meerdere zakken
+OK --> ** Producten niet meer verkopen dan we in stock hebben: zorg ervoor dat dat vinkje op false staat bij website instellingen VOOR de migratie
 * Outfit publiceren
 OK --> ** outfit pagina niet publiceren gaat dat? Geen link maken naar de pagina + outfits niet publishen
 OK --> ** Verzendlabel pagina hetzelfde
