@@ -31,6 +31,9 @@ class MigrationWizard(models.TransientModel):
     file_giftcards = fields.Binary(string="5. Cadeaubonnen (otters_bonnen.csv)", required=False)
     filename_giftcards = fields.Char()
 
+    file_actioncodes = fields.Binary(string="6. Actiecodes (otters_actiecodes.csv)", required=False)
+    filename_actioncodes = fields.Char()
+
     old_site_url = fields.Char(string="Oude Website URL", default="https://www.ottersenflamingos.be")
 
     def _clean_id(self, value):
@@ -85,6 +88,12 @@ class MigrationWizard(models.TransientModel):
             self._process_giftcards()
             self.env.cr.commit()
             _logger.info("✅ Stap 3b Klaar: Cadeaubonnen geïmporteerd.")
+
+        if self.file_actioncodes:
+            _logger.info(">>> Stap 3c: Actiecodes verwerken...")
+            self._process_actioncodes()
+            self.env.cr.commit()
+            _logger.info("✅ Stap 3c Klaar: Actiecodes geïmporteerd.")
 
         # 4. Producten
         _logger.info(">>> Stap 4: Producten verwerken (Dit kan even duren)...")
@@ -613,4 +622,138 @@ class MigrationWizard(models.TransientModel):
         _logger.info(f"❌ Reeds bestaand: {skipped_exist}")
         _logger.info(f"❌ Opgebruikt (0 euro): {skipped_empty}")
         _logger.info(f"❌ Vervallen datum: {skipped_expired}")
+        _logger.info("==========================================")
+
+    def _process_actioncodes(self):
+        if not self.file_actioncodes:
+            return
+
+        csv_data = self._read_csv(self.file_actioncodes)
+
+        # Cache voor de percentage-programma's om database calls te sparen
+        # Key = percentage (bv. 10.0), Value = program_id
+        percentage_programs_cache = {}
+
+        # 1. Zoek/Maak het VASTE BEDRAG programma (Gift Card)
+        fixed_program = self.env['loyalty.program'].search([('name', '=', 'Oude Actiecodes (Vast)')], limit=1)
+
+        if not fixed_program:
+            currency_eur = self.env.ref('base.EUR', raise_if_not_found=False)
+            currency_id = currency_eur.id if currency_eur else False
+
+            # Product zoeken/maken
+            discount_product = self.env['product.product'].search([('name', '=', 'Korting')], limit=1)
+            if not discount_product:
+                discount_product = self.env['product.product'].create({'name': 'Korting', 'type': 'service', 'list_price': 0, 'taxes_id': False})
+
+            fixed_program = self.env['loyalty.program'].create({
+                'name': 'Oude Actiecodes (Vast)',
+                'program_type': 'gift_card', # Gift card laat variabele bedragen toe
+                'applies_on': 'future',
+                'trigger': 'auto',
+                'portal_visible': False,
+                'portal_point_name': 'Euro',
+                'currency_id': currency_id,
+            })
+
+            self.env['loyalty.reward'].create({
+                'program_id': fixed_program.id,
+                'reward_type': 'discount',
+                'discount_mode': 'per_point',
+                'discount': 1.0,
+                'discount_line_product_id': discount_product.id,
+            })
+
+        count_fixed = 0
+        count_percent = 0
+        skipped_expired = 0
+
+        today = fields.Date.context_today(self)
+        _logger.info("--- START IMPORT ACTIECODES (SPLIT) ---")
+
+        for row in csv_data:
+            code = row.get('code')
+            if not code: continue
+
+            # Check duplicaten (in alle programma's)
+            existing = self.env['loyalty.card'].search([('code', '=', code)], limit=1)
+            if existing: continue
+
+            # Datum check
+            expiration_date = False
+            raw_date = row.get('tot')
+            if raw_date and raw_date != '0000-00-00':
+                try:
+                    exp_date_obj = fields.Date.from_string(raw_date)
+                    if exp_date_obj < today:
+                        skipped_expired += 1
+                        continue
+                    expiration_date = raw_date
+                except: pass
+
+            # Type bepalen
+            soort = str(row.get('soort', '')).lower()
+            try:
+                # In jouw CSV heet de waarde 'aantal'
+                value = float(str(row.get('aantal') or '0').replace(',', '.'))
+            except ValueError:
+                continue
+
+            if value <= 0: continue
+
+            # === SCENARIO A: VAST BEDRAG ===
+            if 'vast' in soort:
+                self.env['loyalty.card'].create({
+                    'program_id': fixed_program.id,
+                    'code': code,
+                    'points': value, # 25 euro = 25 punten
+                    'expiration_date': expiration_date,
+                })
+                count_fixed += 1
+
+            # === SCENARIO B: PERCENTAGE ===
+            elif 'percentage' in soort:
+                # Check of we voor dit percentage (bv. 10.0) al een programma hebben
+                if value not in percentage_programs_cache:
+                    prog_name = f"Oude Actiecodes ({int(value)}%)"
+
+                    # Zoek in DB
+                    perc_prog = self.env['loyalty.program'].search([('name', '=', prog_name)], limit=1)
+
+                    if not perc_prog:
+                        # Maak nieuw programma voor dit specifieke percentage
+                        perc_prog = self.env['loyalty.program'].create({
+                            'name': prog_name,
+                            'program_type': 'coupons', # Coupons type!
+                            'applies_on': 'current',   # Direct toepassen op huidige order
+                            'trigger': 'with_code',
+                            'portal_visible': False,
+                        })
+
+                        # Maak de beloning (bv. 10% korting)
+                        self.env['loyalty.reward'].create({
+                            'program_id': perc_prog.id,
+                            'reward_type': 'discount',
+                            'discount_mode': 'percent',
+                            'discount': value, # Hier zetten we de 10 of 20
+                            'discount_applicability': 'order', # Op hele order
+                        })
+
+                    # Opslaan in cache
+                    percentage_programs_cache[value] = perc_prog.id
+
+                # Maak de coupon aan in het juiste programma
+                self.env['loyalty.card'].create({
+                    'program_id': percentage_programs_cache[value],
+                    'code': code,
+                    'points': 0, # Coupons hebben geen punten nodig, gewoon bestaan is genoeg
+                    'expiration_date': expiration_date,
+                })
+                count_percent += 1
+
+        _logger.info("==========================================")
+        _logger.info(f"EIND RAPPORT ACTIECODES:")
+        _logger.info(f"✅ Vaste bedragen: {count_fixed}")
+        _logger.info(f"✅ Percentage coupons: {count_percent}")
+        _logger.info(f"❌ Verlopen: {skipped_expired}")
         _logger.info("==========================================")

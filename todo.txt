@@ -3,7 +3,7 @@ OK --> * Alle huidige klanten zijn akkoord met de voorwaarden? OK
 OK --> * email versturen bij verzendlabel OK
 * Bestellingen inladen
 OK --> * cadeabonnen enzo
-* actiecodes
+OK --> * actiecodes
 * mollie
 * sendcloud --> gewoon de api
 * google analytics --> Marleen

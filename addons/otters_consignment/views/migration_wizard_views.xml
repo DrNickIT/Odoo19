@@ -26,6 +26,9 @@
 
                             <field name="file_giftcards" filename="filename_giftcards"/>
                             <field name="filename_giftcards" invisible="1"/>
+
+                            <field name="file_actioncodes" filename="filename_actioncodes"/>
+                            <field name="filename_actioncodes" invisible="1"/>
                         </group>
                     </group>
 
