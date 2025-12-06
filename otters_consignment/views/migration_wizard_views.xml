@@ -37,13 +37,23 @@
                         <field name="filename_products" invisible="1"/>
                     </group>
 
+                    <group string="4. Bestellingen (Historiek)">
+                        <field name="file_orders" filename="filename_orders"/>
+                        <field name="filename_orders" invisible="1"/>
+
+                        <field name="file_order_lines" filename="filename_order_lines"/>
+                        <field name="filename_order_lines" invisible="1"/>
+                    </group>
+
                     <group string="Instellingen">
                         <field name="old_site_url"/>
                         <field name="image_base_path" placeholder="/mnt/images_source"/>
                     </group>
 
                     <footer>
-                        <button name="start_migration" string="Start Migratie 🚀" type="object" class="btn-primary"/>
+                        <button name="start_migration" string="1. Importeer Data" type="object" class="btn-primary"/>
+                        <button name="action_confirm_migrated_orders" string="2. Bevestig Orders (Zwaar!)" type="object" class="btn-success"/>
+                        <button name="action_cleanup_stock" string="3. Stock Opruimen" type="object" class="btn-warning"/>
                         <button string="Annuleren" class="btn-secondary" special="cancel"/>
                     </footer>
                 </sheet>
