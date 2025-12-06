@@ -359,12 +359,26 @@ class MigrationWizard(models.TransientModel):
         return brand_map
 
     # -------------------------------------------------------------------------
-    # STAP 4: PRODUCTEN (AANGEPAST: OOK VERBORGEN OP 1)
+    # STAP 4: PRODUCTEN (VOLLEDIGE VERSIE)
     # -------------------------------------------------------------------------
     def _process_products(self, submission_map, brand_map):
         csv_data = self._read_csv(self.file_products)
         count = 0
 
+        # --- 1. CACHE OPBOUWEN (Voor snelheid) ---
+        _logger.info("--- CACHE OPBOUWEN... ---")
+        # We halen alle bestaande ID's op om te vermijden dat we voor elk product een query moeten doen
+        existing_recs = self.env['product.template'].search_read(
+            ['|', ('x_old_id', '!=', False), ('default_code', '!=', False)],
+            ['id', 'x_old_id', 'default_code']
+        )
+        # Dictionary voor supersnelle lookup: "OudID" -> OdooID
+        existing_by_old_id = {str(r['x_old_id']): r['id'] for r in existing_recs if r['x_old_id']}
+        existing_by_code = {r['default_code']: r['id'] for r in existing_recs if r['default_code']}
+
+        _logger.info(f"--- CACHE KLAAR: {len(existing_recs)} producten in geheugen. ---")
+
+        # Mappings voor conditie en types
         condition_mapping = {
             '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
             '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
@@ -378,18 +392,13 @@ class MigrationWizard(models.TransientModel):
         _logger.info("--- START PRODUCTEN IMPORT ---")
 
         for row in csv_data:
-            # === TEST LIMIET ===
-            if count >= 150:
-                _logger.info("🛑 TEST MODUS: Gestopt na 150 producten om tijd te besparen.")
-                break
-            # ===================
-
             count += 1
+            # Tussentijdse opslag om geheugen vrij te maken
             if count % 50 == 0:
                 self.env.cr.commit()
                 _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
 
-            # 1. Validatie
+            # --- A. VALIDATIE ---
             zak_id_product = self._clean_id(row.get('zak_id'))
             old_product_id = self._clean_id(row.get('product_id'))
             name = row.get('naam')
@@ -398,7 +407,20 @@ class MigrationWizard(models.TransientModel):
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
-            # 2. Commissie
+            # --- B. BESTAAT HET AL? (Check in Cache) ---
+            product_id = False
+            default_code = row.get('code')
+
+            # Eerst kijken op oud ID, dan op Code
+            if old_product_id and str(old_product_id) in existing_by_old_id:
+                product_id = existing_by_old_id[str(old_product_id)]
+            elif default_code and default_code in existing_by_code:
+                product_id = existing_by_code[default_code]
+
+            # Product Object laden (als het bestaat)
+            product = self.env['product.template'].browse(product_id) if product_id else False
+
+            # --- C. COMMISSIE LOGICA ---
             commissie_raw = row.get('commissie')
             if commissie_raw:
                 try:
@@ -408,8 +430,11 @@ class MigrationWizard(models.TransientModel):
                     elif comm_val == 50: method = 'coupon'; percentage = 0.50
 
                     if method:
+                        # Update Submission als het afwijkt
                         if submission.payout_method != method:
                             submission.write({'payout_method': method, 'payout_percentage': percentage})
+
+                        # Update Partner voorkeur
                         partner = submission.supplier_id
                         if partner.x_payout_method != method:
                             partner.write({
@@ -419,17 +444,7 @@ class MigrationWizard(models.TransientModel):
                             })
                 except Exception: pass
 
-            # 3. Check bestaan
-            default_code = row.get('code')
-            domain = []
-            if default_code: domain.append(('default_code', '=', default_code))
-            if old_product_id:
-                if domain: domain = ['|'] + domain + [('x_old_id', '=', str(old_product_id))]
-                else: domain = [('x_old_id', '=', str(old_product_id))]
-
-            product = self.env['product.template'].search(domain, limit=1)
-
-            # 4. Stock & Publicatie Logica
+            # --- D. STOCK & STATUS LOGICA (CRUCIAAL) ---
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
@@ -443,6 +458,7 @@ class MigrationWizard(models.TransientModel):
 
             def is_empty_date(d): return not d or d == '0000-00-00'
 
+            # Bepaal of het item verkocht is
             is_sold = False
             if verkocht == 'ja' or online_verkocht == 'ja' or not is_empty_date(datum_verkocht) or not is_empty_date(datum_uitbetaald):
                 is_sold = True
@@ -450,32 +466,29 @@ class MigrationWizard(models.TransientModel):
             internal_description = False
 
             if is_sold:
-                # Verkocht -> Stock 1 voor order import
+                # Verkocht -> Zet stock TIJDELIJK op 1 zodat we de order kunnen importeren
+                # (De order-import zal dit later weer naar 0 brengen)
                 final_qty = 1.0
                 is_published = False
                 internal_description = "MIGRATIE: Was verkocht in oud systeem. Stock tijdelijk op 1 gezet voor order-import."
 
             elif niet_weergeven == 'ja':
-                # === AANPASSING: OOK HIER STOCK 1 ===
-                # We zetten stock op 1 voor het geval er toch een order voor bestaat.
+                # Verborgen -> Zet ook op 1 voor de zekerheid (misschien toch verkocht?)
                 final_qty = 1.0
                 is_published = False
-
-                # BELANGRIJK: We voegen "MIGRATIE: Was verkocht" toe aan de tekst.
-                # Hierdoor zal de 'action_cleanup_stock' knop dit product ook vinden en weer op 0 zetten
-                # als er na de order-import nog steeds stock over is.
                 internal_description = f"Oorspronkelijk verborgen: {row.get('waarom_niet_weergeven')}. MIGRATIE: Was verkocht (hidden)."
 
             else:
+                # Gewoon beschikbaar
                 final_qty = stock_val
                 is_published = (final_qty > 0)
 
-            # 5. Basis Waarden
+            # --- E. DATA VOORBEREIDEN ---
             product_vals = {
                 'name': name,
                 'submission_id': submission.id,
                 'is_published': is_published,
-                'type': 'consu',
+                'type': 'consu', # Consumable maar met voorraad tracking (is_storable)
                 'is_storable': True,
                 'default_code': default_code,
                 'x_old_id': str(old_product_id),
@@ -489,7 +502,7 @@ class MigrationWizard(models.TransientModel):
             if internal_description:
                 product_vals['description'] = internal_description
 
-            # 6. Categorie
+            # --- F. CATEGORIE BEPALEN ---
             type_raw = str(row.get('type', '')).strip()
             type_lower = type_raw.lower()
             maat_raw = str(row.get('maat', '')).strip()
@@ -506,17 +519,19 @@ class MigrationWizard(models.TransientModel):
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Schoenen'
 
+            # Fix voor kinderschoenmaten in verkeerde categorie
             if maat_raw:
                 try:
                     clean_maat = re.match(r"(\d+)", maat_raw)
                     if clean_maat:
                         size_num = int(clean_maat.group(1))
-                        if size_num <= 45:
+                        if size_num <= 45: # Als het een schoenmaat lijkt
                             if target_cat_name != 'Accessoires' and target_sub_name != 'Kousen':
                                 target_cat_name = 'Schoenen & Kousen'
                                 target_sub_name = 'Schoenen'
                 except Exception: pass
 
+            # E-commerce Categorie
             main_cat = self.env['product.public.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
             final_categ_ids = [main_cat.id]
@@ -526,14 +541,9 @@ class MigrationWizard(models.TransientModel):
                 if not sub_cat: sub_cat = self.env['product.public.category'].create({'name': target_sub_name, 'parent_id': main_cat.id})
                 final_categ_ids.append(sub_cat.id)
 
-            old_merk_id = self._clean_id(row.get('merk_id'))
-            brand_data = None
-            if old_merk_id and old_merk_id in brand_map:
-                brand_data = brand_map[old_merk_id]
-                product_vals['brand_id'] = brand_data['brand_id']
-
             product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
 
+            # Interne Categorie
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
             final_int_id = int_main.id
@@ -545,21 +555,30 @@ class MigrationWizard(models.TransientModel):
 
             product_vals['categ_id'] = final_int_id
 
-            # 7. Opslaan
+            # --- G. MERK KOPPELING ---
+            old_merk_id = self._clean_id(row.get('merk_id'))
+            brand_data = None
+            if old_merk_id and old_merk_id in brand_map:
+                brand_data = brand_map[old_merk_id]
+                product_vals['brand_id'] = brand_data['brand_id']
+
+            # --- H. UPDATE OF CREATE ---
             if product:
+                # 1. BESTAAND PRODUCT: UPDATE
                 product.write(product_vals)
                 self._update_stock(product, final_qty)
 
+                # Zorg dat het merk attribuut juist staat
                 if brand_data:
                     self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
-                if not product.product_template_image_ids:
+                # FOTO'S (Slimme check): Alleen toevoegen als ze ontbreken!
+                if not product.product_template_image_ids and not product.image_1920:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
                         urls = extra_fotos.split(',')
                         for idx, url in enumerate(urls):
                             if url:
-                                time.sleep(0.01)
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                                 if extra_img:
                                     self.env['product.image'].create({
@@ -568,14 +587,24 @@ class MigrationWizard(models.TransientModel):
                                         'image_1920': extra_img
                                     })
             else:
+                # 2. NIEUW PRODUCT: AANMAKEN
+
+                # Hoofdfoto ophalen (Lokaal of Download)
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
 
+                # Prijs
                 prijs_raw = row.get('prijs') or '0'
                 try: product_vals['list_price'] = float(str(prijs_raw).replace(',', '.'))
                 except: product_vals['list_price'] = 0.0
 
+                # Create
                 product = self.env['product.template'].create(product_vals)
+
+                # Cache updaten (zodat we hem niet dubbel maken als hij 2x in CSV staat)
+                if old_product_id: existing_by_old_id[str(old_product_id)] = product.id
+
+                # Stock & Attributen
                 self._update_stock(product, final_qty)
 
                 if maat_raw:
@@ -594,12 +623,12 @@ class MigrationWizard(models.TransientModel):
                 if brand_data:
                     self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
+                # Extra Foto's
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     urls = extra_fotos.split(',')
                     for idx, url in enumerate(urls):
                         if url:
-                            # time.sleep(0.01)
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img:
                                 self.env['product.image'].create({
@@ -611,59 +640,72 @@ class MigrationWizard(models.TransientModel):
         return count
 
     def _download_image(self, url, fix_old_id=None):
-        """
-        Probeert afbeelding op te halen.
-        1. Eerst lokaal in map: {base_path}/{product_id}/{filename}
-        2. Anders via download (fallback)
-        """
         if not url or str(url) == 'nan': return False
 
         # --- OPTIE 1: LOKAAL ZOEKEN (VIA PRODUCT ID MAP) ---
         if self.image_base_path and fix_old_id:
             try:
-                # 1. Haal de bestandsnaam uit de URL (alles na de laatste /)
-                # Bv. "https://site.be/images/jasje.jpg" -> "jasje.jpg"
-                # Bv. "../producten/jasje.jpg" -> "jasje.jpg"
+                # 1. Haal bestandsnaam op
+                # We splitsen op '?' om eventuele parameters na .jpg weg te halen (bv. ?v=1)
+                clean_url_path = url.split('?')[0] if '?' in url else url
+                # Als de filename IN de query params zit (zoals bij jou: foto.php?src=.../foto.jpg)
+                # Dan pakt os.path.basename automatisch het laatste stukje na de laatste /
                 filename = os.path.basename(url.strip())
 
-                # 2. Bouw het pad: /mnt/images_source / 1234 / jasje.jpg
-                local_path = os.path.join(self.image_base_path, str(fix_old_id), filename)
+                # Als de filename nog steeds rommel bevat (zoals ?src=), proberen we een tweede schoonmaak
+                if '?' in filename:
+                    filename = filename.split('?')[0]
 
-                # 3. Check of bestand bestaat
+                # 2. Bouw het pad
+                # Let op: we gebruiken os.path.join voor veilige paden
+                # Pad wordt: /mnt/images_source/fotos / 41215 / tra073.jpg
+                folder_path = os.path.join(self.image_base_path, str(fix_old_id))
+                local_path = os.path.join(folder_path, filename)
+
+                # --- DEBUG LOGGING (TIJDELIJK AAN) ---
+                _logger.info(f"🔎 ZOEKEN: {local_path}")
+
+                # Check 1: Exacte match
                 if os.path.exists(local_path):
-                    _logger.info(f"   :) :)  Ik neem de FOTO lokaal  :) :)")
+                    _logger.info(f"✅ GEVONDEN: {local_path}")
                     with open(local_path, 'rb') as f:
                         return base64.b64encode(f.read())
+
+                # Check 2: Case-Insensitive (tra073.JPG vs tra073.jpg)
+                elif os.path.exists(folder_path):
+                    # _logger.info(f"⚠️ Exact niet gevonden, ik zoek case-insensitive in: {folder_path}")
+                    for f in os.listdir(folder_path):
+                        if f.lower() == filename.lower():
+                            full_path = os.path.join(folder_path, f)
+                            _logger.info(f"✅ GEVONDEN (Case-Insensitive): {full_path}")
+                            with open(full_path, 'rb') as f_obj:
+                                return base64.b64encode(f_obj.read())
+
+                    # Als we hier komen, zit het bestand niet in de map
+                    _logger.warning(f"❌ NIET GEVONDEN IN MAP: {folder_path}. Gezocht naar: {filename}. Aanwezig: {os.listdir(folder_path)}")
+
                 else:
-                    # Debug optie: uncomment als je wil weten wat hij niet vindt
-                    # _logger.info(f"Lokaal niet gevonden: {local_path}")
-                    pass
+                    _logger.warning(f"❌ MAP BESTAAT NIET: {folder_path}")
+
             except Exception as e:
                 _logger.error(f"Fout bij lezen lokaal bestand {local_path}: {e}")
 
-        # --- OPTIE 2: FALLBACK DOWNLOAD (Voor Merken of als lokaal faalt) ---
+        # --- OPTIE 2: DOWNLOAD (FALLBACK) ---
+        _logger.info(f"🌐 Downloading: {url}")
+
+        # ... (Rest van je download logica blijft hetzelfde) ...
         clean_path = url.lstrip('.').strip().replace('//', '/')
         if fix_old_id and '/product//' in url:
             clean_path = clean_path.replace('/product//', f'/product/{fix_old_id}/')
 
-        urls_to_try = []
-        if url.startswith('http'):
-            urls_to_try.append(url)
-        else:
-            path_with_slash = '/' + clean_path.lstrip('/')
-            urls_to_try.append(f"{self.old_site_url}/foto.php?src={path_with_slash}")
-            urls_to_try.append(f"{self.old_site_url}{path_with_slash}")
-
+        urls_to_try = [url] if url.startswith('http') else [f"{self.old_site_url}/{clean_path.lstrip('/')}"]
         headers = {'User-Agent': 'Mozilla/5.0'}
         for try_url in urls_to_try:
             try:
-                _logger.info(f"   !!!!!!!!!!  Ik download de FOTO !!!!!")
                 r = requests.get(try_url, headers=headers, timeout=5)
-                if r.status_code == 200:
-                    if 'image' in r.headers.get('Content-Type', ''):
-                        return base64.b64encode(r.content)
-            except Exception:
-                pass
+                if r.status_code == 200 and 'image' in r.headers.get('Content-Type', ''):
+                    return base64.b64encode(r.content)
+            except: pass
 
         return False
 
@@ -948,74 +990,121 @@ class MigrationWizard(models.TransientModel):
         _logger.info("==========================================")
 
     # -------------------------------------------------------------------------
-    # STAP 5: BESTELLINGEN (HEADERS)
+    # STAP 5: BESTELLINGEN (HEADERS) - VOLLEDIGE VERSIE
     # -------------------------------------------------------------------------
     def _process_orders(self):
         csv_data = self._read_csv(self.file_orders)
         order_map = {} # Oude ID -> Nieuwe Odoo Order ID
         count = 0
 
-        # Cache partners op email om niet telkens te zoeken
+        # --- 1. CACHE OPBOUWEN ---
+        # We laden partners in het geheugen om zoekacties te versnellen
+        _logger.info("--- PARTNER CACHE OPBOUWEN... ---")
         partner_obj = self.env['res.partner']
 
+        # We zoeken alle partners die een e-mail hebben
+        # Dit geeft een lijst van dicts terug: [{'id': 1, 'email': '...'}, ...]
+        all_partners = partner_obj.search_read(
+            [('email', '!=', False)],
+            ['id', 'email', 'name']
+        )
+
+        # Maak een snelle opzoek-tabel op E-MAIL
+        # We gebruiken .lower().strip() voor de zekerheid
+        partner_by_email = {}
+        for p in all_partners:
+            if p['email']:
+                clean_email = str(p['email']).strip().lower()
+                partner_by_email[clean_email] = p['id']
+
+        # Optioneel: Ook een cache op NAAM voor de fallback
+        partner_by_name = {p['name'].strip().lower(): p['id'] for p in all_partners if p['name']}
+
+        _logger.info(f"--- PARTNER CACHE KLAAR ({len(all_partners)} partners) ---")
         _logger.info("--- START ORDERS IMPORT ---")
 
         for row in csv_data:
-            old_id = row.get('bestel_id')
-            if not old_id: continue
-
-            # Check of order al bestaat (op basis van referentie/naam)
-            # We gebruiken de oude bestel_id als referentie of in een x_old_id veld
-            # Voor nu gebruiken we de 'name' of 'client_order_ref'
-            existing = self.env['sale.order'].search([('client_order_ref', '=', old_id)], limit=1)
-            if existing:
-                order_map[old_id] = existing
-                continue
-
-            # Datum parsen (2021-03-28 18:31:23)
-            order_date = fields.Datetime.now()
-            raw_date = row.get('datum')
-            if raw_date:
-                try:
-                    order_date = fields.Datetime.from_string(raw_date)
-                except: pass
-
-            # Klant zoeken
-            email = row.get('factuur_email', '').strip()
-            partner = False
-            if email:
-                partner = partner_obj.search([('email', '=ilike', email)], limit=1)
-
-            # Als geen klant gevonden, zoek/maak dummy "Oude Webshop Klant"
-            if not partner:
-                # Fallback: Zoek op naam
-                naam = row.get('factuur_naam', 'Onbekende Klant')
-                partner = partner_obj.search([('name', '=ilike', naam)], limit=1)
-
-                if not partner:
-                    # Maak aan
-                    partner = partner_obj.create({
-                        'name': naam,
-                        'email': email,
-                        'street': row.get('factuur_straat'),
-                        'city': row.get('factuur_gemeente'),
-                        'comment': 'Geïmporteerd uit oude bestellingen'
-                    })
-
-            # Order aanmaken
-            order = self.env['sale.order'].create({
-                'partner_id': partner.id,
-                'date_order': order_date, # Datum van toen
-                'client_order_ref': old_id, # Oude ID bewaren
-                'origin': f"Import: {row.get('ordernummer')}",
-                'state': 'draft', # We bevestigen pas na het toevoegen van regels
-            })
-
-            order_map[old_id] = order
+            # === COMMIT ===
             count += 1
             if count % 100 == 0:
                 self.env.cr.commit()
-                _logger.info(f"   ... {count} orders aangemaakt")
+                _logger.info(f"   ... {count} orders verwerkt")
+
+            old_id = row.get('bestel_id')
+            if not old_id: continue
+
+            # CHECK: Bestaat al?
+            # We zoeken op client_order_ref (= het oude bestel ID)
+            existing = self.env['sale.order'].search([('client_order_ref', '=', old_id)], limit=1)
+
+            if existing:
+                # Als hij al bestaat, slaan we hem op in de map (want de order lines hebben dit nodig)
+                # Maar we doen verder niets (SKIP)
+                order_map[old_id] = existing
+                continue
+
+            # Datum parsen (formaat: 2021-03-28 18:31:23)
+            order_date = fields.Datetime.now()
+            raw_date = row.get('datum')
+            if raw_date and raw_date != '0000-00-00 00:00:00':
+                try:
+                    order_date = fields.Datetime.from_string(raw_date)
+                except:
+                    pass
+
+            # Klant zoeken (Via onze snelle cache!)
+            raw_email = row.get('factuur_email', '')
+            email = str(raw_email).strip().lower()
+            partner_id = False
+
+            # 1. Zoek op Email in Cache
+            if email and email in partner_by_email:
+                partner_id = partner_by_email[email]
+
+            # 2. Zoek via Database (Fallback, voor het geval de cache niet up to date is)
+            if not partner_id and email:
+                p = partner_obj.search([('email', '=ilike', email)], limit=1)
+                if p: partner_id = p.id
+
+            # 3. Zoek op Naam (Fallback)
+            if not partner_id:
+                naam_raw = row.get('factuur_naam', 'Onbekende Klant')
+                naam_clean = str(naam_raw).strip().lower()
+
+                if naam_clean in partner_by_name:
+                    partner_id = partner_by_name[naam_clean]
+                else:
+                    # Nog steeds niet? Zoek in DB
+                    p = partner_obj.search([('name', '=ilike', naam_raw)], limit=1)
+                    if p: partner_id = p.id
+
+            # 4. Nog steeds niet? Maak aan!
+            if not partner_id:
+                naam = row.get('factuur_naam') or 'Onbekende Klant'
+                new_partner = partner_obj.create({
+                    'name': naam,
+                    'email': row.get('factuur_email'),
+                    'street': row.get('factuur_straat'),
+                    'city': row.get('factuur_gemeente'),
+                    'comment': 'Geïmporteerd uit oude bestellingen'
+                })
+                partner_id = new_partner.id
+
+                # Update de cache direct, zodat we hem de volgende keer snel vinden
+                if new_partner.email:
+                    partner_by_email[str(new_partner.email).strip().lower()] = new_partner.id
+                partner_by_name[str(new_partner.name).strip().lower()] = new_partner.id
+
+            # Order aanmaken
+            order = self.env['sale.order'].create({
+                'partner_id': partner_id,
+                'date_order': order_date,
+                'client_order_ref': old_id,   # Cruciaal voor duplicate check en lines koppeling
+                'origin': f"Import: {row.get('ordernummer')}",
+                'state': 'draft',             # We laten hem op draft staan, de volgende stap (6) vult hem
+            })
+
+            order_map[old_id] = order
 
         return order_map
 
@@ -1093,19 +1182,12 @@ class MigrationWizard(models.TransientModel):
         _logger.info(f"--- KLAAR: {count} nieuwe regels. {skipped} overgeslagen (bestonden al). ---")
 
     # -------------------------------------------------------------------------
-    # STAP 7: ORDERS BEVESTIGEN (APARTE FUNCTIE)
+    # STAP 7: ORDERS BEVESTIGEN (MET AUTO-STOCK FIX)
     # -------------------------------------------------------------------------
     def action_confirm_migrated_orders(self):
-        """
-        Draai dit NA de import. Dit bevestigt alle orders die nog in draft staan
-        en die via de migratie zijn binnengekomen (herkenbaar aan client_order_ref).
-        """
-        _logger.info("--- START ORDER BEVESTIGING ---")
+        _logger.info("--- START ORDER BEVESTIGING (MET STOCK FIX) ---")
 
-        # Zoek alle orders die:
-        # 1. Nog in concept staan
-        # 2. Een 'client_order_ref' hebben (dus uit migratie komen)
-        # 3. Minstens 1 regel hebben
+        # Zoek orders die nog in concept staan en uit migratie komen
         orders_to_confirm = self.env['sale.order'].search([
             ('state', '=', 'draft'),
             ('client_order_ref', '!=', False),
@@ -1114,38 +1196,65 @@ class MigrationWizard(models.TransientModel):
 
         count = 0
         total = len(orders_to_confirm)
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        location_id = warehouse.lot_stock_id.id
 
         for order in orders_to_confirm:
+            # === COMMIT ===
+            count += 1
+            if count % 20 == 0:
+                self.env.cr.commit()
+                _logger.info(f"   ... {count}/{total} orders bevestigd")
+
             try:
-                # Datum bewaren
+                # STAP A: CHECK STOCK VOOR ELKE REGEL
+                # Voordat we bevestigen, zorgen we dat er genoeg stock is.
+                # Dit fixt het probleem dat producten al op 0 staan.
+                for line in order.order_line:
+                    product = line.product_id
+                    if product.type == 'product' and product.qty_available < line.product_uom_qty:
+                        # Tekort! We voegen snel stock toe (Just-in-Time)
+                        self.env['stock.quant'].with_context(inventory_mode=True).create({
+                            'product_id': product.id,
+                            'location_id': location_id,
+                            'inventory_quantity': line.product_uom_qty, # Zet op wat we nodig hebben
+                        }).action_apply_inventory()
+
+                # STAP B: BEVESTIGEN
                 original_date = order.date_order
 
-                # Bevestigen
+                # Dit boekt de voorraad nu direct weer af naar 0
                 order.action_confirm()
 
-                # Datum herstellen en Locken
+                # 2. TRUCJE: Zet 'Gefactureerd Aantal' gelijk aan 'Besteld Aantal'
+                # Hierdoor denkt Odoo dat de factuur al gemaakt is (buiten Odoo om)
+                # en verdwijnt de order uit de lijst "Te Factureren".
+                for line in order.order_line:
+                    line.write({'qty_invoiced': line.product_uom_qty})
+
+                # 3. Datum herstellen en Locken
                 order.write({
                     'date_order': original_date,
-                    'state': 'done',
+                    'state': 'sale',
                     'effective_date': original_date,
+                    # Forceer de invoice_status op 'invoiced' (voor de zekerheid)
+                    'invoice_status': 'invoiced'
                 })
 
-                # Levering valideren (Forceer)
+                # STAP D: LEVERING AFHANDELEN
                 if order.picking_ids:
                     for picking in order.picking_ids:
-                        # We proberen te valideren. Als stock 0 is, faalt dit misschien,
-                        # maar dat is ok, dan blijft de levering open staan.
+                        # Omdat we net stock hebben toegevoegd, zou dit moeten lukken
+                        # We zetten de aantallen op 'Gedaan'
+                        for move in picking.move_ids:
+                            move.quantity = move.product_uom_qty
+
                         try:
-                            picking.button_validate()
+                            picking.with_context(skip_backorder=True).button_validate()
                         except: pass
 
             except Exception as e:
                 _logger.warning(f"Fout bij order {order.name}: {e}")
-
-            count += 1
-            if count % 20 == 0: # Vaker committen want dit is zwaar
-                self.env.cr.commit()
-                _logger.info(f"   ... {count}/{total} orders bevestigd")
 
         return {
             'type': 'ir.actions.client',
