@@ -1,7 +1,7 @@
 OK --> * Indien user is ingelogged bij verzendlabel aanvragen de data al invullen. --> OK
 OK --> * Alle huidige klanten zijn akkoord met de voorwaarden? OK
 OK --> * email versturen bij verzendlabel OK
-* Bestellingen inladen
+BIJNA OK --> * Bestellingen inladen
 OK --> * cadeabonnen enzo
 OK --> * actiecodes
 * mollie
@@ -12,7 +12,7 @@ OK --> * Consignment --> Verzendlabels
 OK --> ** Jaar toevoegen
 ** 1 sendcloud label per zak
 ** 1 zak / doos = 1 verzendlabel
-** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
+OK --> ** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
 OK --> ** Aantal producten in een zak zien (niet editeerbaar)
 OK --> ** status Verwerkt weg doen
 OK --> ** historiek status bijhouden wanneer is wat gebeurd
@@ -46,5 +46,6 @@ OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zi
     report.url,http://127.0.0.1:8069,Zodat je PDF's (facturen/labels) werken.
     web.base.url.freeze,True,Zodat Odoo het niet per ongeluk terugzet.
 OK --> * Klanten moeten nog zien hoeveel producten ze in de zak hebben. Dit ziet hij al in de tabjes staan
-
+OK --> ** In bulk korting weghalen
+** laatste kortingcode toevoegen.
 
