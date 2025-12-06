@@ -23,6 +23,9 @@
                         <group string="2. Verrijking">
                             <field name="file_brands" filename="filename_brands"/>
                             <field name="filename_brands" invisible="1"/>
+
+                            <field name="file_giftcards" filename="filename_giftcards"/>
+                            <field name="filename_giftcards" invisible="1"/>
                         </group>
                     </group>
 

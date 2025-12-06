@@ -28,6 +28,9 @@ class MigrationWizard(models.TransientModel):
     file_products = fields.Binary(string="4. Producten (otters_producten.csv)", required=True)
     filename_products = fields.Char()
 
+    file_giftcards = fields.Binary(string="5. Cadeaubonnen (otters_bonnen.csv)", required=False)
+    filename_giftcards = fields.Char()
+
     old_site_url = fields.Char(string="Oude Website URL", default="https://www.ottersenflamingos.be")
 
     def _clean_id(self, value):
@@ -75,6 +78,13 @@ class MigrationWizard(models.TransientModel):
         brand_map = self._process_brands()
         self.env.cr.commit()
         _logger.info(f"✅ Stap 3 Klaar: {len(brand_map)} merken in geheugen.")
+
+        # NIEUW: STAP VOOR CADEAUBONNEN (Best voor producten, of erna, maakt niet veel uit)
+        if self.file_giftcards:
+            _logger.info(">>> Stap 3b: Cadeaubonnen verwerken...")
+            self._process_giftcards()
+            self.env.cr.commit()
+            _logger.info("✅ Stap 3b Klaar: Cadeaubonnen geïmporteerd.")
 
         # 4. Producten
         _logger.info(">>> Stap 4: Producten verwerken (Dit kan even duren)...")
@@ -231,21 +241,29 @@ class MigrationWizard(models.TransientModel):
         if not self.file_brands: return {}
         csv_data = self._read_csv(self.file_brands)
         brand_map = {}
+
+        # Attribuut zoeken/maken
         brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
         if not brand_attribute:
             brand_attribute = self.env['product.attribute'].create({'name': 'Merk', 'create_variant': 'no_variant', 'display_type': 'select'})
 
         count = 0
+        skipped_images = 0
+
+        _logger.info("--- START MERKEN IMPORT ---")
+
         for row in csv_data:
-            count += 1
-            if count % 50 == 0:
+            if count > 0 and count % 50 == 0:
                 self.env.cr.commit()
-                # _logger.info(f"   ... {count} merken verwerkt") # Merken gaat meestal snel, minder logs nodig
 
             old_merk_id = self._clean_id(row.get('merk_id'))
             name = row.get('naam')
             if not old_merk_id or not name: continue
+
+            # 1. ZOEK HET MERK
             brand = self.env['otters.brand'].search([('name', '=', name)], limit=1)
+
+            # 2. BASIS DATA (Tekst updaten we altijd, dat is snel)
             brand_vals = {
                 'name': name,
                 'description': row.get('omschrijving_nl'),
@@ -254,16 +272,49 @@ class MigrationWizard(models.TransientModel):
                 'website_meta_description': row.get('seo_description'),
                 'website_meta_keywords': row.get('seo_keywords'),
             }
-            logo_url = row.get('foto')
-            if logo_url and str(logo_url) != 'nan':
-                img_data = self._download_image(logo_url)
-                if img_data: brand_vals['logo'] = img_data
-            if not brand: brand = self.env['otters.brand'].create(brand_vals)
-            else: brand.write(brand_vals)
-            brand_val = self.env['product.attribute.value'].search([('attribute_id', '=', brand_attribute.id), ('name', '=', name)], limit=1)
-            if not brand_val: brand_val = self.env['product.attribute.value'].create({'name': name, 'attribute_id': brand_attribute.id})
-            brand_map[old_merk_id] = {'brand_id': brand.id, 'attr_val_id': brand_val.id, 'attr_id': brand_attribute.id}
 
+            # 3. FOTO LOGICA (SLIMMER!)
+            # We downloaden alleen als het nodig is
+            logo_url = row.get('foto')
+            img_data = False
+
+            should_download = False
+
+            if not brand:
+                # Nieuw merk? Altijd proberen te downloaden
+                should_download = True
+            elif not brand.logo:
+                # Bestaand merk zonder logo? Downloaden!
+                should_download = True
+            else:
+                # Bestaand merk MET logo? Overslaan.
+                should_download = False
+                skipped_images += 1
+
+            if should_download and logo_url and str(logo_url) != 'nan':
+                img_data = self._download_image(logo_url)
+                if img_data:
+                    brand_vals['logo'] = img_data
+
+            # 4. MAAK AAN OF UPDATE
+            if not brand:
+                brand = self.env['otters.brand'].create(brand_vals)
+            else:
+                brand.write(brand_vals)
+
+            # 5. ATTRIBUUT WAARDE
+            brand_val = self.env['product.attribute.value'].search([('attribute_id', '=', brand_attribute.id), ('name', '=', name)], limit=1)
+            if not brand_val:
+                brand_val = self.env['product.attribute.value'].create({'name': name, 'attribute_id': brand_attribute.id})
+
+            brand_map[old_merk_id] = {
+                'brand_id': brand.id,
+                'attr_val_id': brand_val.id,
+                'attr_id': brand_attribute.id
+            }
+            count += 1
+
+        _logger.info(f"--- MERKEN KLAAR: {count} verwerkt. {skipped_images} keer foto-download overgeslagen (bestond al). ---")
         return brand_map
 
     def _process_products(self, submission_map, brand_map):
@@ -438,3 +489,128 @@ class MigrationWizard(models.TransientModel):
         for line in product.attribute_line_ids:
             if line.attribute_id.id == attribute_id and value_id in line.value_ids.ids: exists = True
         if not exists: self.env['product.template.attribute.line'].create({'product_tmpl_id': product.id, 'attribute_id': attribute_id, 'value_ids': [(6, 0, [value_id])]})
+
+    def _process_giftcards(self):
+        if not self.file_giftcards:
+            return
+
+        csv_data = self._read_csv(self.file_giftcards)
+
+        # 1. Programma zoeken/maken
+        program = self.env['loyalty.program'].search([('program_type', '=', 'gift_card')], limit=1)
+
+        if not program:
+            # HAAL EURO OP
+            currency_eur = self.env.ref('base.EUR', raise_if_not_found=False)
+            currency_id = currency_eur.id if currency_eur else False
+
+            # Zoek een geschikt "Gift Card" product
+            gift_card_product = self.env['product.product'].search([
+                ('name', 'ilike', 'Gift Card'),
+                ('type', '=', 'service')
+            ], limit=1)
+
+            # Bestaat het niet? Maak het aan!
+            if not gift_card_product:
+                gift_card_product = self.env['product.product'].create({
+                    'name': 'Gift Card',
+                    'type': 'service',
+                    'taxes_id': False, # Geen BTW op bonnen
+                    'list_price': 0,
+                })
+
+            program = self.env['loyalty.program'].create({
+                'name': 'Cadeaubonnen',
+                'program_type': 'gift_card',
+                'applies_on': 'future',
+                'trigger': 'auto',
+                'portal_visible': True,
+                'portal_point_name': 'Euro',
+                'currency_id': currency_id,
+            })
+
+            self.env['loyalty.reward'].create({
+                'program_id': program.id,
+                'reward_type': 'discount',
+                'discount_mode': 'per_point',
+                'discount': 1.0,
+                # GEBRUIK ONS GEVONDEN PRODUCT
+                'discount_line_product_id': gift_card_product.id,
+            })
+
+        count = 0
+        skipped_expired = 0
+        skipped_empty = 0
+        skipped_exist = 0
+
+        today = fields.Date.context_today(self)
+
+        _logger.info("--- START IMPORT CADEAUBONNEN ---")
+
+        for row in csv_data:
+            code = row.get('code')
+
+            # LOG: Geen code
+            if not code:
+                _logger.warning("SKIP: Rij overgeslagen, geen code gevonden in CSV.")
+                continue
+
+            # LOG: Bestaat al
+            existing = self.env['loyalty.card'].search([('code', '=', code)], limit=1)
+            if existing:
+                _logger.info(f"SKIP: Bon {code} bestaat al in Odoo.")
+                skipped_exist += 1
+                continue
+
+            # Bereken restbedrag
+            try:
+                totaal = float(str(row.get('bedrag') or '0').replace(',', '.'))
+                gebruikt = float(str(row.get('bedrag_gebruikt') or '0').replace(',', '.'))
+                rest = totaal - gebruikt
+            except ValueError:
+                _logger.warning(f"SKIP: Bon {code} heeft ongeldige bedragen (Totaal: {row.get('bedrag')}, Gebruikt: {row.get('bedrag_gebruikt')}).")
+                continue
+
+            # LOG: Leeg / Opgebruikt
+            if rest <= 0.01:
+                _logger.info(f"SKIP: Bon {code} is volledig opgebruikt (Restbedrag: {rest}).")
+                skipped_empty += 1
+                continue
+
+            # Datum Check
+            expiration_date = False
+            raw_date = row.get('tot')
+
+            if raw_date and raw_date != '0000-00-00':
+                try:
+                    exp_date_obj = fields.Date.from_string(raw_date)
+
+                    # LOG: Vervallen
+                    if exp_date_obj < today:
+                        _logger.info(f"SKIP: Bon {code} is vervallen op {raw_date} (Restbedrag: {rest}).")
+                        skipped_expired += 1
+                        continue
+
+                    expiration_date = raw_date
+                except Exception:
+                    _logger.warning(f"LET OP: Datum '{raw_date}' onleesbaar voor bon {code}. Wordt geïmporteerd zonder vervaldatum.")
+
+            # Maak de bon aan
+            self.env['loyalty.card'].create({
+                'program_id': program.id,
+                'code': code,
+                'points': rest,
+                'expiration_date': expiration_date,
+            })
+            count += 1
+
+            if count % 50 == 0:
+                _logger.info(f"   ... {count} bonnen aangemaakt ...")
+
+        _logger.info("==========================================")
+        _logger.info(f"EIND RAPPORT CADEAUBONNEN:")
+        _logger.info(f"✅ Aangemaakt: {count}")
+        _logger.info(f"❌ Reeds bestaand: {skipped_exist}")
+        _logger.info(f"❌ Opgebruikt (0 euro): {skipped_empty}")
+        _logger.info(f"❌ Vervallen datum: {skipped_expired}")
+        _logger.info("==========================================")
