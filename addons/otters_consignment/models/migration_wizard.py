@@ -35,6 +35,12 @@ class MigrationWizard(models.TransientModel):
     file_actioncodes = fields.Binary(string="6. Actiecodes (otters_actiecodes.csv)", required=False)
     filename_actioncodes = fields.Char()
 
+    file_orders = fields.Binary(string="7. Bestellingen (bestellingen.csv)", required=False)
+    filename_orders = fields.Char()
+
+    file_order_lines = fields.Binary(string="8. Bestelregels (bestellingen_producten.csv)", required=False)
+    filename_order_lines = fields.Char()
+
     # NIEUW VELD: Lokaal pad
     image_base_path = fields.Char(
         string="Lokaal Pad naar Foto's (Server)",
@@ -105,6 +111,19 @@ class MigrationWizard(models.TransientModel):
         # 4. Producten
         _logger.info(">>> Stap 4: Producten verwerken (Dit kan even duren)...")
         count = self._process_products(submission_map, brand_map)
+
+        # 5. Bestellingen (Header)
+        order_map = {}
+        if self.file_orders:
+            _logger.info(">>> Stap 5: Bestellingen (Headers) verwerken...")
+            order_map = self._process_orders()
+            self.env.cr.commit()
+
+        # 6. Bestelregels (Lines)
+        if self.file_order_lines and order_map:
+            _logger.info(">>> Stap 6: Bestelregels verwerken & Orders Bevestigen...")
+            self._process_order_lines(order_map)
+            self.env.cr.commit()
 
         _logger.info("==========================================")
         _logger.info(f"=== 🏁 MIGRATIE VOLTOOID: {count} PRODUCTEN ===")
@@ -339,11 +358,24 @@ class MigrationWizard(models.TransientModel):
         _logger.info(f"--- MERKEN KLAAR: {count} verwerkt. {skipped_images} keer foto-download overgeslagen (bestond al). ---")
         return brand_map
 
+    # -------------------------------------------------------------------------
+    # STAP 4: PRODUCTEN (AANGEPAST: OOK VERBORGEN OP 1)
+    # -------------------------------------------------------------------------
     def _process_products(self, submission_map, brand_map):
         csv_data = self._read_csv(self.file_products)
         count = 0
-        condition_mapping = {'5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍', '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'}
-        accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
+
+        condition_mapping = {
+            '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
+            '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
+        }
+        accessoires_types = [
+            'muts & sjaal', 'hoedjes & petjes', 'tutjes',
+            'accessoires', 'speelgoed', 'riem', 'haarband', 'rugzakken en tassen',
+            'slab', 'speenkoord', 'badcape', 'dekentje'
+        ]
+
+        _logger.info("--- START PRODUCTEN IMPORT ---")
 
         for row in csv_data:
             # === TEST LIMIET ===
@@ -353,17 +385,20 @@ class MigrationWizard(models.TransientModel):
             # ===================
 
             count += 1
-            if count % 10 == 0: # Iets frequentere logs voor korte test
+            if count % 50 == 0:
                 self.env.cr.commit()
                 _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
 
+            # 1. Validatie
             zak_id_product = self._clean_id(row.get('zak_id'))
             old_product_id = self._clean_id(row.get('product_id'))
             name = row.get('naam')
+
             if not zak_id_product: continue
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
+            # 2. Commissie
             commissie_raw = row.get('commissie')
             if commissie_raw:
                 try:
@@ -371,59 +406,121 @@ class MigrationWizard(models.TransientModel):
                     method = False; percentage = 0.0
                     if comm_val == 30: method = 'cash'; percentage = 0.30
                     elif comm_val == 50: method = 'coupon'; percentage = 0.50
+
                     if method:
-                        if submission.payout_method != method: submission.write({'payout_method': method, 'payout_percentage': percentage})
+                        if submission.payout_method != method:
+                            submission.write({'payout_method': method, 'payout_percentage': percentage})
                         partner = submission.supplier_id
                         if partner.x_payout_method != method:
-                            partner.write({'x_payout_method': method, 'x_cash_payout_percentage': 0.3 if method == 'cash' else 0.0, 'x_coupon_payout_percentage': 0.5 if method == 'coupon' else 0.0})
+                            partner.write({
+                                'x_payout_method': method,
+                                'x_cash_payout_percentage': 0.3 if method == 'cash' else 0.0,
+                                'x_coupon_payout_percentage': 0.5 if method == 'coupon' else 0.0
+                            })
                 except Exception: pass
 
+            # 3. Check bestaan
             default_code = row.get('code')
             domain = []
             if default_code: domain.append(('default_code', '=', default_code))
             if old_product_id:
                 if domain: domain = ['|'] + domain + [('x_old_id', '=', str(old_product_id))]
                 else: domain = [('x_old_id', '=', str(old_product_id))]
+
             product = self.env['product.template'].search(domain, limit=1)
 
+            # 4. Stock & Publicatie Logica
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
+
             datum_verkocht = str(row.get('datum_verkocht', '')).strip()
             datum_uitbetaald = str(row.get('datum_uitbetaald', '')).strip()
+
             stock_csv = row.get('stock') or '0'
             try: stock_val = float(stock_csv.replace(',', '.'))
             except: stock_val = 0.0
+
             def is_empty_date(d): return not d or d == '0000-00-00'
 
-            final_qty = stock_val if (verkocht == 'nee' and online_verkocht == 'nee' and niet_weergeven != 'ja' and is_empty_date(datum_verkocht) and is_empty_date(datum_uitbetaald)) else 0.0
-            is_published = False if (niet_weergeven == 'ja' or final_qty <= 0) else True
-            internal_description = f"Oorspronkelijk verborgen: {row.get('waarom_niet_weergeven')}" if niet_weergeven == 'ja' and row.get('waarom_niet_weergeven') else False
+            is_sold = False
+            if verkocht == 'ja' or online_verkocht == 'ja' or not is_empty_date(datum_verkocht) or not is_empty_date(datum_uitbetaald):
+                is_sold = True
 
+            internal_description = False
+
+            if is_sold:
+                # Verkocht -> Stock 1 voor order import
+                final_qty = 1.0
+                is_published = False
+                internal_description = "MIGRATIE: Was verkocht in oud systeem. Stock tijdelijk op 1 gezet voor order-import."
+
+            elif niet_weergeven == 'ja':
+                # === AANPASSING: OOK HIER STOCK 1 ===
+                # We zetten stock op 1 voor het geval er toch een order voor bestaat.
+                final_qty = 1.0
+                is_published = False
+
+                # BELANGRIJK: We voegen "MIGRATIE: Was verkocht" toe aan de tekst.
+                # Hierdoor zal de 'action_cleanup_stock' knop dit product ook vinden en weer op 0 zetten
+                # als er na de order-import nog steeds stock over is.
+                internal_description = f"Oorspronkelijk verborgen: {row.get('waarom_niet_weergeven')}. MIGRATIE: Was verkocht (hidden)."
+
+            else:
+                final_qty = stock_val
+                is_published = (final_qty > 0)
+
+            # 5. Basis Waarden
             product_vals = {
-                'name': name, 'submission_id': submission.id, 'is_published': is_published,
-                'type': 'consu', 'is_storable': True, 'default_code': default_code, 'x_old_id': str(old_product_id),
-                'description_ecommerce': row.get('lange_omschrijving'), 'description_sale': row.get('korte_omschrijving_nl'),
-                'website_meta_title': row.get('seo_titel'), 'website_meta_description': row.get('seo_description'), 'website_meta_keywords': row.get('seo_keywords'),
+                'name': name,
+                'submission_id': submission.id,
+                'is_published': is_published,
+                'type': 'consu',
+                'is_storable': True,
+                'default_code': default_code,
+                'x_old_id': str(old_product_id),
+                'description_ecommerce': row.get('lange_omschrijving'),
+                'description_sale': row.get('korte_omschrijving_nl'),
+                'website_meta_title': row.get('seo_titel'),
+                'website_meta_description': row.get('seo_description'),
+                'website_meta_keywords': row.get('seo_keywords'),
             }
-            if internal_description: product_vals['description'] = internal_description
 
-            type_raw = str(row.get('type', '')).strip(); type_lower = type_raw.lower(); maat_raw = str(row.get('maat', '')).strip()
-            target_cat_name = 'Kleding'; target_sub_name = type_raw.capitalize()
-            if type_lower in accessoires_types: target_cat_name = 'Accessoires'
-            elif 'kousen' in type_lower or 'sokken' in type_lower: target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Kousen'
-            elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal', 'pantoffel']): target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Schoenen'
+            if internal_description:
+                product_vals['description'] = internal_description
+
+            # 6. Categorie
+            type_raw = str(row.get('type', '')).strip()
+            type_lower = type_raw.lower()
+            maat_raw = str(row.get('maat', '')).strip()
+
+            target_cat_name = 'Kleding'
+            target_sub_name = type_raw.capitalize()
+
+            if type_lower in accessoires_types:
+                target_cat_name = 'Accessoires'
+            elif 'kousen' in type_lower or 'sokken' in type_lower:
+                target_cat_name = 'Schoenen & Kousen'
+                target_sub_name = 'Kousen'
+            elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal', 'pantoffel']):
+                target_cat_name = 'Schoenen & Kousen'
+                target_sub_name = 'Schoenen'
 
             if maat_raw:
                 try:
                     clean_maat = re.match(r"(\d+)", maat_raw)
-                    if clean_maat and int(clean_maat.group(1)) <= 45 and target_cat_name not in ['Accessoires', 'Schoenen & Kousen']:
-                        target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Schoenen'
-                except: pass
+                    if clean_maat:
+                        size_num = int(clean_maat.group(1))
+                        if size_num <= 45:
+                            if target_cat_name != 'Accessoires' and target_sub_name != 'Kousen':
+                                target_cat_name = 'Schoenen & Kousen'
+                                target_sub_name = 'Schoenen'
+                except Exception: pass
 
             main_cat = self.env['product.public.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
             final_categ_ids = [main_cat.id]
+
             if target_sub_name:
                 sub_cat = self.env['product.public.category'].search([('name', '=', target_sub_name), ('parent_id', '=', main_cat.id)], limit=1)
                 if not sub_cat: sub_cat = self.env['product.public.category'].create({'name': target_sub_name, 'parent_id': main_cat.id})
@@ -436,52 +533,80 @@ class MigrationWizard(models.TransientModel):
                 product_vals['brand_id'] = brand_data['brand_id']
 
             product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
+
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
             final_int_id = int_main.id
+
             if target_sub_name:
                 int_sub = self.env['product.category'].search([('name', '=', target_sub_name), ('parent_id', '=', int_main.id)], limit=1)
                 if not int_sub: int_sub = self.env['product.category'].create({'name': target_sub_name, 'parent_id': int_main.id})
                 final_int_id = int_sub.id
+
             product_vals['categ_id'] = final_int_id
 
+            # 7. Opslaan
             if product:
                 product.write(product_vals)
                 self._update_stock(product, final_qty)
-                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
-                # Foto's updaten (alleen als nog leeg, of als we willen forceren)
-                # Omdat we lokaal werken is het snel, dus we kunnen checken
+                if brand_data:
+                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
                 if not product.product_template_image_ids:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
-                        for idx, url in enumerate(extra_fotos.split(',')):
+                        urls = extra_fotos.split(',')
+                        for idx, url in enumerate(urls):
                             if url:
-                                # time.sleep(0.01) # Kleine pauze
+                                time.sleep(0.01)
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
-                                if extra_img: self.env['product.image'].create({'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx+1}", 'image_1920': extra_img})
+                                if extra_img:
+                                    self.env['product.image'].create({
+                                        'product_tmpl_id': product.id,
+                                        'name': f"{name} - Extra {idx+1}",
+                                        'image_1920': extra_img
+                                    })
             else:
-                # time.sleep(0.01)
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
-                try: product_vals['list_price'] = float(str(row.get('prijs') or '0').replace(',', '.'))
+
+                prijs_raw = row.get('prijs') or '0'
+                try: product_vals['list_price'] = float(str(prijs_raw).replace(',', '.'))
                 except: product_vals['list_price'] = 0.0
+
                 product = self.env['product.template'].create(product_vals)
                 self._update_stock(product, final_qty)
-                if maat_raw: self._add_attribute(product, 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat', maat_raw)
+
+                if maat_raw:
+                    attr_name = 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat'
+                    self._add_attribute(product, attr_name, maat_raw)
+
                 if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
                 if row.get('categorie'): self._add_attribute(product, 'Geslacht', row.get('categorie'))
                 if row.get('type'): self._add_attribute(product, 'Type', row.get('type'))
-                if row.get('staat') in condition_mapping: self._add_attribute(product, 'Conditie', condition_mapping[row.get('staat')])
-                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
+                staat = row.get('staat')
+                if staat in condition_mapping:
+                    self._add_attribute(product, 'Conditie', condition_mapping[staat])
+
+                if brand_data:
+                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
-                    for idx, url in enumerate(extra_fotos.split(',')):
+                    urls = extra_fotos.split(',')
+                    for idx, url in enumerate(urls):
                         if url:
                             # time.sleep(0.01)
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
-                            if extra_img: self.env['product.image'].create({'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx+1}", 'image_1920': extra_img})
+                            if extra_img:
+                                self.env['product.image'].create({
+                                    'product_tmpl_id': product.id,
+                                    'name': f"{name} - Extra {idx+1}",
+                                    'image_1920': extra_img
+                                })
 
         return count
 
@@ -821,3 +946,252 @@ class MigrationWizard(models.TransientModel):
         _logger.info(f"✅ Percentage coupons: {count_percent}")
         _logger.info(f"❌ Verlopen: {skipped_expired}")
         _logger.info("==========================================")
+
+    # -------------------------------------------------------------------------
+    # STAP 5: BESTELLINGEN (HEADERS)
+    # -------------------------------------------------------------------------
+    def _process_orders(self):
+        csv_data = self._read_csv(self.file_orders)
+        order_map = {} # Oude ID -> Nieuwe Odoo Order ID
+        count = 0
+
+        # Cache partners op email om niet telkens te zoeken
+        partner_obj = self.env['res.partner']
+
+        _logger.info("--- START ORDERS IMPORT ---")
+
+        for row in csv_data:
+            old_id = row.get('bestel_id')
+            if not old_id: continue
+
+            # Check of order al bestaat (op basis van referentie/naam)
+            # We gebruiken de oude bestel_id als referentie of in een x_old_id veld
+            # Voor nu gebruiken we de 'name' of 'client_order_ref'
+            existing = self.env['sale.order'].search([('client_order_ref', '=', old_id)], limit=1)
+            if existing:
+                order_map[old_id] = existing
+                continue
+
+            # Datum parsen (2021-03-28 18:31:23)
+            order_date = fields.Datetime.now()
+            raw_date = row.get('datum')
+            if raw_date:
+                try:
+                    order_date = fields.Datetime.from_string(raw_date)
+                except: pass
+
+            # Klant zoeken
+            email = row.get('factuur_email', '').strip()
+            partner = False
+            if email:
+                partner = partner_obj.search([('email', '=ilike', email)], limit=1)
+
+            # Als geen klant gevonden, zoek/maak dummy "Oude Webshop Klant"
+            if not partner:
+                # Fallback: Zoek op naam
+                naam = row.get('factuur_naam', 'Onbekende Klant')
+                partner = partner_obj.search([('name', '=ilike', naam)], limit=1)
+
+                if not partner:
+                    # Maak aan
+                    partner = partner_obj.create({
+                        'name': naam,
+                        'email': email,
+                        'street': row.get('factuur_straat'),
+                        'city': row.get('factuur_gemeente'),
+                        'comment': 'Geïmporteerd uit oude bestellingen'
+                    })
+
+            # Order aanmaken
+            order = self.env['sale.order'].create({
+                'partner_id': partner.id,
+                'date_order': order_date, # Datum van toen
+                'client_order_ref': old_id, # Oude ID bewaren
+                'origin': f"Import: {row.get('ordernummer')}",
+                'state': 'draft', # We bevestigen pas na het toevoegen van regels
+            })
+
+            order_map[old_id] = order
+            count += 1
+            if count % 100 == 0:
+                self.env.cr.commit()
+                _logger.info(f"   ... {count} orders aangemaakt")
+
+        return order_map
+
+    # -------------------------------------------------------------------------
+    # STAP 6: BESTELREGELS (ZONDER BEVESTIGING)
+    # -------------------------------------------------------------------------
+    def _process_order_lines(self, order_map):
+        csv_data = self._read_csv(self.file_order_lines)
+        count = 0
+        skipped = 0
+
+        _logger.info("--- START ORDER REGELS ---")
+
+        for row in csv_data:
+            # 1. Unieke ID bepalen
+            old_line_id = row.get('order_product_id')
+            if not old_line_id: continue
+
+            # 2. CHECK: Bestaat deze regel al? (Crash recovery)
+            existing_line = self.env['sale.order.line'].search([
+                ('x_old_id', '=', str(old_line_id))
+            ], limit=1)
+
+            if existing_line:
+                skipped += 1
+                continue
+
+            # 3. Order zoeken
+            old_order_id = row.get('order_id') or row.get('order_id_top')
+            # Als order niet in de map zit (omdat we script herstarten), zoek in DB
+            order = False
+            if old_order_id in order_map:
+                order = order_map[old_order_id]
+            else:
+                # Fallback: Zoek de order in de database
+                order = self.env['sale.order'].search([('client_order_ref', '=', old_order_id)], limit=1)
+
+            if not order: continue
+
+            # 4. Product zoeken
+            old_product_id = row.get('product_id')
+            product = self.env['product.product'].search([
+                ('product_tmpl_id.x_old_id', '=', str(old_product_id))
+            ], limit=1)
+
+            if not product:
+                product = self.env['product.product'].search([('default_code', '=', 'MIGRATIE_ITEM')], limit=1)
+                if not product:
+                    product = self.env['product.product'].create({
+                        'name': 'Onbekend/Verwijderd Item (Migratie)',
+                        'default_code': 'MIGRATIE_ITEM',
+                        'type': 'service',
+                        'list_price': 0
+                    })
+
+            price_raw = row.get('prijs', '0').replace('€', '').replace(',', '.').strip()
+            try: price = float(price_raw)
+            except: price = 0.0
+
+            # 5. Regel aanmaken (MET x_old_id)
+            self.env['sale.order.line'].create({
+                'order_id': order.id,
+                'product_id': product.id,
+                'price_unit': price,
+                'product_uom_qty': 1,
+                'x_is_paid_out': True,
+                'x_old_id': str(old_line_id) # Opslaan voor de check hierboven
+            })
+
+            count += 1
+            if count % 100 == 0:
+                self.env.cr.commit()
+                _logger.info(f"   ... {count} regels verwerkt")
+
+        _logger.info(f"--- KLAAR: {count} nieuwe regels. {skipped} overgeslagen (bestonden al). ---")
+
+    # -------------------------------------------------------------------------
+    # STAP 7: ORDERS BEVESTIGEN (APARTE FUNCTIE)
+    # -------------------------------------------------------------------------
+    def action_confirm_migrated_orders(self):
+        """
+        Draai dit NA de import. Dit bevestigt alle orders die nog in draft staan
+        en die via de migratie zijn binnengekomen (herkenbaar aan client_order_ref).
+        """
+        _logger.info("--- START ORDER BEVESTIGING ---")
+
+        # Zoek alle orders die:
+        # 1. Nog in concept staan
+        # 2. Een 'client_order_ref' hebben (dus uit migratie komen)
+        # 3. Minstens 1 regel hebben
+        orders_to_confirm = self.env['sale.order'].search([
+            ('state', '=', 'draft'),
+            ('client_order_ref', '!=', False),
+            ('order_line', '!=', False)
+        ])
+
+        count = 0
+        total = len(orders_to_confirm)
+
+        for order in orders_to_confirm:
+            try:
+                # Datum bewaren
+                original_date = order.date_order
+
+                # Bevestigen
+                order.action_confirm()
+
+                # Datum herstellen en Locken
+                order.write({
+                    'date_order': original_date,
+                    'state': 'done',
+                    'effective_date': original_date,
+                })
+
+                # Levering valideren (Forceer)
+                if order.picking_ids:
+                    for picking in order.picking_ids:
+                        # We proberen te valideren. Als stock 0 is, faalt dit misschien,
+                        # maar dat is ok, dan blijft de levering open staan.
+                        try:
+                            picking.button_validate()
+                        except: pass
+
+            except Exception as e:
+                _logger.warning(f"Fout bij order {order.name}: {e}")
+
+            count += 1
+            if count % 20 == 0: # Vaker committen want dit is zwaar
+                self.env.cr.commit()
+                _logger.info(f"   ... {count}/{total} orders bevestigd")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {'title': 'Klaar', 'message': f'{count} orders bevestigd.', 'type': 'success'}
+        }
+
+    def action_cleanup_stock(self):
+        """
+        Draai dit NA de order-import.
+        Zoekt producten die 'verkocht' moesten zijn (is_published=False en type=consu),
+        maar die nog steeds op voorraad liggen (omdat de order-import faalde of ontbrak).
+        Zet ze terug op 0.
+        """
+        _logger.info("--- START STOCK CLEANUP ---")
+
+        # We zoeken producten die:
+        # 1. Door migratie zijn aangemaakt (x_old_id bestaat)
+        # 2. Niet gepubliceerd zijn (want verkochte items staan op published=False)
+        # 3. Nog steeds voorraad hebben (> 0)
+
+        products_to_fix = self.env['product.product'].search([
+            ('product_tmpl_id.x_old_id', '!=', False),
+            ('product_tmpl_id.is_published', '=', False),
+            ('qty_available', '>', 0)
+        ])
+
+        count = 0
+        for product in products_to_fix:
+            # Check: Is dit echt een 'verkocht' item?
+            # We kunnen kijken of er een description is die we net hebben gezet
+            if "MIGRATIE: Was verkocht" in (product.description or ""):
+
+                # Correctie uitvoeren: Zet stock naar 0
+                self.env['stock.quant'].with_context(inventory_mode=True).create({
+                    'product_id': product.id,
+                    'location_id': self.env['stock.warehouse'].search([], limit=1).lot_stock_id.id,
+                    'inventory_quantity': 0.0,
+                }).action_apply_inventory()
+
+                count += 1
+
+        _logger.info(f"--- CLEANUP KLAAR: {count} wees-producten op 0 gezet ---")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {'title': 'Cleanup Klaar', 'message': f'{count} producten gecorrigeerd.', 'type': 'success'}
+        }

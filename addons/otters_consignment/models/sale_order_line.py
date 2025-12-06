@@ -11,6 +11,9 @@ class SaleOrderLine(models.Model):
         help="Vink dit aan als de commissie voor deze lijn is uitbetaald aan de leverancier."
     )
 
+    # NIEUW: Om duplicaten te voorkomen bij herstarten van migratie
+    x_old_id = fields.Char(string="Oud Bestelregel ID", index=True, readonly=True)
+
     def write(self, vals):
         """
         Als 'x_is_paid_out' op True wordt gezet (door Marleen via de actie),
