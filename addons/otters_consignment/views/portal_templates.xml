@@ -105,6 +105,21 @@
                 </div>
 
                 <div class="card-body">
+                    <t t-if="submission.discount_percentage > 0">
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="fa fa-percent fa-2x me-3"/>
+                            <div>
+                                <h5 class="alert-heading mb-1">
+                                    Promotie Actief: <t t-out="submission.discount_percentage"/>% Korting
+                                </h5>
+                                <p class="mb-0">
+                                    De prijzen van je items zijn tijdelijk verlaagd om de verkoop te stimuleren.
+                                    <br/>
+                                    <strong>Reden:</strong> <span t-field="submission.discount_reason"/>
+                                </p>
+                            </div>
+                        </div>
+                    </t>
                     <ul class="nav nav-tabs" role="tablist">
                         <li class="nav-item">
                             <a class="nav-link active" id="stock-tab" data-bs-toggle="tab" href="#stock" role="tab" aria-controls="stock" aria-selected="true">
@@ -142,7 +157,16 @@
                                     <tr t-foreach="stock_products" t-as="product">
                                         <td><span t-field="product.name"/></td>
                                         <td class="text-end">
-                                            <span t-field="product.list_price" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <t t-if="product.compare_list_price and product.compare_list_price > product.list_price">
+                                                <span class="text-muted text-decoration-line-through me-1"
+                                                      t-field="product.compare_list_price"
+                                                      t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                                <br/>
+                                            </t>
+
+                                            <span t-field="product.list_price"
+                                                  t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
+                                                  t-att-class="'fw-bold text-danger' if product.compare_list_price else ''"/>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -160,11 +184,22 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr t-foreach="aggregated_unpaid" t-as="line">
-                                        <td><span t-out="line['name']"/></td>
+                                    <tr t-foreach="aggregated_unpaid" t-as="line"> <td><span t-out="line['name']"/></td>
                                         <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
-                                            <span t-out="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <t t-set="prod" t-value="line['product']"/>
+                                            <t t-set="unit_price" t-value="line['price_sold'] / line['qty']"/>
+
+                                            <t t-if="prod.compare_list_price and prod.compare_list_price > unit_price">
+                                                <span class="text-muted text-decoration-line-through me-1"
+                                                      t-out="prod.compare_list_price * line['qty']"
+                                                      t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                                <br/>
+                                            </t>
+
+                                            <span t-out="line['price_sold']"
+                                                  t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
+                                                  class="fw-bold"/>
                                         </td>
                                         <td class="text-end">
                                             <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
@@ -199,7 +234,19 @@
                                         <td><span t-out="line['name']"/></td>
                                         <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
-                                            <span t-out="line['price_sold']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                            <t t-set="prod" t-value="line['product']"/>
+                                            <t t-set="unit_price" t-value="line['price_sold'] / line['qty']"/>
+
+                                            <t t-if="prod.compare_list_price and prod.compare_list_price > unit_price">
+                                                <span class="text-muted text-decoration-line-through me-1"
+                                                      t-out="prod.compare_list_price * line['qty']"
+                                                      t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                                <br/>
+                                            </t>
+
+                                            <span t-out="line['price_sold']"
+                                                  t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
+                                                  class="fw-bold"/>
                                         </td>
                                         <td class="text-end">
                                             <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
@@ -207,14 +254,6 @@
                                     </tr>
                                 </tbody>
                                 <tfoot>
-                                    <tr class="bg-light">
-                                        <td colspan="3" class="text-end">
-                                            <strong>Totaal reeds uitbetaald:</strong>
-                                        </td>
-                                        <td class="text-end">
-                                            <strong t-out="total_payout_paid" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
-                                        </td>
-                                    </tr>
                                 </tfoot>
                             </table>
                         </div>

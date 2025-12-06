@@ -135,6 +135,16 @@
                             <field name="x_iban" invisible="payout_method != 'cash'"/>
                         </group>
 
+                        <group string="Promoties &amp; Korting">
+                            <label for="discount_percentage"/>
+                            <div class="o_row">
+                                <field name="discount_percentage" class="oe_inline"/>
+                                <span class="oe_inline">%</span>
+                                <button name="action_apply_discount" string="Toepassen/Herrekenen" type="object" class="btn-sm btn-link"/>
+                            </div>
+                            <field name="discount_reason" placeholder="Bv. Einde seizoen opruiming" invisible="discount_percentage == 0"/>
+                        </group>
+
                         <group string="Geaccepteerde Voorwaarden">
                             <field name="agreed_to_terms" readonly="1"/>
                             <field name="agreed_to_clothing_terms" readonly="1"/>
