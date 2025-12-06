@@ -8,7 +8,7 @@
             <form string="Bulk Korting Toepassen">
                 <sheet>
                     <div class="alert alert-info" role="alert">
-                        Je staat op het punt om een korting toe te passen op de
+                        Je staat op het punt om een korting toe te passen / verwijderen op de
                         <strong>geselecteerde inzendingen</strong>.
                         <br/>
                         Dit past enkel de prijzen aan van producten die nog <strong>niet verkocht</strong> zijn.
@@ -21,6 +21,9 @@
                     </group>
                     <footer>
                         <button name="action_apply_bulk" string="Toepassen 🚀" type="object" class="btn-primary"/>
+
+                        <button name="action_remove_bulk" string="Korting Verwijderen 🗑️" type="object" class="btn-warning"/>
+
                         <button string="Annuleren" class="btn-secondary" special="cancel"/>
                     </footer>
                 </sheet>
