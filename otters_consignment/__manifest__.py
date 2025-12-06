@@ -40,6 +40,7 @@
         'views/migration_wizard_views.xml',
         'views/brand_views.xml',
         'views/res_config_settings_views.xml',
+        'views/bulk_discount_wizard_views.xml',
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
