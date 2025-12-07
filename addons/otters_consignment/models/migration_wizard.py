@@ -515,7 +515,7 @@ class MigrationWizard(models.TransientModel):
             elif 'kousen' in type_lower or 'sokken' in type_lower:
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Kousen'
-            elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal', 'pantoffel']):
+            elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal']):
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Schoenen'
 
