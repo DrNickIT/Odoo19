@@ -10,8 +10,8 @@ OK --> * actiecodes
 OK --> * 20 stuks voorwaarden
 OK --> * Consignment --> Verzendlabels
 OK --> ** Jaar toevoegen
-** 1 sendcloud label per zak
-** 1 zak / doos = 1 verzendlabel
+OK --> ** 1 sendcloud label per zak
+OK --> ** 1 zak / doos = 1 verzendlabel
 OK --> ** In backend aanmaken van zak mag geen sendcloud label maken automatisch (wel knop voorzien om ze aan te maken)
 OK --> ** Aantal producten in een zak zien (niet editeerbaar)
 OK --> ** status Verwerkt weg doen
