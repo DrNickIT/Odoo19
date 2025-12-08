@@ -122,22 +122,29 @@
                     </t>
                     <ul class="nav nav-tabs" role="tablist">
                         <li class="nav-item">
-                            <a class="nav-link active" id="stock-tab" data-bs-toggle="tab" href="#stock" role="tab" aria-controls="stock" aria-selected="true">
+                            <a class="nav-link active" id="stock-tab" data-bs-toggle="tab" href="#stock" role="tab">
                                 In Voorraad (<t t-out="len(stock_products)"/>)
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="unpaid-tab" data-bs-toggle="tab" href="#unpaid" role="tab" aria-controls="unpaid" aria-selected="false">
+                            <a class="nav-link" id="unpaid-tab" data-bs-toggle="tab" href="#unpaid" role="tab">
                                 Verkocht: Nog te Betalen (<t t-out="len(aggregated_unpaid)"/>)
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="paid-tab" data-bs-toggle="tab" href="#paid" role="tab" aria-controls="paid" aria-selected="false">
+                            <a class="nav-link" id="paid-tab" data-bs-toggle="tab" href="#paid" role="tab">
                                 Verkocht: Reeds Uitbetaald (<t t-out="len(aggregated_paid)"/>)
                             </a>
                         </li>
+
+                        <li class="nav-item" t-if="removed_products">
+                            <a class="nav-link text-warning" id="removed-tab" data-bs-toggle="tab" href="#removed" role="tab">
+                                Uit Collectie (<t t-out="len(removed_products)"/>)
+                            </a>
+                        </li>
+
                         <li class="nav-item" t-if="submission.rejected_line_ids">
-                            <a class="nav-link text-danger" id="rejected-tab" data-bs-toggle="tab" href="#rejected" role="tab" aria-controls="rejected" aria-selected="false">
+                            <a class="nav-link text-danger" id="rejected-tab" data-bs-toggle="tab" href="#rejected" role="tab">
                                 Niet Weerhouden (<t t-out="len(submission.rejected_line_ids)"/>)
                             </a>
                         </li>
@@ -255,6 +262,47 @@
                                 </tbody>
                                 <tfoot>
                                 </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="removed" role="tabpanel">
+                            <div class="alert alert-light border mb-3">
+                                <i class="fa fa-info-circle text-warning"/> Deze items zijn uit de verkoop gehaald (niet verkocht).
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Reden</th>
+                                        <th class="text-end">Oorspr. Prijs</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="removed_products" t-as="product">
+                                        <td>
+                                            <span t-field="product.name"/>
+                                            <br/>
+                                            <small class="text-muted"><span t-field="product.default_code"/></small>
+                                        </td>
+                                        <td>
+                                            <t t-if="product.x_unsold_reason == 'charity'">
+                                                <span class="badge text-bg-success">Geschonken aan goed doel</span>
+                                            </t>
+                                            <t t-elif="product.x_unsold_reason == 'returned'">
+                                                <span class="badge text-bg-info">Teruggestuurd naar jou</span>
+                                            </t>
+                                            <t t-elif="product.x_unsold_reason == 'lost'">
+                                                <span class="badge text-bg-danger">Verloren / Beschadigd</span>
+                                            </t>
+                                            <t t-else="">
+                                                <span t-field="product.x_unsold_reason"/>
+                                            </t>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-field="product.list_price" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tbody>
                             </table>
                         </div>
 

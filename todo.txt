@@ -48,4 +48,5 @@ OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zi
 OK --> * Klanten moeten nog zien hoeveel producten ze in de zak hebben. Dit ziet hij al in de tabjes staan
 OK --> ** In bulk korting weghalen
 ** laatste kortingcode toevoegen.
+OK --> Uit collectie halen
 

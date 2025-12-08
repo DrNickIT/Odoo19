@@ -10,6 +10,13 @@ class ProductTemplate(models.Model):
          'De interne referentie (code) van het product moet uniek zijn!')
     ]
 
+    x_unsold_reason = fields.Selection([
+        ('charity', 'Geschonken aan goed doel'),
+        ('returned', 'Teruggestuurd naar klant'),
+        ('lost', 'Verloren / Beschadigd'),
+        ('other', 'Andere')
+    ], string="Reden uit collectie", copy=False, tracking=True, help="Vul dit in als het item niet verkocht is en uit de shop moet.")
+
     submission_id = fields.Many2one(
         'otters.consignment.submission',
         string="Originele Inzending",
@@ -61,6 +68,13 @@ class ProductTemplate(models.Model):
         string="Merk",
         index=True,
         ondelete='set null'
+    )
+
+    # Hulpveldje om te tonen wat de klant wou (Donate/Return)
+    x_customer_preference = fields.Selection(
+        related='submission_id.action_unsold',
+        string="Voorkeur Klant",
+        readonly=True
     )
 
     @api.model_create_multi
@@ -143,3 +157,52 @@ class ProductTemplate(models.Model):
             # Als het merk al juist staat, STOP DAN!
             if brand_record and self.brand_id != brand_record:
                 self.brand_id = brand_record
+
+    # NIEUWE LOGICA: Als Marleen een reden kiest -> Stock 0 & Offline
+    @api.onchange('x_unsold_reason')
+    def _onchange_unsold_reason(self):
+        if self.x_unsold_reason:
+            self.is_published = False
+
+    def write(self, vals):
+        # 1. Voer de wijziging uit
+        res = super(ProductTemplate, self).write(vals)
+
+        # 2. Check of er een reden is ingevuld/gewijzigd
+        if 'x_unsold_reason' in vals:
+            for product in self:
+                if product.x_unsold_reason:
+                    # A. Zet offline
+                    if product.is_published:
+                        product.is_published = False
+
+                    # B. Zet voorraad op 0 (via stock.quant)
+                    # We doen dit voor alle varianten (meestal is er maar 1)
+                    for variant in product.product_variant_ids:
+                        self._zero_out_stock(variant)
+        return res
+
+    def _zero_out_stock(self, product_variant):
+        """ Hulpfunctie om stock op 0 te zetten """
+        # Zoek de hoofdlocatie
+        warehouse = self.env['stock.warehouse'].search([], limit=1)
+        if not warehouse: return
+        location = warehouse.lot_stock_id
+
+        # Zoek huidige quant
+        quant = self.env['stock.quant'].search([
+            ('product_id', '=', product_variant.id),
+            ('location_id', '=', location.id)
+        ], limit=1)
+
+        # Als er voorraad is, pas aan naar 0
+        if quant and quant.quantity > 0:
+            quant.with_context(inventory_mode=True).write({'inventory_quantity': 0})
+            quant.action_apply_inventory()
+        elif not quant:
+            # Als er nog geen quant bestaat, maak er eentje met 0 (voor de zekerheid)
+            self.env['stock.quant'].with_context(inventory_mode=True).create({
+                'product_id': product_variant.id,
+                'location_id': location.id,
+                'inventory_quantity': 0
+            }).action_apply_inventory()

@@ -59,31 +59,46 @@ class ConsignmentPortal(CustomerPortal):
 
         report_model = request.env['otters.consignment.report']
 
+        # 1. VERKOCHT (Blijft hetzelfde)
         all_sold_products = submission_sudo._get_sold_products()
+
+        # 2. IN VOORRAAD (Nu filteren we de 'removed' eruit)
+        # Criteria: Hoort bij submission + Niet verkocht + GEEN reden van verwijdering
         stock_products = request.env['product.template'].sudo().search([
             ('submission_id', '=', submission_id),
             ('id', 'not in', all_sold_products.ids),
+            ('x_unsold_reason', '=', False),
             ('active', '=', True)
         ])
 
+        # 3. UIT COLLECTIE (Nieuwe lijst)
+        # Criteria: Hoort bij submission + Wel een reden van verwijdering
+        removed_products = request.env['product.template'].sudo().search([
+            ('submission_id', '=', submission_id),
+            ('x_unsold_reason', '!=', False),
+            ('active', '=', True)
+        ])
+
+        # Rapport logica (Blijft hetzelfde)
         all_report_lines = report_model.sudo().search([('submission_id', '=', submission_id)])
 
         def aggregate_report_lines(lines):
             aggregated_data = {}
             for line in lines:
                 product = line.product_id
-                if product not in aggregated_data:
-                    aggregated_data[product] = {
-                        'product': product, # <--- DEZE REGEL TOEVOEGEN
-                        'name': product.name,
+                tmpl = line.product_id # Pas dit aan als je model anders heet
+
+                if tmpl not in aggregated_data:
+                    aggregated_data[tmpl] = {
+                        'product': tmpl,
+                        'name': tmpl.name,
                         'price_sold': 0,
                         'payout': 0,
                         'qty': 0
                     }
-
-                aggregated_data[product]['price_sold'] += line.price_total
-                aggregated_data[product]['payout'] += line.commission_amount
-                aggregated_data[product]['qty'] += line.qty_sold
+                aggregated_data[tmpl]['price_sold'] += line.price_total
+                aggregated_data[tmpl]['payout'] += line.commission_amount
+                aggregated_data[tmpl]['qty'] += line.qty_sold
             return aggregated_data.values()
 
         unpaid_lines = all_report_lines.filtered(lambda r: not r.x_is_paid_out)
@@ -92,6 +107,7 @@ class ConsignmentPortal(CustomerPortal):
         values = {
             'submission': submission_sudo,
             'stock_products': stock_products,
+            'removed_products': removed_products, # <-- NIEUW
             'aggregated_unpaid': aggregate_report_lines(unpaid_lines),
             'aggregated_paid': aggregate_report_lines(paid_lines),
             'total_payout_unpaid': sum(l.commission_amount for l in unpaid_lines),

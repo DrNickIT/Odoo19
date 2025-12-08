@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_bulk_remove_wizard_form" model="ir.ui.view">
+        <field name="name">otters.bulk.remove.wizard.form</field>
+        <field name="model">otters.consignment.bulk.remove.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Volledige zak uit collectie halen">
+                <sheet>
+                    <div class="alert alert-warning" role="alert">
+                        <i class="fa fa-exclamation-triangle"/>
+                        Je staat op het punt om <strong>alle niet-verkochte items</strong> uit deze zak offline te halen.
+                        <br/>
+                        Hun voorraad wordt op <strong>0</strong> gezet. Reeds verkochte items worden niet aangepast.
+                    </div>
+                    <group>
+                        <field name="reason" widget="radio"/>
+                    </group>
+                    <footer>
+                        <button name="action_apply_bulk_remove" string="Bevestigen en Uitvoeren" type="object" class="btn-danger"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_bulk_remove_wizard" model="ir.actions.act_window">
+        <field name="name">Alles uit collectie halen</field>
+        <field name="res_model">otters.consignment.bulk.remove.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
