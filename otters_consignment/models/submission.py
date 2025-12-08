@@ -20,10 +20,11 @@ class ConsignmentSubmission(models.Model):
         ('name_unique', 'UNIQUE(name)', 'Het Inzending ID moet uniek zijn!'),
     ]
 
-    # --- VELDEN ---
+    # --- 1. BASIS VELDEN ---
     name = fields.Char(string="Inzending ID", required=True, readonly=True, default='Nieuw', copy=False)
     supplier_id = fields.Many2one('res.partner', string="Leverancier", required=True, tracking=True)
     submission_date = fields.Date(string="Inzendingsdatum", default=fields.Date.context_today, required=True, tracking=True)
+
     x_submission_year = fields.Integer(string="Jaar", compute='_compute_year', store=True, readonly=True)
 
     state = fields.Selection([
@@ -34,23 +35,46 @@ class ConsignmentSubmission(models.Model):
         ('cancel', 'Geannuleerd'),
     ], string='Status', default='draft', tracking=True)
 
+    # --- 2. RELATIES & TELLERS ---
     product_ids = fields.One2many('product.template', 'submission_id', string="Ingezonden Producten")
     product_count = fields.Integer(string="Aantal Producten", compute='_compute_counts', store=True)
+
     rejected_line_ids = fields.One2many('otters.consignment.rejected.line', 'submission_id', string="Niet Weerhouden Items")
     rejected_count = fields.Integer(string="Aantal Geweigerd", compute='_compute_counts', store=True)
+
     label_ids = fields.One2many('otters.consignment.label', 'submission_id', string="Verzendlabels")
 
-    payout_method = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Payout Method", store=True, tracking=True)
+    # --- 3. FINANCIEEL & CONTRACT ---
+    payout_method = fields.Selection(
+        [('cash', 'Cash'), ('coupon', 'Coupon')],
+        string="Payout Method",
+        store=True, tracking=True
+    )
     payout_percentage = fields.Float(string="Payout Percentage", store=True, tracking=True)
+
     discount_percentage = fields.Integer(string="Korting (%)", default=0)
     discount_reason = fields.Char(string="Reden Korting")
 
+    # DIT VELD WORDT OP TRUE GEZET VANUIT sale_order_line.py BIJ UITBETALING
     x_is_locked = fields.Boolean(string="Contract Vergrendeld", default=False, tracking=True)
+    x_iban = fields.Char(string="IBAN Rekeningnummer")
 
-    # HIER IS HIJ TERUG:
-    x_has_sales = fields.Boolean(string="Heeft Verkopen", compute='_compute_has_sales', store=True)
+    # --- 4. VOORWAARDEN & KEUZES ---
+    action_unaccepted = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Actie niet-weerhouden", default='donate', required=True)
 
-    # Tijdelijke velden
+    action_unsold = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Actie niet-verkocht (1 jaar)", default='donate', required=True)
+
+    agreed_to_terms = fields.Boolean(string="Akkoord Algemene Voorwaarden", required=True, default=False)
+    agreed_to_clothing_terms = fields.Boolean(string="Akkoord Kleding Voorwaarden", required=True, default=False)
+    agreed_to_shipping_fee = fields.Boolean(string="Akkoord Verzendkosten (8eur)", required=True, default=False)
+
+    # --- 5. TIJDELIJKE VELDEN (Website Formulier Tunnel) ---
     x_sender_name = fields.Char(store=False)
     x_sender_email = fields.Char(store=False)
     x_sender_street = fields.Char(store=False)
@@ -62,13 +86,11 @@ class ConsignmentSubmission(models.Model):
     x_old_id = fields.Char(string="Oud Verzendzak ID", copy=False, readonly=True)
 
     label_count = fields.Integer(string="Aantal Zakken", default=1, required=True)
-    x_iban = fields.Char(string="IBAN")
-    action_unaccepted = fields.Selection([('donate', 'Schenken'), ('return', 'Terugsturen')], default='donate', required=True)
-    action_unsold = fields.Selection([('donate', 'Schenken'), ('return', 'Terugsturen')], default='donate', required=True)
 
-    agreed_to_terms = fields.Boolean(default=False)
-    agreed_to_clothing_terms = fields.Boolean(default=False)
-    agreed_to_shipping_fee = fields.Boolean(default=False)
+
+    # =================================================================================
+    # LOGICA
+    # =================================================================================
 
     @api.depends('product_ids', 'rejected_line_ids')
     def _compute_counts(self):
@@ -81,25 +103,6 @@ class ConsignmentSubmission(models.Model):
         for record in self:
             record.x_submission_year = record.submission_date.year if record.submission_date else fields.Date.today().year
 
-    # HIER IS DE LOGICA TERUG:
-    @api.depends('product_ids')
-    def _compute_has_sales(self):
-        for record in self:
-            variants = record.product_ids.product_variant_ids
-            if not variants:
-                record.x_has_sales = False
-                continue
-
-            sale_count = self.env['sale.order.line'].sudo().search_count([
-                ('product_id', 'in', variants.ids),
-                ('order_id.state', 'in', ['sale', 'done'])
-            ])
-            record.x_has_sales = sale_count > 0
-
-            # Auto-lock als veiligheid
-            if record.x_has_sales and not record.x_is_locked:
-                record.x_is_locked = True
-
     @api.onchange('payout_method')
     def _onchange_payout_method(self):
         if not self.payout_method: return
@@ -109,18 +112,23 @@ class ConsignmentSubmission(models.Model):
         else:
             self.payout_percentage = float(ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5'))
 
-    def action_lock_contract(self): self.write({'x_is_locked': True})
-    def action_unlock_contract(self): self.write({'x_is_locked': False})
+    def action_lock_contract(self):
+        self.write({'x_is_locked': True})
+
+    def action_unlock_contract(self):
+        self.write({'x_is_locked': False})
+
+    # =================================================================================
+    # CREATE MET SPLIT LOGICA
+    # =================================================================================
 
     @api.model_create_multi
     def create(self, vals_list):
         expanded_vals_list = []
         website_submission_indices = []
-
         total_bags_requested = 0
         is_website_request = False
 
-        # 1. SPLITSEN EN TELLEN
         for vals in vals_list:
             is_website = bool(vals.get('x_sender_email'))
             count = int(vals.get('label_count', 1))
@@ -140,7 +148,6 @@ class ConsignmentSubmission(models.Model):
                 if is_website:
                     website_submission_indices.append(len(expanded_vals_list) - 1)
 
-        # 2. VERWERKEN (Partner & Prefix)
         for i, vals in enumerate(expanded_vals_list):
             if i in website_submission_indices:
                 self._process_partner_data(vals)
@@ -151,10 +158,8 @@ class ConsignmentSubmission(models.Model):
                 next_number = self.env['ir.sequence'].next_by_code('otters.consignment.submission') or '00000'
                 vals['name'] = f'{prefix}_{next_number}'
 
-        # 3. OPSLAAN (Hier worden ze alle 3 aangemaakt)
         submissions = super(ConsignmentSubmission, self).create(expanded_vals_list)
 
-        # 4. EMAILS VERSTUREN
         if is_website_request and not self.env.context.get('skip_sendcloud') and submissions:
             primary_submission = submissions[0]
 
@@ -175,44 +180,11 @@ class ConsignmentSubmission(models.Model):
                 except Exception as e:
                     _logger.error(f"Fout mail admin: {e}")
 
-        # === DE FIX VOOR DE WEBSITE ERROR ===
-        # De website controller verwacht exact 1 record terug om door te gaan naar de 'Bedankt' pagina.
-        # Als wij er 3 teruggeven, crasht hij.
-        # Daarom: Als de input 1 was (1 formulier), maar de output > 1 (3 zakken), geven we alleen de eerste terug.
+        # Singleton fix voor website controller
         if len(vals_list) == 1 and len(submissions) > 1:
             return submissions[0]
 
         return submissions
-
-    def action_generate_sendcloud_label(self):
-        self.ensure_one()
-        if self._create_sendcloud_parcel():
-            template_label = self.env.ref('otters_consignment.mail_template_consignment_label_send', raise_if_not_found=False)
-            if template_label and self.supplier_id.email:
-                try:
-                    template_label.sudo().send_mail(self.id, force_send=True)
-                    return {
-                        'type': 'ir.actions.client',
-                        'tag': 'display_notification',
-                        'params': {'title': 'Succes', 'message': 'Label aangemaakt en gemaild naar de klant!', 'type': 'success', 'sticky': False}
-                    }
-                except Exception as e:
-                    return {
-                        'type': 'ir.actions.client',
-                        'tag': 'display_notification',
-                        'params': {'title': 'Label OK, Mail Fout', 'message': f'Label is gemaakt, maar mail faalde: {e}', 'type': 'warning', 'sticky': True}
-                    }
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {'title': 'Succes', 'message': 'Label aangemaakt! (Geen mail verstuurd)', 'type': 'success', 'sticky': False}
-            }
-        else:
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {'title': 'Fout', 'message': 'Kon geen label aanmaken. Check logs.', 'type': 'danger', 'sticky': True}
-            }
 
     def _process_partner_data(self, vals):
         raw_email = vals.pop('x_sender_email', '').strip()
@@ -266,6 +238,40 @@ class ConsignmentSubmission(models.Model):
             existing_bank = self.env['res.partner.bank'].search([('acc_number', '=', clean_iban), ('partner_id', '=', partner.id)], limit=1)
             if not existing_bank: self.env['res.partner.bank'].create({'acc_number': clean_iban, 'partner_id': partner.id})
 
+    # =================================================================================
+    # ACTIONS
+    # =================================================================================
+
+    def action_generate_sendcloud_label(self):
+        self.ensure_one()
+        if self._create_sendcloud_parcel():
+            template_label = self.env.ref('otters_consignment.mail_template_consignment_label_send', raise_if_not_found=False)
+            if template_label and self.supplier_id.email:
+                try:
+                    template_label.sudo().send_mail(self.id, force_send=True)
+                    return {
+                        'type': 'ir.actions.client',
+                        'tag': 'display_notification',
+                        'params': {'title': 'Succes', 'message': 'Label aangemaakt en gemaild naar de klant!', 'type': 'success', 'sticky': False}
+                    }
+                except Exception as e:
+                    return {
+                        'type': 'ir.actions.client',
+                        'tag': 'display_notification',
+                        'params': {'title': 'Label OK, Mail Fout', 'message': f'Label is gemaakt, maar mail faalde: {e}', 'type': 'warning', 'sticky': True}
+                    }
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {'title': 'Succes', 'message': 'Label aangemaakt! (Geen mail verstuurd)', 'type': 'success', 'sticky': False}
+            }
+        else:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {'title': 'Fout', 'message': 'Kon geen label aanmaken. Check logs.', 'type': 'danger', 'sticky': True}
+            }
+
     def _create_sendcloud_parcel(self):
         self.ensure_one()
         partner = self.supplier_id
@@ -290,7 +296,7 @@ class ConsignmentSubmission(models.Model):
         headers = {"Content-Type": "application/json"}
         customer_phone_formatted = self._format_phone_be(post.get('phone'))
         store_phone_formatted = self._format_phone_be(store_phone_raw)
-        payload = {"parcel": {"request_label": True, "is_return": False, "order_number": submission.name, "weight": "5.000", "shipping_method": int(shipping_id), "name": store_name, "company_name": store_name, "address": store_street, "house_number": store_house_number, "city": store_city, "postal_code": store_zip, "country": store_country, "telephone": store_phone_formatted, "from_name": partner.name, "from_address_1": post.get('street'), "from_house_number": post.get('street2'), "from_city": post.get('city'), "from_postal_code": post.get('postal_code'), "from_country": post.get('country'), "from_telephone": customer_phone_formatted, "from_email": partner.email}}
+        payload = {"parcel": {"request_label": False, "is_return": False, "order_number": submission.name, "weight": "5.000", "shipping_method": int(shipping_id), "name": store_name, "company_name": store_name, "address": store_street, "house_number": store_house_number, "city": store_city, "postal_code": store_zip, "country": store_country, "telephone": store_phone_formatted, "from_name": partner.name, "from_address_1": post.get('street'), "from_house_number": post.get('street2'), "from_city": post.get('city'), "from_postal_code": post.get('postal_code'), "from_country": post.get('country'), "from_telephone": customer_phone_formatted, "from_email": partner.email}}
         try:
             response = requests.post(url, headers=headers, json=payload, auth=auth)
             response.raise_for_status()
