@@ -90,7 +90,12 @@
             <form>
                 <header>
                     <button name="%(action_import_products_wizard)d" string="Importeer Producten (CSV)" type="action" class="oe_highlight"/>
-                    <button name="action_generate_sendcloud_label" string="Maak Verzendlabel" type="object" class="btn-secondary"/>
+
+                    <button name="action_generate_sendcloud_label"
+                            string="Maak Verzendlabel (Sendcloud)"
+                            type="object"
+                            class="btn-primary"
+                            confirm="Ben je zeker? Dit maakt een label aan bij Sendcloud en brengt kosten in rekening."/>
 
                     <button name="action_lock_contract" string="Vergrendel Contract" type="object" invisible="x_is_locked"/>
 
@@ -123,7 +128,7 @@
                             <field name="submission_date"/>
                             <field name="x_submission_year" readonly="1" options="{'format': false}"/>
                             <field name="state"/>
-                            <field name="label_count" string="Aangevraagde Labels"/>
+                            <field name="label_count" string="Aantal Zakken" readonly="1"/>
                         </group>
 
                         <group string="Uitbetaling">
@@ -156,11 +161,11 @@
                         </group>
                     </group>
 
-                    <group string="Verzendlabels" invisible="not label_ids">
+                    <group string="Gegenereerde Labels" invisible="not label_ids">
                         <field name="label_ids" nolabel="1">
                             <list editable="bottom" create="0" delete="0">
                                 <field name="tracking_number"/>
-                                <field name="label_url" widget="url" text="Download Label"/>
+                                <field name="label_url" widget="url" text="Download PDF"/>
                                 <button name="action_open_url" type="object" icon="fa-external-link" title="Open Label"/>
                             </list>
                         </field>
