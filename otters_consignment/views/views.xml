@@ -105,6 +105,12 @@
                             invisible="not x_is_locked"
                             confirm="OPGELET! &#10;&#10;Als u het percentage wijzigt, worden de commissies voor REEDS VERKOCHTE artikelen met terugwerkende kracht herberekend!&#10;&#10;De klant zal dus andere bedragen zien in zijn portaal voor items die al verkocht zijn.&#10;&#10;Bent u zeker dat u wilt doorgaan?"
                     />
+
+                    <button name="%(action_bulk_remove_wizard)d"
+                            string="Alles uit collectie halen"
+                            type="action"
+                            class="btn-secondary"
+                            invisible="state == 'cancel'"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -187,7 +193,7 @@
                                     <field name="list_price"/>
                                     <field name="qty_available" string="Voorraad"/>
                                     <field name="is_published" string="Online"/>
-                                </list>
+                                    <field name="x_unsold_reason" optional="hide" widget="badge" decoration-warning="x_unsold_reason != False"/>                                </list>
                             </field>
                         </page>
 
