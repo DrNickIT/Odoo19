@@ -132,7 +132,7 @@
                         <group string="Inzending Details">
                             <field name="supplier_id"/>
                             <field name="submission_date"/>
-                            <field name="x_submission_year" readonly="1" options="{'format': false}"/>
+                            <field name="x_submission_year" readonly="1" options="{'format': false}" widget="char"/>
                             <field name="state"/>
                             <field name="label_count" string="Aantal Zakken" readonly="1"/>
                         </group>
