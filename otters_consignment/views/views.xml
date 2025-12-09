@@ -152,16 +152,15 @@
                             <field name="action_unaccepted"/>
                             <field name="action_unsold"/>
                         </group>
-                    </group>
-
-                    <group string="Gegenereerde Labels" invisible="not label_ids">
-                        <field name="label_ids" nolabel="1">
-                            <list editable="bottom" create="0" delete="0">
-                                <field name="tracking_number"/>
-                                <field name="label_url" widget="url" text="Download PDF"/>
-                                <button name="action_open_url" type="object" icon="fa-external-link" title="Open Label"/>
-                            </list>
-                        </field>
+                        <group string="Gegenereerde Labels" invisible="not label_ids">
+                            <field name="label_ids" nolabel="1">
+                                <list editable="bottom" create="0" delete="0">
+                                    <field name="tracking_number"/>
+                                    <field name="label_url" widget="url" text="Download PDF"/>
+                                    <button name="action_open_url" type="object" icon="fa-external-link" title="Open Label"/>
+                                </list>
+                            </field>
+                        </group>
                     </group>
 
                     <notebook>
