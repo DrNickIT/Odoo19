@@ -43,7 +43,7 @@ class ConsignmentReport(models.Model):
                     sub.payout_method AS payout_method,
                     
                     -- === HIER ZIT DE CORRECTIE ===
-                    sub.payout_percentage * sol.price_total AS commission_amount
+                    COALESCE(sol.x_fixed_commission, (sub.payout_percentage * sol.price_total)) AS commission_amount
                     -- === EINDE CORRECTIE ===
                     
                 FROM sale_order_line sol

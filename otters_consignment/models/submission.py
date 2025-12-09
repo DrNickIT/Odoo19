@@ -55,8 +55,6 @@ class ConsignmentSubmission(models.Model):
     discount_percentage = fields.Integer(string="Korting (%)", default=0)
     discount_reason = fields.Char(string="Reden Korting")
 
-    # DIT VELD WORDT OP TRUE GEZET VANUIT sale_order_line.py BIJ UITBETALING
-    x_is_locked = fields.Boolean(string="Contract Vergrendeld", default=False, tracking=True)
     x_iban = fields.Char(string="IBAN Rekeningnummer")
 
     # --- 4. VOORWAARDEN & KEUZES ---
@@ -111,12 +109,6 @@ class ConsignmentSubmission(models.Model):
             self.payout_percentage = float(ICP.get_param('otters_consignment.cash_payout_percentage', '0.3'))
         else:
             self.payout_percentage = float(ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5'))
-
-    def action_lock_contract(self):
-        self.write({'x_is_locked': True})
-
-    def action_unlock_contract(self):
-        self.write({'x_is_locked': False})
 
     # =================================================================================
     # CREATE MET SPLIT LOGICA
