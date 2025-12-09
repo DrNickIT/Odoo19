@@ -1,4 +1,5 @@
 from . import res_partner
+from . import submission_integrations
 from . import submission
 from . import product_template
 from . import import_products_wizard
@@ -10,5 +11,3 @@ from . import submission_rejected_line
 from . import brand
 from . import res_users
 from . import res_config_settings
-
-
