@@ -97,15 +97,6 @@
                             class="btn-primary"
                             confirm="Ben je zeker? Dit maakt een label aan bij Sendcloud en brengt kosten in rekening."/>
 
-                    <button name="action_lock_contract" string="Vergrendel Contract" type="object" invisible="x_is_locked"/>
-
-                    <button name="action_unlock_contract"
-                            string="Contract Wijzigen (Unlock)"
-                            type="object"
-                            invisible="not x_is_locked"
-                            confirm="OPGELET! &#10;&#10;Als u het percentage wijzigt, worden de commissies voor REEDS VERKOCHTE artikelen met terugwerkende kracht herberekend!&#10;&#10;De klant zal dus andere bedragen zien in zijn portaal voor items die al verkocht zijn.&#10;&#10;Bent u zeker dat u wilt doorgaan?"
-                    />
-
                     <button name="%(action_bulk_remove_wizard)d"
                             string="Alles uit collectie halen"
                             type="action"
@@ -122,8 +113,6 @@
                         </button>
                     </div>
 
-                    <widget name="web_ribbon" title="Contract Vast" bg_color="text-bg-danger" invisible="not x_is_locked"/>
-
                     <div class="oe_title">
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
@@ -138,10 +127,8 @@
                         </group>
 
                         <group string="Uitbetaling">
-                            <field name="x_is_locked" invisible="1"/>
-
-                            <field name="payout_method" readonly="x_is_locked"/>
-                            <field name="payout_percentage" readonly="x_is_locked" widget="percentage" options="{'digits': [1, 0]}"/>
+                            <field name="payout_method"/>
+                            <field name="payout_percentage" widget="percentage" options="{'digits': [1, 0]}"/>
 
                             <field name="x_iban" invisible="payout_method != 'cash'"/>
                         </group>
@@ -193,7 +180,8 @@
                                     <field name="list_price"/>
                                     <field name="qty_available" string="Voorraad"/>
                                     <field name="is_published" string="Online"/>
-                                    <field name="x_unsold_reason" optional="hide" widget="badge" decoration-warning="x_unsold_reason != False"/>                                </list>
+                                    <field name="x_unsold_reason" optional="hide" widget="badge" decoration-warning="x_unsold_reason != False"/>
+                                </list>
                             </field>
                         </page>
 

@@ -359,26 +359,23 @@ class MigrationWizard(models.TransientModel):
         return brand_map
 
     # -------------------------------------------------------------------------
-    # STAP 4: PRODUCTEN (VOLLEDIGE VERSIE)
+    # STAP 4: PRODUCTEN (AANGEPAST VOOR x_unsold_reason)
     # -------------------------------------------------------------------------
     def _process_products(self, submission_map, brand_map):
         csv_data = self._read_csv(self.file_products)
         count = 0
 
-        # --- 1. CACHE OPBOUWEN (Voor snelheid) ---
+        # --- 1. CACHE OPBOUWEN ---
         _logger.info("--- CACHE OPBOUWEN... ---")
-        # We halen alle bestaande ID's op om te vermijden dat we voor elk product een query moeten doen
         existing_recs = self.env['product.template'].search_read(
             ['|', ('x_old_id', '!=', False), ('default_code', '!=', False)],
             ['id', 'x_old_id', 'default_code']
         )
-        # Dictionary voor supersnelle lookup: "OudID" -> OdooID
         existing_by_old_id = {str(r['x_old_id']): r['id'] for r in existing_recs if r['x_old_id']}
         existing_by_code = {r['default_code']: r['id'] for r in existing_recs if r['default_code']}
 
         _logger.info(f"--- CACHE KLAAR: {len(existing_recs)} producten in geheugen. ---")
 
-        # Mappings voor conditie en types
         condition_mapping = {
             '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
             '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
@@ -393,7 +390,6 @@ class MigrationWizard(models.TransientModel):
 
         for row in csv_data:
             count += 1
-            # Tussentijdse opslag om geheugen vrij te maken
             if count % 50 == 0:
                 self.env.cr.commit()
                 _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
@@ -407,17 +403,15 @@ class MigrationWizard(models.TransientModel):
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
-            # --- B. BESTAAT HET AL? (Check in Cache) ---
+            # --- B. BESTAAT HET AL? ---
             product_id = False
             default_code = row.get('code')
 
-            # Eerst kijken op oud ID, dan op Code
             if old_product_id and str(old_product_id) in existing_by_old_id:
                 product_id = existing_by_old_id[str(old_product_id)]
             elif default_code and default_code in existing_by_code:
                 product_id = existing_by_code[default_code]
 
-            # Product Object laden (als het bestaat)
             product = self.env['product.template'].browse(product_id) if product_id else False
 
             # --- C. COMMISSIE LOGICA ---
@@ -430,11 +424,8 @@ class MigrationWizard(models.TransientModel):
                     elif comm_val == 50: method = 'coupon'; percentage = 0.50
 
                     if method:
-                        # Update Submission als het afwijkt
                         if submission.payout_method != method:
                             submission.write({'payout_method': method, 'payout_percentage': percentage})
-
-                        # Update Partner voorkeur
                         partner = submission.supplier_id
                         if partner.x_payout_method != method:
                             partner.write({
@@ -444,10 +435,11 @@ class MigrationWizard(models.TransientModel):
                             })
                 except Exception: pass
 
-            # --- D. STOCK & STATUS LOGICA (CRUCIAAL) ---
+            # --- D. STOCK, STATUS & UNSOLD REASON (AANGEPAST) ---
             verkocht = str(row.get('verkocht', '')).lower()
             online_verkocht = str(row.get('online_verkocht', '')).lower()
             niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
+            waarom_weg = str(row.get('waarom_niet_weergeven', '')).lower()
 
             datum_verkocht = str(row.get('datum_verkocht', '')).strip()
             datum_uitbetaald = str(row.get('datum_uitbetaald', '')).strip()
@@ -458,28 +450,35 @@ class MigrationWizard(models.TransientModel):
 
             def is_empty_date(d): return not d or d == '0000-00-00'
 
-            # Bepaal of het item verkocht is
             is_sold = False
             if verkocht == 'ja' or online_verkocht == 'ja' or not is_empty_date(datum_verkocht) or not is_empty_date(datum_uitbetaald):
                 is_sold = True
 
             internal_description = False
+            unsold_reason = False  # Nieuwe variabele
 
             if is_sold:
-                # Verkocht -> Zet stock TIJDELIJK op 1 zodat we de order kunnen importeren
-                # (De order-import zal dit later weer naar 0 brengen)
                 final_qty = 1.0
                 is_published = False
-                internal_description = "MIGRATIE: Was verkocht in oud systeem. Stock tijdelijk op 1 gezet voor order-import."
+                internal_description = "MIGRATIE: Was verkocht in oud systeem."
 
             elif niet_weergeven == 'ja':
-                # Verborgen -> Zet ook op 1 voor de zekerheid (misschien toch verkocht?)
-                final_qty = 1.0
+                # --- NIEUWE LOGICA: Probeer de reden te mappen ---
+                final_qty = 0.0 # Als het weg is, is de stock 0
                 is_published = False
-                internal_description = f"Oorspronkelijk verborgen: {row.get('waarom_niet_weergeven')}. MIGRATIE: Was verkocht (hidden)."
+
+                if 'terug' in waarom_weg or 'opgehaald' in waarom_weg:
+                    unsold_reason = 'returned'
+                elif 'goed doel' in waarom_weg or 'spullenhulp' in waarom_weg or 'doneer' in waarom_weg:
+                    unsold_reason = 'charity'
+                elif 'verloren' in waarom_weg or 'kapot' in waarom_weg or 'vlek' in waarom_weg:
+                    unsold_reason = 'lost'
+                else:
+                    unsold_reason = 'other' # Fallback
+
+                internal_description = f"Oorspronkelijk verborgen: {row.get('waarom_niet_weergeven')}."
 
             else:
-                # Gewoon beschikbaar
                 final_qty = stock_val
                 is_published = (final_qty > 0)
 
@@ -497,12 +496,13 @@ class MigrationWizard(models.TransientModel):
                 'website_meta_title': row.get('seo_titel'),
                 'website_meta_description': row.get('seo_description'),
                 'website_meta_keywords': row.get('seo_keywords'),
+                'x_unsold_reason': unsold_reason, # <--- HIER VULLEN WE HET IN
             }
 
             if internal_description:
                 product_vals['description'] = internal_description
 
-            # --- F. CATEGORIE BEPALEN ---
+            # --- F. CATEGORIE BEPALEN (Blijft hetzelfde) ---
             type_raw = str(row.get('type', '')).strip()
             type_lower = type_raw.lower()
             maat_raw = str(row.get('maat', '')).strip()
@@ -519,19 +519,17 @@ class MigrationWizard(models.TransientModel):
                 target_cat_name = 'Schoenen & Kousen'
                 target_sub_name = 'Schoenen'
 
-            # Fix voor kinderschoenmaten in verkeerde categorie
             if maat_raw:
                 try:
                     clean_maat = re.match(r"(\d+)", maat_raw)
                     if clean_maat:
                         size_num = int(clean_maat.group(1))
-                        if size_num <= 45: # Als het een schoenmaat lijkt
+                        if size_num <= 45:
                             if target_cat_name != 'Accessoires' and target_sub_name != 'Kousen':
                                 target_cat_name = 'Schoenen & Kousen'
                                 target_sub_name = 'Schoenen'
                 except Exception: pass
 
-            # E-commerce Categorie
             main_cat = self.env['product.public.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
             final_categ_ids = [main_cat.id]
@@ -543,7 +541,6 @@ class MigrationWizard(models.TransientModel):
 
             product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
 
-            # Interne Categorie
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
             final_int_id = int_main.id
@@ -564,15 +561,10 @@ class MigrationWizard(models.TransientModel):
 
             # --- H. UPDATE OF CREATE ---
             if product:
-                # 1. BESTAAND PRODUCT: UPDATE
                 product.write(product_vals)
                 self._update_stock(product, final_qty)
-
-                # Zorg dat het merk attribuut juist staat
                 if brand_data:
                     self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
-
-                # FOTO'S (Slimme check): Alleen toevoegen als ze ontbreken!
                 if not product.product_template_image_ids and not product.image_1920:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
@@ -587,24 +579,15 @@ class MigrationWizard(models.TransientModel):
                                         'image_1920': extra_img
                                     })
             else:
-                # 2. NIEUW PRODUCT: AANMAKEN
-
-                # Hoofdfoto ophalen (Lokaal of Download)
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
-
-                # Prijs
                 prijs_raw = row.get('prijs') or '0'
                 try: product_vals['list_price'] = float(str(prijs_raw).replace(',', '.'))
                 except: product_vals['list_price'] = 0.0
 
-                # Create
                 product = self.env['product.template'].create(product_vals)
-
-                # Cache updaten (zodat we hem niet dubbel maken als hij 2x in CSV staat)
                 if old_product_id: existing_by_old_id[str(old_product_id)] = product.id
 
-                # Stock & Attributen
                 self._update_stock(product, final_qty)
 
                 if maat_raw:
@@ -623,7 +606,6 @@ class MigrationWizard(models.TransientModel):
                 if brand_data:
                     self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
 
-                # Extra Foto's
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     urls = extra_fotos.split(',')

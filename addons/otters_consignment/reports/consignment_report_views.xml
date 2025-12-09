@@ -67,10 +67,21 @@
             <field name="binding_view_types">list</field>
             <field name="state">code</field>
             <field name="code">
-# De geselecteerde regels zijn beschikbaar in de 'records' variabele
-report_lines = records
-sale_order_lines = report_lines.mapped('order_line_id')
-sale_order_lines.write({'x_is_paid_out': True})
+# Voor elke geselecteerde regel in het rapport
+for report_line in records:
+    # 1. Haal de echte orderregel op
+    sol = report_line.order_line_id
+
+    # 2. Alleen doen als nog niet uitbetaald
+    if not sol.x_is_paid_out:
+        # 3. Pak de waarde die het rapport NU berekent (op basis van % van VANDAAG)
+        current_calc = report_line.commission_amount
+
+        # 4. Schrijf weg: Zet vinkje AAN en schrijf bedrag HARD weg
+        sol.write({
+            'x_is_paid_out': True,
+            'x_fixed_commission': current_calc
+        })
             </field>
         </record>
 
