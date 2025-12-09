@@ -90,7 +90,7 @@ class ProductTemplate(models.Model):
                 if submission:
                     # Tel hoeveel producten er al zijn en doe +1
                     # (We gebruiken search_count voor de snelheid en zekerheid)
-                    count = self.env['product.template'].search_count([
+                    count = self.env['product.template'].with_context(active_test=False).search_count([
                         ('submission_id', '=', submission.id)
                     ])
                     next_seq = count + 1

@@ -27,7 +27,7 @@ class ConsignmentPortal(CustomerPortal):
 
         domain = [('supplier_id.email', '=ilike', partner.email)]
 
-        searchbar_sortings = {'date': {'label': 'Datum', 'order': 'submission_date desc'}}
+        searchbar_sortings = {'date': {'label': 'Datum', 'order': 'submission_date desc, id desc'}}
         if not sortby:
             sortby = 'date'
         order = searchbar_sortings[sortby]['order']
