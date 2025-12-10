@@ -112,7 +112,7 @@ class MigrationWizard(models.TransientModel):
             self.env.cr.commit()
 
         if self.file_giftcards:
-            self._process_giftcards(partner_map)
+            self._process_giftcards()
 
         if self.file_actioncodes:
             self._process_actioncodes()
@@ -121,7 +121,7 @@ class MigrationWizard(models.TransientModel):
         # 5. Bestellingen (Concept)
         order_map = {}
         if self.file_orders:
-            order_map = self._process_orders(partner_map)
+            order_map = self._process_orders()
             self.env.cr.commit()
 
         # 6. Bestelregels
@@ -1372,7 +1372,7 @@ class MigrationWizard(models.TransientModel):
                 order.write({
                     'date_order': original_date,
                     'effective_date': original_date,
-                    'state': 'done',
+                    'state': 'sale',
                 })
 
             except Exception as e:
@@ -1694,7 +1694,7 @@ class MigrationWizard(models.TransientModel):
 
                 rescue_order.write({
                     'invoice_status': 'invoiced',
-                    'state': 'done',
+                    'state': 'sale',
                     'date_order': date_key
                 })
 
