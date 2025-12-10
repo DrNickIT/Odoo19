@@ -57,63 +57,47 @@ class ConsignmentPortal(CustomerPortal):
         except (AccessError, MissingError):
             return request.redirect('/my')
 
-        report_model = request.env['otters.consignment.report']
+        # 1. HAAL ALLE VERKOOP DATA OP (Live uit sales)
+        all_sales_data = submission_sudo._get_portal_sold_data()
 
-        # 1. VERKOCHT (Blijft hetzelfde)
-        all_sold_products = submission_sudo._get_sold_products()
+        # Splitsen in Betaald en Nog Niet Betaald
+        aggregated_paid = [line for line in all_sales_data if line['is_paid']]
+        aggregated_unpaid = [line for line in all_sales_data if not line['is_paid']]
 
-        # 2. IN VOORRAAD (Nu filteren we de 'removed' eruit)
-        # Criteria: Hoort bij submission + Niet verkocht + GEEN reden van verwijdering
+        # 2. IN VOORRAAD
+        # De makkelijkste manier: Alles met stock > 0 en zonder 'reden van verwijdering'
         stock_products = request.env['product.template'].sudo().search([
             ('submission_id', '=', submission_id),
-            ('id', 'not in', all_sold_products.ids),
-            ('x_unsold_reason', '=', False),
+            ('qty_available', '>', 0),       # Dit is de gouden standaard voor "In Stock"
+            ('x_unsold_reason', '=', False), # Niet verwijderd/afgekeurd
             ('active', '=', True)
         ])
 
-        # 3. UIT COLLECTIE (Nieuwe lijst)
-        # Criteria: Hoort bij submission + Wel een reden van verwijdering
+        # 3. UIT COLLECTIE (Verwijderd/Geretourneerd/Geschonken)
         removed_products = request.env['product.template'].sudo().search([
             ('submission_id', '=', submission_id),
-            ('x_unsold_reason', '!=', False),
+            ('x_unsold_reason', '!=', False), # Wel een reden
             ('active', '=', True)
         ])
 
-        # Rapport logica (Blijft hetzelfde)
-        all_report_lines = report_model.sudo().search([('submission_id', '=', submission_id)])
-
-        def aggregate_report_lines(lines):
-            aggregated_data = {}
-            for line in lines:
-                product = line.product_id
-                tmpl = line.product_id # Pas dit aan als je model anders heet
-
-                if tmpl not in aggregated_data:
-                    aggregated_data[tmpl] = {
-                        'product': tmpl,
-                        'name': tmpl.name,
-                        'price_sold': 0,
-                        'payout': 0,
-                        'qty': 0
-                    }
-                aggregated_data[tmpl]['price_sold'] += line.price_total
-                aggregated_data[tmpl]['payout'] += line.commission_amount
-                aggregated_data[tmpl]['qty'] += line.qty_sold
-            return aggregated_data.values()
-
-        unpaid_lines = all_report_lines.filtered(lambda r: not r.x_is_paid_out)
-        paid_lines = all_report_lines.filtered(lambda r: r.x_is_paid_out)
+        # Bereken totalen voor de samenvatting bovenaan de pagina
+        total_payout_paid = sum(item['payout'] for item in aggregated_paid)
+        total_payout_unpaid = sum(item['payout'] for item in aggregated_unpaid)
 
         values = {
             'submission': submission_sudo,
-            'stock_products': stock_products,
-            'removed_products': removed_products, # <-- NIEUW
-            'aggregated_unpaid': aggregate_report_lines(unpaid_lines),
-            'aggregated_paid': aggregate_report_lines(paid_lines),
-            'total_payout_unpaid': sum(l.commission_amount for l in unpaid_lines),
-            'total_payout_paid': sum(l.commission_amount for l in paid_lines),
             'page_name': 'consignment_submission',
             'access_token': access_token,
+
+            # De 4 lijsten:
+            'aggregated_paid': aggregated_paid,     # Historie
+            'aggregated_unpaid': aggregated_unpaid, # Nog tegoed
+            'stock_products': stock_products,       # Nog te koop
+            'removed_products': removed_products,   # Weg
+
+            # De totalen:
+            'total_payout_paid': total_payout_paid,
+            'total_payout_unpaid': total_payout_unpaid,
         }
 
         return request.render("otters_consignment.portal_consignment_submission", values)

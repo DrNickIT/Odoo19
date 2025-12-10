@@ -231,6 +231,7 @@
                                 <thead>
                                     <tr>
                                         <th>Product</th>
+                                        <th class="text-end">Datum</th>
                                         <th class="text-end">Aantal</th>
                                         <th class="text-end">Verkoopprijs</th>
                                         <th class="text-end">Uitbetaald Bedrag</th>
@@ -239,11 +240,13 @@
                                 <tbody>
                                     <tr t-foreach="aggregated_paid" t-as="line">
                                         <td><span t-out="line['name']"/></td>
+                                        <td class="text-end">
+                                            <span t-out="line['date']" t-options='{"widget": "date"}'/>
+                                        </td>
                                         <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
                                             <t t-set="prod" t-value="line['product']"/>
-                                            <t t-set="unit_price" t-value="line['price_sold'] / line['qty']"/>
-
+                                            <t t-set="unit_price" t-value="line['price_sold'] / (line['qty'] or 1)"/>
                                             <t t-if="prod.compare_list_price and prod.compare_list_price > unit_price">
                                                 <span class="text-muted text-decoration-line-through me-1"
                                                       t-out="prod.compare_list_price * line['qty']"
@@ -261,6 +264,14 @@
                                     </tr>
                                 </tbody>
                                 <tfoot>
+                                    <tr class="fw-bold bg-light border-top">
+                                        <td colspan="4" class="text-end">Totaal Reeds Uitbetaald:</td>
+
+                                        <td class="text-end text-success">
+                                            <span t-out="total_payout_paid"
+                                                  t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
                                 </tfoot>
                             </table>
                         </div>

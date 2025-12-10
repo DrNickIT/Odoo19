@@ -77,6 +77,7 @@ class ConsignmentSubmission(models.Model):
     x_sender_country_code = fields.Char(store=False)
     x_payout_method_temp = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], store=False)
     x_old_id = fields.Char(string="Oud Verzendzak ID", copy=False, readonly=True)
+    x_legacy_code = fields.Char(string="Oude Code (CSV)", copy=False, readonly=True, index=True)
 
     label_count = fields.Integer(string="Aantal Zakken", default=1, required=True)
 
@@ -261,3 +262,51 @@ class ConsignmentSubmission(models.Model):
         res = super(ConsignmentSubmission, self).write(vals)
         if removed_template_ids: self.env['product.template'].browse(removed_template_ids).write({'active': False})
         return res
+
+    def _get_sold_lines(self):
+        """ Geeft ALLE verkoopregels terug (Betaald én Onbetaald) """
+        self = self.sudo()
+        product_variant_ids = self.product_ids.product_variant_ids.ids
+
+        if not product_variant_ids:
+            return self.env['sale.order.line']
+
+        # We zoeken nu alles wat in een order zit (ongeacht betaalstatus)
+        return self.env['sale.order.line'].search([
+            ('product_id', 'in', product_variant_ids),
+            ('order_id.state', 'in', ['sale', 'done'])
+        ])
+
+    def _get_portal_sold_data(self):
+        """ Bouwt de geaggregeerde lijst, inclusief betaalstatus """
+        self = self.sudo()
+        lines = self._get_sold_lines()
+
+        grouped_data = {}
+
+        for line in lines:
+            # We voegen nu ook de betaalstatus toe aan de sleutel
+            # Zo worden betaalde en onbetaalde regels niet op één hoop gegooid
+            is_paid = line.x_is_paid_out
+            date_val = line.x_payout_date or line.order_id.date_order.date()
+
+            # Key = (Product, Datum, IsBetaald)
+            key = (line.product_id, date_val, is_paid)
+
+            if key not in grouped_data:
+                grouped_data[key] = {
+                    'product': line.product_id,
+                    'name': line.product_id.name,
+                    'qty': 0.0,
+                    'price_sold': 0.0,
+                    'payout': 0.0,
+                    'date': date_val,
+                    'is_paid': is_paid,       # <--- Belangrijk voor filtering straks
+                    'currency': line.currency_id
+                }
+
+            grouped_data[key]['qty'] += line.product_uom_qty
+            grouped_data[key]['price_sold'] += (line.price_unit * line.product_uom_qty)
+            grouped_data[key]['payout'] += line.x_fixed_commission
+
+        return list(grouped_data.values())

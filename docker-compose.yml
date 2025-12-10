@@ -14,9 +14,6 @@ services:
       - ./etc:/etc/odoo
       - odoo-web-data:/var/lib/odoo
       - ./OttersDownload/Fotos:/mnt/images_source
-    # Command toegevoegd voor dev-modus en SMTP instellingen (als ze niet in odoo.conf staan)
-    command: >
-      --dev=xml,reload
     environment:
       - HOST=db
       - USER=odoo

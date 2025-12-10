@@ -10,6 +10,7 @@
                     <field name="payout_method" type="row"/>
                     <field name="product_id" type="row"/>
                     <field name="date" interval="month" type="col"/>
+                    <field name="x_payout_date" optional="show"/>
                     <field name="x_is_paid_out" type="col"/>
                     <field name="price_subtotal" type="measure"/>
                     <field name="commission_amount" type="measure"/>
@@ -32,6 +33,7 @@
                     <field name="commission_amount" sum="Total"/>
                     <field name="qty_sold" sum="Total"/>
                     <field name="x_is_paid_out"/>
+                    <field name="x_payout_date" optional="show"/>
                 </list>
             </field>
         </record>
@@ -49,6 +51,7 @@
                     <filter name="unpaid" string="Nog te Betalen" domain="[('x_is_paid_out', '=', False)]"/>
                     <filter name="paid" string="Reeds Betaald" domain="[('x_is_paid_out', '=', True)]"/>
                     <separator/>
+                    <filter string="Datum Uitbetaling" name="group_payout_date" context="{'group_by': 'x_payout_date:month'}"/>
                     <filter string="Leverancier" name="group_supplier" context="{'group_by':'supplier_id'}"/>
                     <filter string="Product" name="group_product" context="{'group_by':'product_id'}"/>
                     <filter string="Status Uitbetaling" name="group_paid_status" context="{'group_by':'x_is_paid_out'}"/>
@@ -80,6 +83,7 @@ for report_line in records:
         # 4. Schrijf weg: Zet vinkje AAN en schrijf bedrag HARD weg
         sol.write({
             'x_is_paid_out': True,
+            'x_payout_date' : datetime.date.today(),
             'x_fixed_commission': current_calc
         })
             </field>
