@@ -14,6 +14,7 @@ class ProductTemplate(models.Model):
         ('charity', 'Geschonken aan goed doel'),
         ('returned', 'Teruggestuurd naar klant'),
         ('lost', 'Verloren / Beschadigd'),
+        ('brand', 'Merk niet geaccepteerd'),
         ('other', 'Andere')
     ], string="Reden uit collectie", copy=False, tracking=True, help="Vul dit in als het item niet verkocht is en uit de shop moet.")
 
@@ -75,6 +76,18 @@ class ProductTemplate(models.Model):
         related='submission_id.action_unsold',
         string="Voorkeur Klant",
         readonly=True
+    )
+
+    x_is_paid = fields.Boolean(
+        string="Uitbetaald",
+        compute='_compute_is_paid',
+        store=False
+    )
+
+    x_payout_date = fields.Date(
+        string="Datum Uitbetaald",
+        compute='_compute_payout_date',
+        store=False
     )
 
     @api.model_create_multi
@@ -206,3 +219,25 @@ class ProductTemplate(models.Model):
                 'location_id': location.id,
                 'inventory_quantity': 0
             }).action_apply_inventory()
+
+    def _compute_is_paid(self):
+        for product in self:
+            is_paid = self.env['sale.order.line'].search_count([
+                ('product_template_id', '=', product.id),
+                ('x_is_paid_out', '=', True),
+                ('order_id.state', 'in', ['sale', 'done'])
+            ])
+            product.x_is_paid = (is_paid > 0)
+
+    def _compute_payout_date(self):
+        for product in self:
+            line = self.env['sale.order.line'].search([
+                ('product_template_id', '=', product.id),
+                ('order_id.state', 'in', ['sale', 'done']),
+                ('x_is_paid_out', '=', True)
+            ], limit=1)
+
+            if line:
+                product.x_payout_date = line.x_payout_date or line.order_id.date_order.date()
+            else:
+                product.x_payout_date = False

@@ -50,6 +50,7 @@
                 <field name="name"/>
                 <field name="supplier_id"/>
                 <field name="x_submission_year"/>
+                <field name="x_legacy_code"/>
 
                 <separator/>
                 <filter string="Nieuw" name="status_draft" domain="[('state', '=', 'draft')]"/>
@@ -72,6 +73,8 @@
                 <field name="supplier_id"/>
                 <field name="x_submission_year" optional="show" widget="char"/>
                 <field name="submission_date"/>
+                <field name="x_legacy_code" optional="show"/>
+
 
                 <field name="product_count" sum="Totaal Stuks" string="Aantal OK"/>
                 <field name="rejected_count" sum="Totaal Geweigerd" string="Geweigerd" optional="show" decoration-danger="rejected_count > 0"/>
@@ -161,6 +164,10 @@
                                 </list>
                             </field>
                         </group>
+                        <group string="Historie">
+                            <field name="x_old_id"/>
+                            <field name="x_legacy_code"/>
+                        </group>
                     </group>
 
                     <notebook>
@@ -179,6 +186,7 @@
                                     <field name="list_price"/>
                                     <field name="qty_available" string="Voorraad"/>
                                     <field name="is_published" string="Online"/>
+                                    <field name="x_payout_date" string="Uitbetaald op" optional="show"/>
                                     <field name="x_unsold_reason" optional="hide" widget="badge" decoration-warning="x_unsold_reason != False"/>
                                 </list>
                             </field>

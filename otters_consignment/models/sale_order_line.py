@@ -10,6 +10,7 @@ class SaleOrderLine(models.Model):
         copy=False,
         help="Vink dit aan als de commissie voor deze lijn is uitbetaald aan de leverancier."
     )
+    x_payout_date = fields.Date(string="Uitbetaald op")
 
     x_fixed_commission = fields.Monetary(string="Vastgelegde Commissie", currency_field='currency_id', copy=False)
 

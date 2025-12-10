@@ -19,6 +19,7 @@ class ConsignmentReport(models.Model):
     payout_method = fields.Selection([('cash', 'Cash'), ('coupon', 'Coupon')], string="Uitbetaalmethode", readonly=True)
     commission_amount = fields.Float(string="Commissiebedrag", readonly=True)
     x_is_paid_out = fields.Boolean(string="Uitbetaald", readonly=True)
+    x_payout_date = fields.Date(string="Uitbetaald op", readonly=True)
 
     def init(self):
         """
@@ -33,6 +34,7 @@ class ConsignmentReport(models.Model):
                     sub.id AS submission_id,
                     sol.id AS order_line_id,
                     sol.x_is_paid_out AS x_is_paid_out,
+                    sol.x_payout_date AS x_payout_date,
                     so.id AS order_id,
                     pt.id AS product_id,
                     sub.supplier_id AS supplier_id,
