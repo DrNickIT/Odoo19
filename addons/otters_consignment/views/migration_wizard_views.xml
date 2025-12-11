@@ -10,58 +10,6 @@
                         <h1>Migratie Dashboard</h1>
                     </div>
 
-                    <separator string="🛠️ Correcties &amp; Onderhoud" />
-                    <div class="alert alert-info" role="alert">
-                        Gebruik deze knoppen om data te corrigeren. Hiervoor hoef je <b>geen</b> bestanden te uploaden.
-                    </div>
-
-                    <group>
-                        <group string="Voorraad &amp; Status">
-                            <button name="action_fix_negative_stock"
-                                    string="Voorraad op 0 zetten (ipv -1)"
-                                    type="object"
-                                    class="btn-warning"
-                                    icon="fa-wrench"/>
-
-                            <button name="action_mark_history_as_paid"
-                                    string="Historie op 'Betaald' zetten"
-                                    type="object"
-                                    class="btn-secondary"
-                                    icon="fa-money"
-                                    confirm="Weet je zeker dat je alle gemigreerde items als betaald wil markeren?"/>
-                            <button name="action_fix_legacy_codes"
-                                    string="🏷️ Update Oude Codes"
-                                    type="object"
-                                    class="btn-info"
-                                    icon="fa-tag"/>
-                        </group>
-
-                        <group string="Reddingsoperatie (Producten CSV nodig!)">
-                            <div class="o_row">
-                                <field name="file_products" filename="filename_products" placeholder="Upload otters_producten.csv"/>
-                                <field name="filename_products" invisible="1"/>
-
-                                <button name="action_create_rescue_orders"
-                                        string="🚑 Maak Reddingsorders"
-                                        type="object"
-                                        class="btn-danger"
-                                        icon="fa-life-ring"
-                                        confirm="Dit maakt historische orders aan voor producten die wel uitbetaald zijn in de CSV, maar nog stock hebben in Odoo. Ben je zeker?"/>
-                            </div>
-                            <div class="text-muted">
-                                Dit zoekt naar producten die 'Uitbetaald=Ja' zijn in de CSV, maar nog steeds fysieke voorraad hebben. Er wordt een order aangemaakt op datum van verkoop.
-                            </div>
-                        </group>
-
-                        <group string="Orders Verwerken">
-                            <button name="action_confirm_migrated_orders"
-                                    string="Concept Orders Bevestigen"
-                                    type="object"
-                                    class="btn-primary"
-                                    icon="fa-check-square-o"/>
-                        </group>
-                    </group>
-
                     <separator string="📂 Bestanden Importeren" class="mt-4"/>
                     <group>
                         <group>
@@ -86,12 +34,6 @@
                             <field name="filename_giftcards" invisible="1"/>
                             <field name="file_actioncodes" filename="filename_actioncodes"/>
                             <field name="filename_actioncodes" invisible="1"/>
-                        </group>
-                        <group string="Orders (Historie)" colspan="2">
-                            <field name="file_orders" filename="filename_orders"/>
-                            <field name="filename_orders" invisible="1"/>
-                            <field name="file_order_lines" filename="filename_order_lines"/>
-                            <field name="filename_order_lines" invisible="1"/>
                         </group>
                     </group>
 

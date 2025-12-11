@@ -15,6 +15,7 @@ class ProductTemplate(models.Model):
         ('returned', 'Teruggestuurd naar klant'),
         ('lost', 'Verloren / Beschadigd'),
         ('brand', 'Merk niet geaccepteerd'),
+        ('unknown_migration', 'Ongekend tijdens migratie'),
         ('other', 'Andere')
     ], string="Reden uit collectie", copy=False, tracking=True, help="Vul dit in als het item niet verkocht is en uit de shop moet.")
 
