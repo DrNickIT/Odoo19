@@ -17,6 +17,8 @@ _logger = logging.getLogger(__name__)
 class MigrationWizard(models.TransientModel):
     _name = 'otters.migration.wizard'
     _description = 'Master Migratie Tool'
+    migration_partner_id = fields.Many2one('res.partner', string="Fictieve Migratie Klant")
+    migration_submission_id = fields.Many2one('otters.consignment.submission', string="Fictieve Migratie Inzending")
 
     # --- 1. Bestanden ---
     file_customers = fields.Binary(string="1. Klanten (otters_klanten.csv)", required=False)
@@ -36,12 +38,6 @@ class MigrationWizard(models.TransientModel):
 
     file_actioncodes = fields.Binary(string="6. Actiecodes (otters_actiecodes.csv)", required=False)
     filename_actioncodes = fields.Char()
-
-    file_orders = fields.Binary(string="7. Bestellingen (bestellingen.csv)", required=False)
-    filename_orders = fields.Char()
-
-    file_order_lines = fields.Binary(string="8. Bestelregels (bestellingen_producten.csv)", required=False)
-    filename_order_lines = fields.Char()
 
     # NIEUW VELD: Lokaal pad
     image_base_path = fields.Char(
@@ -92,7 +88,7 @@ class MigrationWizard(models.TransientModel):
         partner_map = {}
         if self.file_customers:
             partner_map = self._process_customers()
-            self.env.cr.commit() # Tussentijds opslaan
+            self.env.cr.commit()  # Tussentijds opslaan
 
         # 2. Verzendzakken
         submission_map = {}
@@ -106,9 +102,16 @@ class MigrationWizard(models.TransientModel):
             brand_map = self._process_brands()
             self.env.cr.commit()
 
-        # 4. Producten & Cadeaubonnen
+        # NIEUWE STAP: Aanmaken van de Fictieve Migratie Records
+        _logger.info(">>> Stap 3d: Fictieve Migratie Records aanmaken...")
+        self._create_migration_records()
+        self.env.cr.commit()
+        _logger.info("✅ Stap 3d Klaar: Fictieve klant en zakken aangemaakt.")
+
+        # 4. Producten (Hier zit nu de nieuwe geïntegreerde logica)
         if self.file_products:
-            self._process_products(submission_map, brand_map)
+            _logger.info(">>> Stap 4: Producten en Fictieve Orders verwerken...")
+            count = self._process_products_new_logic(submission_map, brand_map)
             self.env.cr.commit()
 
         if self.file_giftcards:
@@ -118,51 +121,7 @@ class MigrationWizard(models.TransientModel):
             self._process_actioncodes()
             self.env.cr.commit()
 
-        # 5. Bestellingen (Concept)
-        order_map = {}
-        if self.file_orders:
-            order_map = self._process_orders()
-            self.env.cr.commit()
-
-        # 6. Bestelregels
-        if self.file_order_lines:
-            self._process_order_lines(order_map)
-            self.env.cr.commit()
-
-        _logger.info("✅ FASE 1 (IMPORT) VOLTOOID. START AUTOMATISCHE FIXES...")
-
         # --- FASE 2: DE AUTOMATISCHE FIXES (Jouw nieuwe functies) ---
-
-        # A. Oude codes invullen (voor de zekerheid, als het nog niet in de loop zat)
-        if self.file_submissions:
-            _logger.info(">>> Stap A: Oude codes controleren...")
-            self.action_fix_legacy_codes()
-            self.env.cr.commit()
-
-        # B. Orders Bevestigen (Zet Concept -> Sale/Done)
-        # Dit is de zwaarste stap, hier ontstaan de voorraadbewegingen
-        if self.file_orders:
-            _logger.info(">>> Stap B: Orders bevestigen en stock injecteren...")
-            self.action_confirm_migrated_orders()
-            self.env.cr.commit()
-
-        # NIEUW: Stap B2 - Reddingsoperatie voor vergeten orders
-        # Als er nu nog producten 'uitbetaald' zijn met stock 1, vangen we ze hier op.
-        if self.file_products:
-            _logger.info(">>> Stap B2: Reddingsoperatie 'Klant Onbekend'...")
-            self.action_create_rescue_orders()
-            self.env.cr.commit()
-
-        # C. Stock Opruimen (Corrigeer -1 naar 0, en zet 0 offline)
-        # Dit moet NA stap B gebeuren, want stap B kan negatieve stock veroorzaken
-        _logger.info(">>> Stap C: Negatieve stock corrigeren en uitverkocht offline halen...")
-        self.action_fix_negative_stock()
-        self.env.cr.commit()
-
-        # D. Financiën (Zet alles op 'Uitbetaald' wat al betaald was)
-        _logger.info(">>> Stap D: Historische uitbetalingen markeren...")
-        self.action_mark_history_as_paid()
-        self.env.cr.commit()
 
         _logger.info("==========================================")
         _logger.info("🏁 MIGRATIE SUCCESVOL AFGEROND!")
@@ -402,14 +361,11 @@ class MigrationWizard(models.TransientModel):
             f"--- MERKEN KLAAR: {count} verwerkt. {skipped_images} keer foto-download overgeslagen (bestond al). ---")
         return brand_map
 
-    # -------------------------------------------------------------------------
-    # STAP 4: PRODUCTEN (AANGEPAST VOOR x_unsold_reason)
-    # -------------------------------------------------------------------------
-    def _process_products(self, submission_map, brand_map):
+    def _process_products_new_logic(self, submission_map, brand_map):
         csv_data = self._read_csv(self.file_products)
         count = 0
 
-        # --- 1. CACHE OPBOUWEN ---
+        # --- CACHE OPBOUWEN ---
         _logger.info("--- CACHE OPBOUWEN... ---")
         existing_recs = self.env['product.template'].search_read(
             ['|', ('x_old_id', '!=', False), ('default_code', '!=', False)],
@@ -417,44 +373,64 @@ class MigrationWizard(models.TransientModel):
         )
         existing_by_old_id = {str(r['x_old_id']): r['id'] for r in existing_recs if r['x_old_id']}
         existing_by_code = {r['default_code']: r['id'] for r in existing_recs if r['default_code']}
+        _logger.info(f"--- CACHE KLAAR: {len(existing_recs)} producten. ---")
 
+        # Mappings
         condition_mapping = {
             '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
             '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
         }
+        # Accessoires types
+        accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem',
+                             'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
 
-        # Helper om redenen te bepalen uit tekst
-        def determine_unsold_reason(text):
-            t = str(text).lower()
-            if not t: return 'other'
-            if 'terug' in t or 'opgehaald' in t: return 'returned'
-            if 'goed doel' in t or 'spullenhulp' in t or 'doneer' in t: return 'charity'
-            if 'verloren' in t or 'kapot' in t or 'vlek' in t: return 'lost'
-            if 'merk' in t: return 'brand'
-            return 'other'
+        partner_id = self.migration_partner_id
+        q4_cutoff_date = self._parse_date('2025-09-30')
 
-        _logger.info("--- START PRODUCTEN IMPORT ---")
+        _logger.info("--- START PRODUCTEN/ORDER MIGRATIE ---")
 
         for row in csv_data:
             count += 1
-            if count % 50 == 0:
+            if count % 100 == 0:
                 self.env.cr.commit()
-                _logger.info(f"   [PRODUCTEN] {count} verwerkt...")
+                _logger.info(f"   [PRODUCTEN] {count} verwerkt... (Huidige: {row.get('naam')})")
 
-            # --- A. VALIDATIE ---
-            zak_id_product = self._clean_id(row.get('zak_id'))
+            # --- A. DATA EN STATUS PARSEN ---
             old_product_id = self._clean_id(row.get('product_id'))
+            zak_id_product = self._clean_id(row.get('zak_id'))
             name = row.get('naam')
+            default_code = row.get('code')
 
             if not zak_id_product: continue
-
             submission = submission_map.get(zak_id_product)
             if not submission: continue
 
-            # --- B. BESTAAT HET AL? ---
-            product_id = False
-            default_code = row.get('code')
+            # Vlaggen & Waarden
+            uitbetaald_raw = str(row.get('uitbetaald', '')).lower()
+            verkocht_raw = str(row.get('verkocht', '')).lower()
+            niet_weergeven_raw = str(row.get('product_niet_weergeven', '')).lower()
+            status_image_raw = str(row.get('status_image', '')).lower()  # Of 'status_afbeelding', check je CSV header!
+            waarom_weg = row.get('waarom_niet_weergeven', '')  # HERSTELD: Tekstreden
 
+            is_paid_raw = (uitbetaald_raw == 'ja')
+            is_sold_raw = (verkocht_raw == 'ja')
+            is_hidden_raw = (niet_weergeven_raw == 'ja')
+            is_definitief_niet_actief = ('nietactief.png' in status_image_raw)
+
+            # Datums
+            datum_uitbetaald_str = str(row.get('datum_uitbetaald', '')).strip()
+            datum_verkocht_str = str(row.get('datum_verkocht', '')).strip()
+            has_payout_date = not self._is_empty_date(datum_uitbetaald_str)
+            has_sale_date = not self._is_empty_date(datum_verkocht_str)
+
+            # Stock
+            try:
+                stock_val = float(str(row.get('stock') or '0').replace(',', '.'))
+            except:
+                stock_val = 0.0
+
+            # --- B. PRODUCT ZOEKEN ---
+            product_id = False
             if old_product_id and str(old_product_id) in existing_by_old_id:
                 product_id = existing_by_old_id[str(old_product_id)]
             elif default_code and default_code in existing_by_code:
@@ -462,8 +438,8 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].browse(product_id) if product_id else False
 
-            # --- C. UPDATE SUBMISSION LOGICA (Commissie & Methode) ---
-            # We kijken of er 'cash' of 'coupon' data in de productrij staat om de inzending te updaten
+            # --- C. COMMISSIE LOGICA (HERSTELD) ---
+            # Dit stukje zorgt dat de inzending geüpdatet wordt als er 'cash' of 'coupon' staat
             commissie_raw = row.get('commissie')
             if commissie_raw:
                 try:
@@ -475,9 +451,9 @@ class MigrationWizard(models.TransientModel):
                     elif comm_val == 50:
                         method = 'coupon'; percentage = 0.50
 
-                    if method and submission.payout_method != method:
-                        # Update submission en partner alleen als het verschilt
-                        submission.write({'payout_method': method, 'payout_percentage': percentage})
+                    if method:
+                        if submission.payout_method != method:
+                            submission.write({'payout_method': method, 'payout_percentage': percentage})
                         partner = submission.supplier_id
                         if partner.x_payout_method != method:
                             partner.write({
@@ -488,108 +464,33 @@ class MigrationWizard(models.TransientModel):
                 except Exception:
                     pass
 
-            # --- D. NIEUWE STATUS LOGICA (Jouw regels) ---
-            status_img = str(row.get('status_afbeelding', '')).strip()
-            niet_weergeven = str(row.get('product_niet_weergeven', '')).lower()
-            waarom_weg = row.get('waarom_niet_weergeven', '')
-            uitbetaald = str(row.get('uitbetaald', '')).lower()
-
-            stock_csv = row.get('stock') or '0'
-            try:
-                stock_val = float(stock_csv.replace(',', '.'))
-            except:
-                stock_val = 0.0
-
-            # Standaardwaarden
-            final_qty = stock_val
-            is_published = False
-            unsold_reason = False
-            internal_note = False
-
-            # REGEL 1: Inactief (Rood bolletje)
-            if 'nietactief' in status_img:
-                final_qty = 0.0
-                is_published = False
-                unsold_reason = 'other'
-                internal_note = "MIGRATIE: Was 'niet actief' in oud systeem."
-
-            # REGEL 2: Product niet weergeven = Ja
-            elif niet_weergeven == 'ja':
-                final_qty = 0.0
-                is_published = False
-                unsold_reason = determine_unsold_reason(waarom_weg)
-                internal_note = f"MIGRATIE: Verborgen. Reden: {waarom_weg}"
-
-            # REGEL 3 & 4: Normale/Verkochte status
-            else:
-                # Regels: stock = stock, published = true indien stock > 0
-                final_qty = stock_val
-                is_published = (final_qty > 0)
-
-                # Unsold reason bepalen
-                if final_qty > 0:
-                    # Als er voorraad is, is het te koop (dus geen unsold reason)
-                    unsold_reason = False
-                else:
-                    # Stock is 0. Waarom?
-                    if uitbetaald == 'ja':
-                        # Als het uitbetaald is, is het VERKOCHT.
-                        # Een verkocht item heeft GEEN 'unsold reason' (want het is sold, niet unsold).
-                        unsold_reason = False
-                    else:
-                        # Niet uitbetaald, maar wel stock 0? Dan is er iets mis (kwijt/andere).
-                        unsold_reason = 'other'
-
-                        # --- E. DATA VOORBEREIDEN ---
-            product_vals = {
-                'name': name,
-                'submission_id': submission.id,
-                'is_published': is_published,
-                'type': 'consu',
-                'is_storable': True,
-                'default_code': default_code,
-                'x_old_id': str(old_product_id),
-                'description_ecommerce': row.get('lange_omschrijving'),
-                'description_sale': row.get('korte_omschrijving_nl'),
-                'website_meta_title': row.get('seo_titel'),
-                'website_meta_description': row.get('seo_description'),
-                'website_meta_keywords': row.get('seo_keywords'),
-                'x_unsold_reason': unsold_reason,
-            }
-
-            if internal_note:
-                product_vals['description'] = internal_note
-
-            # --- F. CATEGORIE BEPALEN ---
-            # ... (Zelfde logica als voorheen voor categorieën) ...
+            # --- D. CATEGORIE & MERK & DATA (HERSTELD) ---
+            # 1. Categorie
             type_raw = str(row.get('type', '')).strip()
             type_lower = type_raw.lower()
-            target_cat_name = 'Kleding'
+            maat_raw = str(row.get('maat', '')).strip()
+            target_cat_name = 'Kleding';
             target_sub_name = type_raw.capitalize()
 
-            accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem',
-                                 'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
             if type_lower in accessoires_types:
                 target_cat_name = 'Accessoires'
             elif 'kousen' in type_lower or 'sokken' in type_lower:
-                target_cat_name = 'Schoenen & Kousen'
-                target_sub_name = 'Kousen'
+                target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Kousen'
             elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal']):
-                target_cat_name = 'Schoenen & Kousen'
-                target_sub_name = 'Schoenen'
+                target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Schoenen'  # Pantoffel fix zit hierin
 
-            # (Maat check voor schoenen)
-            maat_raw = str(row.get('maat', '')).strip()
+            # Maat fix
             if maat_raw:
                 try:
                     clean_maat = re.match(r"(\d+)", maat_raw)
-                    if clean_maat and int(clean_maat.group(1)) <= 45:
-                        if target_cat_name != 'Accessoires' and target_sub_name != 'Kousen':
-                            target_cat_name = 'Schoenen & Kousen';
-                            target_sub_name = 'Schoenen'
+                    if clean_maat and int(clean_maat.group(1)) <= 45 and target_cat_name not in ['Accessoires',
+                                                                                                 'Schoenen & Kousen']:
+                        target_cat_name = 'Schoenen & Kousen';
+                        target_sub_name = 'Schoenen'
                 except:
                     pass
 
+            # Categorieën aanmaken
             main_cat = self.env['product.public.category'].search(
                 [('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
             if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
@@ -600,9 +501,7 @@ class MigrationWizard(models.TransientModel):
                 if not sub_cat: sub_cat = self.env['product.public.category'].create(
                     {'name': target_sub_name, 'parent_id': main_cat.id})
                 final_categ_ids.append(sub_cat.id)
-            product_vals['public_categ_ids'] = [(6, 0, final_categ_ids)]
 
-            # Interne Categorie
             int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)],
                                                            limit=1)
             if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
@@ -613,76 +512,119 @@ class MigrationWizard(models.TransientModel):
                 if not int_sub: int_sub = self.env['product.category'].create(
                     {'name': target_sub_name, 'parent_id': int_main.id})
                 final_int_id = int_sub.id
-            product_vals['categ_id'] = final_int_id
 
-            # --- G. MERK KOPPELING ---
+            # Merk
             old_merk_id = self._clean_id(row.get('merk_id'))
             brand_data = None
-            if old_merk_id and old_merk_id in brand_map:
-                brand_data = brand_map[old_merk_id]
-                product_vals['brand_id'] = brand_data['brand_id']
+            if old_merk_id and old_merk_id in brand_map: brand_data = brand_map[old_merk_id]
 
-            # --- H. UPDATE OF CREATE ---
+            # Product Values
+            product_vals = {
+                'name': name, 'submission_id': submission.id, 'type': 'consu', 'is_storable': True,
+                'default_code': default_code, 'x_old_id': str(old_product_id),
+                'description_ecommerce': row.get('lange_omschrijving'),
+                'description_sale': row.get('korte_omschrijving_nl'),
+                'website_meta_title': row.get('seo_titel'), 'website_meta_description': row.get('seo_description'),
+                'website_meta_keywords': row.get('seo_keywords'),
+                'public_categ_ids': [(6, 0, final_categ_ids)], 'categ_id': final_int_id,
+                'brand_id': brand_data['brand_id'] if brand_data else False
+            }
+
+            # --- E. PRODUCT AANMAAK / UPDATE ---
             if product:
                 product.write(product_vals)
-                self._update_stock(product, final_qty)
-                if brand_data:
-                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+                # Attributen & Foto's bijwerken
+                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
                 if not product.product_template_image_ids and not product.image_1920:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
-                        urls = extra_fotos.split(',')
-                        for idx, url in enumerate(urls):
+                        for idx, url in enumerate(extra_fotos.split(',')):
                             if url:
                                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
-                                if extra_img:
-                                    self.env['product.image'].create({
-                                        'product_tmpl_id': product.id,
-                                        'name': f"{name} - Extra {idx + 1}",
-                                        'image_1920': extra_img
-                                    })
+                                if extra_img: self.env['product.image'].create(
+                                    {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
+                                     'image_1920': extra_img})
             else:
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
-                prijs_raw = row.get('prijs') or '0'
                 try:
-                    product_vals['list_price'] = float(str(prijs_raw).replace(',', '.'))
+                    product_vals['list_price'] = float(str(row.get('prijs') or '0').replace(',', '.'))
                 except:
                     product_vals['list_price'] = 0.0
 
                 product = self.env['product.template'].create(product_vals)
                 if old_product_id: existing_by_old_id[str(old_product_id)] = product.id
 
-                self._update_stock(product, final_qty)
-
-                if maat_raw:
-                    attr_name = 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat'
-                    self._add_attribute(product, attr_name, maat_raw)
-
+                # Attributen
+                if maat_raw: self._add_attribute(product,
+                                                 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat',
+                                                 maat_raw)
                 if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
                 if row.get('categorie'): self._add_attribute(product, 'Geslacht', row.get('categorie'))
                 if row.get('type'): self._add_attribute(product, 'Type', row.get('type'))
-
-                staat = row.get('staat')
-                if staat in condition_mapping:
-                    self._add_attribute(product, 'Conditie', condition_mapping[staat])
-
-                if brand_data:
-                    self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
-
+                if row.get('staat') in condition_mapping: self._add_attribute(product, 'Conditie',
+                                                                              condition_mapping[row.get('staat')])
+                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
-                    urls = extra_fotos.split(',')
-                    for idx, url in enumerate(urls):
+                    for idx, url in enumerate(extra_fotos.split(',')):
                         if url:
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
-                            if extra_img:
-                                self.env['product.image'].create({
-                                    'product_tmpl_id': product.id,
-                                    'name': f"{name} - Extra {idx + 1}",
-                                    'image_1920': extra_img
-                                })
+                            if extra_img: self.env['product.image'].create(
+                                {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
+                                 'image_1920': extra_img})
+
+            # --- F. STATUS & ORDER REGELS (DE 13 SCENARIO'S) ---
+
+            # REGEL 0: Absolute vlag 'Niet Actief'
+            if is_definitief_niet_actief:
+                _logger.info(f"   [DEF. NIET ACTIEF] Product {old_product_id}. Markeren als Unsold.")
+                # HERSTELD: We geven 'waarom_weg' mee als reden tekst, hoewel image voorrang heeft
+                self._set_unsold_migration(product, stock_val, reason_text="Afbeelding 'nietactief.png'")
+                continue
+
+                # UITBETAALD = JA
+            elif is_paid_raw and has_payout_date:
+                payout_date = self._parse_date(datum_uitbetaald_str)
+                sale_date = self._parse_date(datum_verkocht_str) if has_sale_date else payout_date
+
+                if is_sold_raw:  # 1 & 2
+                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
+                elif not is_sold_raw and not is_hidden_raw and stock_val > 0:  # 3 & 4
+                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
+                    self._create_product_copy(product, stock_val)
+                elif not is_sold_raw and (is_hidden_raw or stock_val <= 0):  # 5 & 6
+                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
+
+            # UITBETAALD = JA, GEEN DATUM (Kwartaal)
+            elif is_paid_raw and not has_payout_date:
+                if not has_sale_date:  # 10
+                    # HERSTELD: Pass reden mee
+                    self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+                else:
+                    sale_date = self._parse_date(datum_verkocht_str)
+                    if sale_date and sale_date > q4_cutoff_date:  # 7
+                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
+                    elif sale_date and sale_date <= q4_cutoff_date and submission.name == '20250012':  # 8
+                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
+                    elif (
+                            is_sold_raw or is_hidden_raw) and sale_date and sale_date <= q4_cutoff_date and submission.name != '20250012':  # 9
+                        self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=sale_date)
+                    else:
+                        if sale_date:
+                            self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
+                        else:
+                            self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+
+            # UITBETAALD = NEE
+            elif not is_paid_raw:
+                if is_sold_raw or is_hidden_raw:  # 11
+                    # HERSTELD: Hier is 'waarom_weg' cruciaal (terug/kapot/goed doel)
+                    self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+
+                elif not is_sold_raw and not is_hidden_raw:  # 12
+                    self._set_published_stock(product, stock_val)
 
         return count
 
@@ -1068,639 +1010,187 @@ class MigrationWizard(models.TransientModel):
         _logger.info(f"❌ Verlopen: {skipped_expired}")
         _logger.info("==========================================")
 
-    # -------------------------------------------------------------------------
-    # STAP 5: BESTELLINGEN (HEADERS) - VOLLEDIGE VERSIE
-    # -------------------------------------------------------------------------
-    def _process_orders(self):
-        csv_data = self._read_csv(self.file_orders)
-        order_map = {}  # Oude ID -> Nieuwe Odoo Order ID
-        count = 0
-
-        # --- 1. CACHE OPBOUWEN ---
-        # We laden partners in het geheugen om zoekacties te versnellen
-        _logger.info("--- PARTNER CACHE OPBOUWEN... ---")
-        partner_obj = self.env['res.partner']
-
-        # We zoeken alle partners die een e-mail hebben
-        # Dit geeft een lijst van dicts terug: [{'id': 1, 'email': '...'}, ...]
-        all_partners = partner_obj.search_read(
-            [('email', '!=', False)],
-            ['id', 'email', 'name']
-        )
-
-        # Maak een snelle opzoek-tabel op E-MAIL
-        # We gebruiken .lower().strip() voor de zekerheid
-        partner_by_email = {}
-        for p in all_partners:
-            if p['email']:
-                clean_email = str(p['email']).strip().lower()
-                partner_by_email[clean_email] = p['id']
-
-        # Optioneel: Ook een cache op NAAM voor de fallback
-        partner_by_name = {p['name'].strip().lower(): p['id'] for p in all_partners if p['name']}
-
-        _logger.info(f"--- PARTNER CACHE KLAAR ({len(all_partners)} partners) ---")
-        _logger.info("--- START ORDERS IMPORT ---")
-
-        for row in csv_data:
-            # === COMMIT ===
-            count += 1
-            if count % 100 == 0:
-                self.env.cr.commit()
-                _logger.info(f"   ... {count} orders verwerkt")
-
-            old_id = row.get('bestel_id')
-            if not old_id: continue
-
-            # CHECK: Bestaat al?
-            # We zoeken op client_order_ref (= het oude bestel ID)
-            existing = self.env['sale.order'].search([('client_order_ref', '=', old_id)], limit=1)
-
-            if existing:
-                # Als hij al bestaat, slaan we hem op in de map (want de order lines hebben dit nodig)
-                # Maar we doen verder niets (SKIP)
-                order_map[old_id] = existing
-                continue
-
-            # Datum parsen (formaat: 2021-03-28 18:31:23)
-            order_date = fields.Datetime.now()
-            raw_date = row.get('datum')
-            if raw_date and raw_date != '0000-00-00 00:00:00':
-                try:
-                    order_date = fields.Datetime.from_string(raw_date)
-                except:
-                    pass
-
-            # Klant zoeken (Via onze snelle cache!)
-            raw_email = row.get('factuur_email', '')
-            email = str(raw_email).strip().lower()
-            partner_id = False
-
-            # 1. Zoek op Email in Cache
-            if email and email in partner_by_email:
-                partner_id = partner_by_email[email]
-
-            # 2. Zoek via Database (Fallback, voor het geval de cache niet up to date is)
-            if not partner_id and email:
-                p = partner_obj.search([('email', '=ilike', email)], limit=1)
-                if p: partner_id = p.id
-
-            # 3. Zoek op Naam (Fallback)
-            if not partner_id:
-                naam_raw = row.get('factuur_naam', 'Onbekende Klant')
-                naam_clean = str(naam_raw).strip().lower()
-
-                if naam_clean in partner_by_name:
-                    partner_id = partner_by_name[naam_clean]
-                else:
-                    # Nog steeds niet? Zoek in DB
-                    p = partner_obj.search([('name', '=ilike', naam_raw)], limit=1)
-                    if p: partner_id = p.id
-
-            # 4. Nog steeds niet? Maak aan!
-            if not partner_id:
-                naam = row.get('factuur_naam') or 'Onbekende Klant'
-                new_partner = partner_obj.create({
-                    'name': naam,
-                    'email': row.get('factuur_email'),
-                    'street': row.get('factuur_straat'),
-                    'city': row.get('factuur_gemeente'),
-                    'comment': 'Geïmporteerd uit oude bestellingen'
-                })
-                partner_id = new_partner.id
-
-                # Update de cache direct, zodat we hem de volgende keer snel vinden
-                if new_partner.email:
-                    partner_by_email[str(new_partner.email).strip().lower()] = new_partner.id
-                partner_by_name[str(new_partner.name).strip().lower()] = new_partner.id
-
-            # Order aanmaken
-            order = self.env['sale.order'].create({
-                'partner_id': partner_id,
-                'date_order': order_date,
-                'client_order_ref': old_id,  # Cruciaal voor duplicate check en lines koppeling
-                'origin': f"Import: {row.get('ordernummer')}",
-                'state': 'draft',  # We laten hem op draft staan, de volgende stap (6) vult hem
-            })
-
-            order_map[old_id] = order
-
-        return order_map
-
-    # -------------------------------------------------------------------------
-    # STAP 6: BESTELREGELS (ZONDER BEVESTIGING)
-    # -------------------------------------------------------------------------
-    def _process_order_lines(self, order_map):
-        # STAP A: Bouw een snelle "Financiële Map" op vanuit de PRODUCTEN CSV
-        # We lezen de producten CSV opnieuw in, puur voor de prijzen en commissies
-        _logger.info("--- ORDER LINES: Financiële data voorbereiden uit producten CSV... ---")
-
-        product_finance_map = {}  # Key = old_product_id, Value = {'paid': bool, 'comm_amt': float}
-
-        if self.file_products:
-            prod_csv = self._read_csv(self.file_products)
-            for row in prod_csv:
-                pid = self._clean_id(row.get('product_id'))
-                if not pid: continue
-
-                # 1. Uitbetaald Status
-                is_paid = str(row.get('uitbetaald', '')).lower() == 'ja'
-
-                # 2. Vaste Commissie Berekenen
-                try:
-                    price = float(str(row.get('prijs', '0')).replace(',', '.'))
-                    comm_perc = float(str(row.get('commissie', '0')).replace(',', '.'))
-
-                    # Formule: Prijs * (Percentage / 100)
-                    fixed_comm = price * (comm_perc / 100.0)
-                except:
-                    fixed_comm = 0.0
-
-                product_finance_map[pid] = {
-                    'paid': is_paid,
-                    'comm_amt': fixed_comm
-                }
-
-        _logger.info(f"--- FINANCIËLE MAP KLAAR: {len(product_finance_map)} items in geheugen. ---")
-
-        # STAP B: Verwerk nu de echte orderregels
-        csv_data = self._read_csv(self.file_order_lines)
-        count = 0
-        skipped = 0
-
-        _logger.info("--- START ORDER REGELS ---")
-
-        for row in csv_data:
-            # 1. Unieke ID bepalen
-            old_line_id = row.get('order_product_id')
-            if not old_line_id: continue
-
-            # 2. CHECK: Bestaat deze regel al? (Crash recovery)
-            existing_line = self.env['sale.order.line'].search([
-                ('x_old_id', '=', str(old_line_id))
-            ], limit=1)
-
-            if existing_line:
-                skipped += 1
-                continue
-
-            # 3. Order zoeken
-            old_order_id = row.get('order_id') or row.get('order_id_top')
-            order = False
-            if old_order_id in order_map:
-                order = order_map[old_order_id]
-            else:
-                order = self.env['sale.order'].search([('client_order_ref', '=', old_order_id)], limit=1)
-
-            if not order: continue
-
-            # 4. Product zoeken
-            old_product_id = row.get('product_id')
-            product = self.env['product.product'].search([
-                ('product_tmpl_id.x_old_id', '=', str(old_product_id))
-            ], limit=1)
-
-            if not product:
-                product = self.env['product.product'].search([('default_code', '=', 'MIGRATIE_ITEM')], limit=1)
-                if not product:
-                    product = self.env['product.product'].create({
-                        'name': 'Onbekend/Verwijderd Item (Migratie)',
-                        'default_code': 'MIGRATIE_ITEM',
-                        'type': 'service',
-                        'list_price': 0
-                    })
-
-            price_raw = row.get('prijs', '0').replace('€', '').replace(',', '.').strip()
-            try:
-                price = float(price_raw)
-            except:
-                price = 0.0
-
-            # 5. FINANCIËLE DATA OPZOEKEN
-            clean_pid = self._clean_id(old_product_id)
-            # Default is: Niet betaald, geen vast bedrag
-            finance_data = product_finance_map.get(clean_pid, {'paid': False, 'comm_amt': False})
-
-            # Logica bepalen:
-            # Als 'paid' = True -> Gebruik het berekende bedrag uit de CSV
-            # Als 'paid' = False -> Gebruik False (zodat Odoo het zelf berekent in het rapport)
-            fixed_comm_value = finance_data['comm_amt'] if finance_data['paid'] else False
-
-            # 6. Regel aanmaken
-            self.env['sale.order.line'].create({
-                'order_id': order.id,
-                'product_id': product.id,
-                'price_unit': price,
-                'product_uom_qty': 1,
-                'x_old_id': str(old_line_id),
-                # NIEUW & GECORRIGEERD:
-                'x_is_paid_out': finance_data['paid'],
-                'x_fixed_commission': fixed_comm_value  # <--- HIER ZAT DE FOU
-            })
-
-            count += 1
-            if count % 100 == 0:
-                self.env.cr.commit()
-                _logger.info(f"   ... {count} regels verwerkt")
-
-        _logger.info(f"--- KLAAR: {count} nieuwe regels. {skipped} overgeslagen (bestonden al). ---")
-
-    # -------------------------------------------------------------------------
-    # STAP 7: ORDERS BEVESTIGEN (MET AUTO-STOCK FIX)
-    # -------------------------------------------------------------------------
-    def action_confirm_migrated_orders(self):
-        _logger.info("--- START ORDER BEVESTIGING (MET SMART WAREHOUSE FIX) ---")
-
-        orders_to_confirm = self.env['sale.order'].search([
-            ('state', '=', 'draft'),
-            ('client_order_ref', '!=', False),
-            ('order_line', '!=', False)
-        ])
-
-        count = 0
-        total = len(orders_to_confirm)
-
-        # Fallback magazijn (voor als een order per ongeluk geen warehouse_id heeft)
-        default_warehouse = self.env['stock.warehouse'].search([], limit=1)
-
-        for order in orders_to_confirm:
-            count += 1
-            if count % 20 == 0:
-                self.env.cr.commit()
-                _logger.info(f"   ... {count}/{total} orders bevestigd")
-
-            try:
-                # --- STAP A: BEPAAL DE JUISTE LOCATIE ---
-                # We kijken nu naar het magazijn van DEZE specifieke order
-                wh = order.warehouse_id or default_warehouse
-                target_location_id = wh.lot_stock_id.id
-
-                # --- STAP B: CHECK STOCK (JUST-IN-TIME FIX) ---
-                for line in order.order_line:
-                    product = line.product_id
-                    if product.type == 'consu' and product.is_storable and product.qty_available < line.product_uom_qty:
-                        # We injecteren de stock nu in het JUISTE magazijn
-                        self.env['stock.quant'].with_context(inventory_mode=True).create({
-                            'product_id': product.id,
-                            'location_id': target_location_id,
-                            'inventory_quantity': line.product_uom_qty,
-                        }).action_apply_inventory()
-
-                # --- STAP C: BEVESTIGEN ---
-                original_date = order.date_order
-                order.action_confirm()
-
-                # --- STAP D: DE FACTUUR FIX ---
-                for line in order.order_line:
-                    line.write({'qty_invoiced': line.product_uom_qty})
-
-                order.write({'invoice_status': 'invoiced'})
-
-                # --- STAP E: LEVERING AFHANDELEN ---
-                if order.picking_ids:
-                    for picking in order.picking_ids:
-                        for move in picking.move_ids:
-                            move.quantity = move.product_uom_qty
-                            move.picked = True
-
-                        try:
-                            picking.with_context(skip_backorder=True).button_validate()
-                        except Exception as e:
-                            _logger.warning(f"Kon picking niet valideren voor {order.name}: {e}")
-
-                # --- STAP F: AFSLUITEN ---
-                order.write({
-                    'date_order': original_date,
-                    'effective_date': original_date,
-                    'state': 'sale',
-                })
-
-            except Exception as e:
-                _logger.warning(f"Fout bij order {order.name}: {e}")
-
-        _logger.info(f"--- KLAAR: {count} orders verwerkt. ---")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {'title': 'Klaar', 'message': f'{count} orders bevestigd.', 'type': 'success'}
-        }
-
-    def action_cleanup_stock(self):
-        """
-        Draai dit NA de order-import.
-        Zoekt producten die 'verkocht' moesten zijn (is_published=False en type=consu),
-        maar die nog steeds op voorraad liggen (omdat de order-import faalde of ontbrak).
-        Zet ze terug op 0.
-        """
-        _logger.info("--- START STOCK CLEANUP ---")
-
-        # We zoeken producten die:
-        # 1. Door migratie zijn aangemaakt (x_old_id bestaat)
-        # 2. Niet gepubliceerd zijn (want verkochte items staan op published=False)
-        # 3. Nog steeds voorraad hebben (> 0)
-
-        products_to_fix = self.env['product.product'].search([
-            ('product_tmpl_id.x_old_id', '!=', False),
-            ('product_tmpl_id.is_published', '=', False),
-            ('qty_available', '>', 0)
-        ])
-
-        count = 0
-        for product in products_to_fix:
-            # Check: Is dit echt een 'verkocht' item?
-            # We kunnen kijken of er een description is die we net hebben gezet
-            if "MIGRATIE: Was verkocht" in (product.description or ""):
-                # Correctie uitvoeren: Zet stock naar 0
-                self.env['stock.quant'].with_context(inventory_mode=True).create({
-                    'product_id': product.id,
-                    'location_id': self.env['stock.warehouse'].search([], limit=1).lot_stock_id.id,
-                    'inventory_quantity': 0.0,
-                }).action_apply_inventory()
-
-                count += 1
-
-        _logger.info(f"--- CLEANUP KLAAR: {count} wees-producten op 0 gezet ---")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {'title': 'Cleanup Klaar', 'message': f'{count} producten gecorrigeerd.', 'type': 'success'}
-        }
-
-    def action_fix_negative_stock(self):
-        _logger.info("--- START GROTE SCHOONMAAK (STOCK & PUBLICATIE) ---")
-
-        # --- DEEL 1: NEGATIEVE STOCK CORRIGEREN (-1 -> 0) ---
-        negative_quants = self.env['stock.quant'].search([
-            ('quantity', '<', 0),
-            ('location_id.usage', '=', 'internal')
-        ])
-
-        fixed_count = 0
-        for quant in negative_quants:
-            try:
-                # Zet stock hard op 0
-                quant.with_context(inventory_mode=True).write({
-                    'inventory_quantity': 0
-                })
-                quant.action_apply_inventory()
-                fixed_count += 1
-            except Exception as e:
-                _logger.warning(f"Kon {quant.product_id.name} niet corrigeren: {e}")
-
-        # --- DEEL 2: ALLES MET 0 STOCK OFFLINE HALEN ---
-        # We zoeken alle fysieke producten die NU online staan
-        published_products = self.env['product.template'].search([
-            ('is_published', '=', True),
-            ('type', '=', 'consu')
-        ])
-
-        # We filteren in Python wie er effectief <= 0 stock heeft
-        # (Dit pakt dus ook de producten mee die we net in stap 1 gefixt hebben)
-        products_to_hide = published_products.filtered(lambda p: p.qty_available <= 0)
-
-        unpublish_count = 0
-        for product in products_to_hide:
-            product.write({'is_published': False})
-            unpublish_count += 1
-
-        _logger.info(f"--- KLAAR: {fixed_count} voorraadfouten hersteld & {unpublish_count} producten offline gehaald. ---")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Schoonmaak Voltooid',
-                'message': f'✅ {fixed_count} x stock gecorrigeerd\n👻 {unpublish_count} x offline gehaald',
-                'type': 'success',
-                'sticky': False
-            }
-        }
-
-    def action_mark_history_as_paid(self):
-        _logger.info("--- START MARK HISTORY AS PAID (MET ORDER DATUM) ---")
-
-        lines_to_fix = self.env['sale.order.line'].search([
-            ('x_old_id', '!=', False),
-            ('x_is_paid_out', '=', False),
-            ('order_id.state', 'in', ['sale', 'done'])
-        ])
-
-        count = 0
-
-        for line in lines_to_fix:
-            count += 1
-            try:
-                submission = line.product_template_id.submission_id
-                if not submission: continue
-
-                perc = submission.payout_percentage
-                commission_amt = line.price_unit * perc
-
-                # --- HIER PAKKEN WE DE DATUM VAN DE ORDER ---
-                # date_order is een Datetime (datum + tijd), wij willen alleen de Date.
-                # Dus we doen .date()
-                payout_date = fields.Date.today() # Fallback
-                if line.order_id.date_order:
-                    payout_date = line.order_id.date_order.date()
-
-                line.write({
-                    'x_is_paid_out': True,
-                    'x_fixed_commission': commission_amt,
-                    'x_payout_date': payout_date  # <--- De historische datum
-                })
-
-            except Exception as e:
-                _logger.warning(f"Kon regel {line.id} niet updaten: {e}")
-
-            if count % 100 == 0:
-                self.env.cr.commit()
-
-        _logger.info(f"--- KLAAR: {count} regels bijgewerkt met historische datum. ---")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {'title': 'Bijgewerkt', 'message': f'{count} regels op betaald gezet (Datum van order overgenomen).', 'type': 'success'}
-        }
-
-    def action_fix_legacy_codes(self):
-        _logger.info("--- START LEGACY CODE UPDATE ---")
-
-        # We hebben het bestand nodig!
-        if not self.file_submissions:
-            raise UserError("Upload a.u.b. het bestand 'otters_verzendzak.csv' om de codes te kunnen matchen.")
-
-        csv_data = self._read_csv(self.file_submissions)
-        count = 0
-        total_rows = 0
-
-        # Cache opbouwen voor snelheid
-        # We zoeken alle submissions die een oud ID hebben
-        submissions = self.env['otters.consignment.submission'].search([('x_old_id', '!=', False)])
-        # Maak een dictionary:  {'2083': record_set(ID=5), ...}
-        submission_map = {sub.x_old_id: sub for sub in submissions}
-
-        for row in csv_data:
-            total_rows += 1
-            old_bag_id = self._clean_id(row.get('zak_id'))
-            legacy_code = row.get('code') # Bv. 20210241
-
-            if not old_bag_id or not legacy_code:
-                continue
-
-            # Hebben we deze zak in Odoo?
-            if old_bag_id in submission_map:
-                submission = submission_map[old_bag_id]
-
-                # Alleen schrijven als het veld nog leeg is of verschilt
-                if submission.x_legacy_code != legacy_code:
-                    submission.write({'x_legacy_code': legacy_code})
-                    count += 1
-
-            if total_rows % 500 == 0:
-                _logger.info(f"   ... {total_rows} rijen gecheckt, {count} geüpdatet")
-
-        _logger.info(f"--- KLAAR: {count} codes bijgewerkt. ---")
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {'title': 'Succes', 'message': f'{count} oude codes zijn toegevoegd.', 'type': 'success'}
-        }
-
-    def action_create_rescue_orders(self):
-        _logger.info("--- START REDDINGSOPERATIE (MET DATUMS) ---")
-
-        if not self.file_products:
-            raise UserError("Upload 'otters_producten.csv' om te weten wat uitbetaald moet zijn.")
-
-        # 1. Maak (of zoek) de dummy klant
-        rescue_partner = self.env['res.partner'].search([('email', '=', 'migration_unknown@otters.be')], limit=1)
-        if not rescue_partner:
-            rescue_partner = self.env['res.partner'].create({
-                'name': 'Klant Onbekend (Migratie)',
-                'email': 'migration_unknown@otters.be',
+    def _create_migration_records(self):
+        """ Maakt een generieke klant en inzending aan voor migratie doeleinden. """
+
+        # 1. Klant (Partner)
+        partner = self.env['res.partner'].search([('name', '=', 'Fictieve Migratie Klant')], limit=1)
+        if not partner:
+            partner = self.env['res.partner'].create({
+                'name': 'Fictieve Migratie Klant',
                 'is_company': False,
-                'x_payout_method': 'cash'
+                'email': 'migratie@ottersenflamingos.be',
+                'comment': 'Gebruikt voor het simuleren van historische verkoop uit de oude webshop.'
+            })
+        self.migration_partner_id = partner
+
+        # 2. Inzending (Submission)
+        submission = self.env['otters.consignment.submission'].search([('name', '=', 'MIGRATIE - Stock Kopieën')],
+                                                                      limit=1)
+        if not submission:
+            # We gebruiken skip_sendcloud=True om te voorkomen dat er labels worden aangemaakt
+            submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
+                'name': 'MIGRATIE - Stock Kopieën',
+                'supplier_id': partner.id,
+                'state': 'online',  # Dit bestaat in je model, dus is veilig!
+                'payout_method': 'coupon',
+                'payout_percentage': 0.5,
+
+                # Verplichte velden (Required=True) invullen:
+                'agreed_to_terms': True,
+                'agreed_to_clothing_terms': True,
+                'agreed_to_shipping_fee': True,
             })
 
-        csv_data = self._read_csv(self.file_products)
+        self.migration_submission_id = submission
 
-        # Cache opbouwen
-        products_with_stock = self.env['product.product'].search([('qty_available', '>', 0)])
-        stock_map_by_old_id = {
-            p.product_tmpl_id.x_old_id: p
-            for p in products_with_stock
-            if p.product_tmpl_id.x_old_id
-        }
+    def _is_empty_date(self, date_str):
+        """ Utility om te controleren op lege/ongeldige datums """
+        return not date_str or date_str in ('0000-00-00', '0000-11-30', 'nan', '')
 
-        # 2. We gaan eerst groeperen:  {'2022-05-12': [lijst_met_producten], '2021-01-01': [...]}
-        orders_to_create = {}
-        total_products_found = 0
+    def _parse_date(self, date_str):
+        # CORRECT: Als het leeg is, geef False terug.
+        if self._is_empty_date(date_str):
+            return False
 
-        for row in csv_data:
-            uitbetaald = str(row.get('uitbetaald', '')).lower()
-            if uitbetaald != 'ja':
-                continue
+        try:
+            return fields.Date.from_string(date_str)
+        except ValueError:
+            _logger.warning(f"Datum {date_str} onleesbaar")
+            return False
 
-            old_id = self._clean_id(row.get('product_id'))
+    def _create_fictive_order(self, product, date, partner_id, is_paid, payout_date):
+        """
+        Maakt een fictieve SO aan.
+        FIX: Gebruikt state='sale' en zet qty_invoiced=besteld zodat hij niet bij 'Te Factureren' komt.
+        """
 
-            # Alleen als het product nog stock heeft (dus: order ontbrak)
-            if old_id in stock_map_by_old_id:
-                product = stock_map_by_old_id[old_id]
+        product_variant = product.product_variant_id
+        if not product_variant:
+            _logger.warning(f"❌ SKIP: Product {product.name} heeft geen variant.")
+            return
 
-                # --- DATUM BEPALING ---
-                # Pas 'datum_verkocht' aan naar de echte naam van je kolom!
-                date_str = row.get('datum_verkocht')
+        # 1. Datum Check & Conversie
+        if not date:
+            _logger.warning(f"⛔ SKIP ORDER: Product {product.x_old_id} (Naam: {product.name}) - Geen datum.")
+            self._set_unsold_migration(product, 0, reason_text="MIGRATIE FOUT: Order overgeslagen wegens ontbrekende datum")
+            return
 
-                # Probeer de datum te parsen. Als het faalt of leeg is, gebruik fallback.
-                order_date = '2021-01-01' # Fallback datum
-                if date_str and str(date_str) != 'nan' and str(date_str) != '0000-00-00':
-                    try:
-                        # Probeer formaat YYYY-MM-DD
-                        if '-' in str(date_str):
-                            order_date = str(date_str).split(' ')[0] # Strip tijd eraf indien aanwezig
-                    except:
-                        pass
+        date_order_dt = fields.Datetime.to_datetime(date)
 
-                # Voeg toe aan de groep voor deze datum
-                if order_date not in orders_to_create:
-                    orders_to_create[order_date] = []
-
-                # Bereken commissie
-                price = product.lst_price
-                comm_perc = 0.0
-                try: comm_perc = float(str(row.get('commissie', '0')).replace(',', '.')) / 100.0
-                except: pass
-                fixed_comm = price * comm_perc
-
-                # Sla de regeldata op
-                orders_to_create[order_date].append({
-                    'product_id': product.id,
-                    'price': price,
-                    'commission': fixed_comm
-                })
-                total_products_found += 1
-
-        _logger.info(f"--- GROEPEREN KLAAR: {total_products_found} producten verdeeld over {len(orders_to_create)} dagen. ---")
-
-        # 3. Orders aanmaken en bevestigen
-        processed_orders = 0
-
-        for date_key, lines_data in orders_to_create.items():
-            processed_orders += 1
-
-            # A. Maak de order
-            rescue_order = self.env['sale.order'].create({
-                'partner_id': rescue_partner.id,
-                'client_order_ref': f'MIGRATIE_RESCUE_{date_key}',
-                'date_order': date_key,
-                'effective_date': date_key,
+        # 2. Order Maken (Draft)
+        try:
+            order = self.env['sale.order'].create({
+                'partner_id': partner_id.id if isinstance(partner_id, type(self.env['res.partner'])) else partner_id,
+                'date_order': date_order_dt,
+                'client_order_ref': f"MIGR_{product.x_old_id}_{fields.Date.to_string(date)}",
+                'origin': f"Migratie: {product.name}",
+                'state': 'draft',
             })
+        except Exception as e:
+            _logger.error(f"❌ CRASH bij maken order voor {product.x_old_id}: {e}")
+            return
 
-            # B. Maak de regels
-            for line_data in lines_data:
-                self.env['sale.order.line'].create({
-                    'order_id': rescue_order.id,
-                    'product_id': line_data['product_id'],
-                    'product_uom_qty': 1,
-                    'price_unit': line_data['price'],
-                    'x_is_paid_out': True,
-                    'x_fixed_commission': line_data['commission'],
-                    'x_payout_date': row.get('datum_uitbetaald')
-                })
+        # 3. Lijn Maken
+        line = self.env['sale.order.line'].create({
+            'order_id': order.id,
+            'product_id': product_variant.id,
+            'price_unit': product.list_price,
+            'product_uom_qty': 1,
+            'x_is_paid_out': is_paid,
+            'x_payout_date': payout_date,
+            'x_old_id': f"MIGR_{product.x_old_id}"
+        })
 
-            # C. Bevestig en Lever uit!
-            try:
-                # 1. Bevestig Order (Stock wordt gereserveerd)
-                rescue_order.action_confirm()
+        # 4. Bevestigen (Zet status op 'sale')
+        order.action_confirm()
 
-                # 2. Forceer de levering (Stock gaat van 1 -> 0)
-                if rescue_order.picking_ids:
-                    for picking in rescue_order.picking_ids:
-                        # Zeg dat alles 'Gepickt' is
-                        for move in picking.move_ids:
-                            move.quantity = move.product_uom_qty
-                            move.picked = True
+        # --- DE CRUCIALE FIX ---
+        # Odoo kijkt naar het verschil tussen 'Besteld' en 'Gefactureerd'.
+        # Wij zeggen nu hard: "Alles is al geleverd en gefactureerd".
+        for l in order.order_line:
+            l.write({
+                'qty_delivered': l.product_uom_qty,
+                'qty_invoiced': l.product_uom_qty
+            })
+        # -----------------------
 
-                            # Valideer de levering
-                        picking.with_context(skip_backorder=True).button_validate()
+        # 5. Finaliseren
+        # We hoeven invoice_status niet meer te forceren, Odoo berekent die nu zelf als 'invoiced'
+        # omdat qty_invoiced == product_uom_qty.
+        order.write({
+            'state': 'sale',             # Gewoon 'Sale' gebruiken
+            'effective_date': date_order_dt,
+        })
 
-                # 3. Factuur status fixen en datum herstellen
-                for line in rescue_order.order_line:
-                    line.write({'qty_invoiced': line.product_uom_qty})
+        # 6. Opruimen
+        self._update_stock(product, 0)
+        product.write({'is_published': False})
 
-                rescue_order.write({
-                    'invoice_status': 'invoiced',
-                    'state': 'sale',
-                    'date_order': date_key
-                })
+        _logger.info(f"✅ ORDER AANGEMAAKT: {order.name} voor {product.name}")
 
-            except Exception as e:
-                _logger.warning(f"Kon rescue order voor {date_key} niet volledig verwerken: {e}")
+    def _create_product_copy(self, original_product, stock_qty):
+        """ Kopieert het product en zet het nieuwe exemplaar op voorraad en gepubliceerd. """
 
-            if processed_orders % 50 == 0:
-                self.env.cr.commit()
-                _logger.info(f"   ... {processed_orders} dagen verwerkt")
+        # 1. Haal de migratie inzending op (dit is al een recordset)
+        mig_submission = self.migration_submission_id
+
+        if not mig_submission:
+            # Vangnet: als de wizard opnieuw gestart is, kan dit veld leeg zijn.
+            # Zoek hem dan opnieuw.
+            mig_submission = self.env['otters.consignment.submission'].search([('name', '=', 'MIGRATIE - Stock Kopieën')], limit=1)
+
+        # 2. Kopie maken
+        # We gebruiken strikt .id (int) voor de submission_id
+        new_product = original_product.copy({
+            'name': original_product.name + ' (Kopie Migratie)',
+            'submission_id': mig_submission.id, # <--- DIT MOET EEN INTEGER ZIJN
+            'x_old_id': False,
+            'default_code': (original_product.default_code or '') + '-C',
+        })
+
+        # 3. Stock en Publicatie op de kopie
+        self._update_stock(new_product, stock_qty)
+        new_product.write({'is_published': True})
+
+        _logger.info(f"   [COPY] Product gekopieerd: {new_product.name}")
+
+    def _set_unsold_migration(self, product, stock_qty, reason_text=''):
+        """
+        Product is niet uitbetaald en niet verkocht.
+        We bepalen de reden op basis van de tekst uit de CSV (waarom_niet_weergeven).
+        """
+        self._update_stock(product, stock_qty)  # Behoud de stock (vaak 0)
+
+        # OUDE LOGICA HERSTELD: Bepaal de categorie van de reden
+        t = str(reason_text).lower()
+        reason_code = 'other'  # Default
+
+        if 'terug' in t or 'opgehaald' in t:
+            reason_code = 'returned'
+        elif 'goed doel' in t or 'spullenhulp' in t or 'doneer' in t:
+            reason_code = 'charity'
+        elif 'verloren' in t or 'kapot' in t or 'vlek' in t:
+            reason_code = 'lost'
+        elif 'merk' in t:
+            reason_code = 'brand'
+        elif not t and stock_qty <= 0:
+            reason_code = 'unknown_migration'  # Alleen unknown als er echt geen tekst is
+
+        # Interne notitie toevoegen als er tekst is
+        if reason_text:
+            old_desc = product.description or ''
+            product.write({'description': f"{old_desc}\n[MIGRATIE] Reden onverkocht: {reason_text}".strip()})
+
+        product.write({
+            'is_published': False,
+            'x_unsold_reason': reason_code
+        })
+
+    def _set_published_stock(self, product, stock_qty):
+        """ Product is beschikbaar en moet online staan. """
+        self._update_stock(product, stock_qty)
+        product.write({
+            'is_published': True,
+            'x_unsold_reason': False
+        })
