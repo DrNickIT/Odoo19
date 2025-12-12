@@ -3,6 +3,7 @@ from odoo import models, api, _
 import logging
 import re
 import requests
+import base64
 
 _logger = logging.getLogger(__name__)
 
@@ -32,14 +33,43 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             label_url = result.get('label', {}).get('label_printer')
             tracking_nr = result.get('tracking_number')
 
+            # --- NIEUWE LOGICA: PDF DOWNLOADEN ---
+            attachment_id = False
             if label_url:
-                self.env['otters.consignment.label'].sudo().create({
-                    'submission_id': self.id,
-                    'label_url': label_url,
-                    'tracking_number': tracking_nr
-                })
+                try:
+                    # 1. Download de PDF met de API keys van de config
+                    pdf_response = requests.get(label_url, auth=config['auth'])
 
-            self._send_label_email()
+                    if pdf_response.status_code == 200:
+                        # 2. Maak een Odoo Attachment aan
+                        pdf_content = base64.b64encode(pdf_response.content)
+                        filename = f"Verzendlabel_{self.name}.pdf"
+
+                        attachment = self.env['ir.attachment'].create({
+                            'name': filename,
+                            'type': 'binary',
+                            'datas': pdf_content,
+                            'res_model': 'otters.consignment.submission',
+                            'res_id': self.id,
+                            'mimetype': 'application/pdf'
+                        })
+                        attachment_id = attachment.id
+
+                        # 3. Sla het label record op (voor referentie)
+                        self.env['otters.consignment.label'].sudo().create({
+                            'submission_id': self.id,
+                            'label_url': label_url, # We bewaren de URL voor intern gebruik
+                            'tracking_number': tracking_nr
+                        })
+                    else:
+                        _logger.error(f"Kon PDF niet downloaden van Sendcloud. Status: {pdf_response.status_code}")
+
+                except Exception as e:
+                    _logger.error(f"Fout bij downloaden label PDF: {e}")
+
+            # 4. Stuur de e-mail MET de bijlage
+            self._send_label_email(attachment_id)
+
             return self._return_notification('Succes', 'Label aangemaakt en gemaild!', 'success')
         else:
             error_msg = result if isinstance(result, str) else "Onbekende fout"
@@ -133,12 +163,21 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             except Exception as e:
                 _logger.error(f"Fout mail admin: {e}")
 
-    def _send_label_email(self):
+    def _send_label_email(self, attachment_id=None):
         if not self.supplier_id.email: return
+
         template = self.env.ref('otters_consignment.mail_template_consignment_label_send', raise_if_not_found=False)
         if template:
             try:
-                template.sudo().send_mail(self.id, force_send=True)
+                # Bereid de mail waarden voor
+                email_values = {}
+
+                # Als we een bijlage hebben, voegen we die toe
+                if attachment_id:
+                    email_values['attachment_ids'] = [(4, attachment_id)]
+
+                template.sudo().send_mail(self.id, force_send=True, email_values=email_values)
+
             except Exception as e:
                 _logger.error(f"Label mail fout: {e}")
 
