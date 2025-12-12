@@ -50,9 +50,10 @@ OK --> ** In bulk korting weghalen
 ** laatste kortingcode toevoegen.
 OK --> Uit collectie halen
 OK --> Importeer module fixen
-* Er wordt tijdens de migratie een maat 1 toegevoegd
-* Er wordt tijdens de migratie als naam Kopie Migratie gemaakt
-* Schoenmaat is < 40
+OK --> * Er wordt tijdens de migratie een maat 1 toegevoegd. Manueel via kenmerken / maat de 1 weggooien.
+OK --> * Splits maten van kleren
+OK --> * Er wordt tijdens de migratie als naam Kopie Migratie gemaakt
+OK --> * Schoenmaat is < 40
 * Kadertjes in de carousel fixen (thema)
 * In bulk de categorie veranderen
 * Labels goed afdrukken

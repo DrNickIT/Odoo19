@@ -483,7 +483,7 @@ class MigrationWizard(models.TransientModel):
             if maat_raw:
                 try:
                     clean_maat = re.match(r"(\d+)", maat_raw)
-                    if clean_maat and int(clean_maat.group(1)) <= 45 and target_cat_name not in ['Accessoires',
+                    if clean_maat and int(clean_maat.group(1)) < 44 and target_cat_name not in ['Accessoires',
                                                                                                  'Schoenen & Kousen']:
                         target_cat_name = 'Schoenen & Kousen';
                         target_sub_name = 'Schoenen'
@@ -724,21 +724,44 @@ class MigrationWizard(models.TransientModel):
 
     def _add_attribute(self, product, att_name, val_name):
         if not val_name or str(val_name) == 'nan': return
-        vals = str(val_name).replace('&', '|').replace(' en ', '|').split('|')
+
+        clean_val_string = str(val_name).replace('/', '|').replace('&', '|').replace(' en ', '|')
+
+        vals = clean_val_string.split('|')
+
         for v in vals:
             v = v.strip()
             if not v: continue
+
             attribute = self.env['product.attribute'].search([('name', '=ilike', att_name)], limit=1)
-            if not attribute: attribute = self.env['product.attribute'].create(
-                {'name': att_name, 'create_variant': 'no_variant'})
-            value = self.env['product.attribute.value'].search(
-                [('attribute_id', '=', attribute.id), ('name', '=ilike', v)], limit=1)
-            if not value: value = self.env['product.attribute.value'].create({'name': v, 'attribute_id': attribute.id})
-            exists = False
-            for line in product.attribute_line_ids:
-                if line.attribute_id.id == attribute.id and value.id in line.value_ids.ids: exists = True
-            if not exists: self.env['product.template.attribute.line'].create(
-                {'product_tmpl_id': product.id, 'attribute_id': attribute.id, 'value_ids': [(6, 0, [value.id])]})
+            if not attribute:
+                attribute = self.env['product.attribute'].create({
+                    'name': att_name,
+                    'create_variant': 'no_variant'
+                })
+
+            value = self.env['product.attribute.value'].search([
+                ('attribute_id', '=', attribute.id),
+                ('name', '=ilike', v)
+            ], limit=1)
+
+            if not value:
+                value = self.env['product.attribute.value'].create({
+                    'name': v,
+                    'attribute_id': attribute.id
+                })
+
+            existing_line = product.attribute_line_ids.filtered(lambda l: l.attribute_id.id == attribute.id)
+
+            if existing_line:
+                if value.id not in existing_line.value_ids.ids:
+                    existing_line.write({'value_ids': [(4, value.id)]})
+            else:
+                self.env['product.template.attribute.line'].create({
+                    'product_tmpl_id': product.id,
+                    'attribute_id': attribute.id,
+                    'value_ids': [(6, 0, [value.id])]
+                })
 
     def _add_attribute_by_id(self, product, attribute_id, value_id):
         exists = False
