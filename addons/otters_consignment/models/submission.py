@@ -368,3 +368,37 @@ class ConsignmentSubmission(models.Model):
                 'sticky': False,
             }
         }
+
+    def action_set_online_and_notify(self):
+        """ Zet de status op online en stuur een mail naar de klant. """
+        self.ensure_one()
+
+        # 1. Update status
+        if self.state != 'online':
+            self.write({'state': 'online'})
+
+        # 2. Stuur E-mail
+        if not self.supplier_id.email:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {'title': 'Let op', 'message': 'Klant heeft geen e-mailadres, status is wel gewijzigd.', 'type': 'warning'}
+            }
+
+        template = self.env.ref('otters_consignment.mail_template_consignment_is_online', raise_if_not_found=False)
+        if template:
+            template.sudo().send_mail(self.id, force_send=True)
+
+        # 3. Logboek bericht & Feedback
+        self.message_post(body="Klant is per mail verwittigd dat de items online staan.")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Verzonden',
+                'message': 'De klant heeft een e-mail ontvangen en de status is Online.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }

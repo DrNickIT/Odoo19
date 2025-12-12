@@ -56,9 +56,9 @@ OK --> * Er wordt tijdens de migratie als naam Kopie Migratie gemaakt
 OK --> * Schoenmaat is < 40
 * Kadertjes in de carousel fixen (thema)
 OK --> * In bulk de categorie veranderen: Dit kan al in odoo. Alle producten selecteren --> kan je voor alle producten de categorie aanpassen.
-* Labels goed afdrukken
-* Knop om mail naar klant te sturen als verzending klaar is
+OK --> * Labels goed afdrukken: koptekst afstand = 0
+OK --> * Knop om mail naar klant te sturen als verzending klaar is
 OK --> * Link naar sendcloud label werkt niet?
-* Alle labels van een zak afdrukken
+OK --> * Alle labels van een zak afdrukken: Via de link op producten bovenaan op de inzending
 OK --> * Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
 
