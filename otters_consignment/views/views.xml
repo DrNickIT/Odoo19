@@ -223,6 +223,99 @@
         <field name="search_view_id" ref="view_consignment_submission_search"/>
     </record>
 
+    <record id="action_fix_split_sizes" model="ir.actions.server">
+        <field name="name">✂️ Splits Gecombineerde Maten (122/128 -> 122, 128)</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="binding_model_id" ref="product.model_product_template"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+# CONFIGURATIE: Hoe heet je attribuut?
+ATTR_NAME = "Maat"
+
+# 1. Zoek het attribuut ID
+attribute = env['product.attribute'].search([('name', '=ilike', ATTR_NAME)], limit=1)
+if not attribute:
+    raise UserError(f"Attribuut '{ATTR_NAME}' niet gevonden!")
+
+# 2. Zoek alle "foute" waarden (die een / bevatten)
+# We zoeken specifiek naar waarden van dit attribuut die een slash hebben
+bad_values = env['product.attribute.value'].search([
+    ('attribute_id', '=', attribute.id),
+    ('name', 'like', '/')
+])
+
+products_fixed_count = 0
+values_fixed = []
+
+for bad_val in bad_values:
+    old_name = bad_val.name
+
+    # Splitsen: "122/128" -> ["122", "128"]
+    # We strippen spaties voor de zekerheid
+    new_size_names = [x.strip() for x in old_name.split('/') if x.strip()]
+
+    if not new_size_names:
+        continue
+
+    # 3. Zoek of maak de nieuwe losse waarden
+    new_val_ids = []
+    for size_name in new_size_names:
+        # Bestaat maat "122" al?
+        existing_val = env['product.attribute.value'].search([
+            ('attribute_id', '=', attribute.id),
+            ('name', '=', size_name)
+        ], limit=1)
+
+        if existing_val:
+            new_val_ids.append(existing_val.id)
+        else:
+            # Maak nieuw aan
+            new_val = env['product.attribute.value'].create({
+                'name': size_name,
+                'attribute_id': attribute.id,
+                'sequence': 10 # Komt achteraan, moet je straks manueel sorteren
+            })
+            new_val_ids.append(new_val.id)
+
+    # 4. Zoek alle producten die deze "foute" waarde gebruiken
+    # We zoeken in de koppelingstabel (product.template.attribute.line)
+    lines_to_fix = env['product.template.attribute.line'].search([
+        ('attribute_id', '=', attribute.id),
+        ('value_ids', 'in', bad_val.id)
+    ])
+
+    for line in lines_to_fix:
+        # We passen de lijst met waardes aan:
+        # (3, ID) = Verwijder relatie (De oude 122/128)
+        # (4, ID) = Voeg relatie toe (De nieuwe 122 en 128)
+
+        commands = [(3, bad_val.id)]
+        for nid in new_val_ids:
+            commands.append((4, nid))
+
+        line.write({'value_ids': commands})
+        products_fixed_count += 1
+
+    values_fixed.append(old_name)
+
+# 5. Feedback
+msg = f"Klaar! {products_fixed_count} producten gecorrigeerd.\n"
+msg += f"Gesplitste maten: {', '.join(values_fixed)}"
+
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'title': 'Maten Gesplitst',
+        'message': msg,
+        'type': 'success',
+        'sticky': True,
+    }
+}
+        </field>
+    </record>
+
     <menuitem id="menu_consignment_root" name="Verzendlabels" sequence="10"/>
     <menuitem id="menu_consignment_submission" name="Inzendingen" parent="otters_consignment.menu_consignment_root" action="action_consignment_submission" sequence="10"/>
 </odoo>
