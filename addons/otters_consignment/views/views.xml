@@ -105,10 +105,19 @@
                             type="action"
                             class="btn-secondary"
                             invisible="state == 'cancel'"/>
+                    <button name="action_reset_products_for_test"
+                            string="♻️ Reset voor Import Test"
+                            type="object"
+                            confirm="Dit archiveert alle producten en hernoemt hun codes zodat je opnieuw kunt importeren. Doorgaan?"
+                            groups="base.group_no_one"
+                            class="btn-warning"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" icon="fa-shirtsinbulk" disabled="1">
+                        <button name="action_view_products"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-shirtsinbulk">
                             <field name="product_count" widget="statinfo" string="Producten"/>
                         </button>
                         <button class="oe_stat_button" icon="fa-ban" disabled="1">
