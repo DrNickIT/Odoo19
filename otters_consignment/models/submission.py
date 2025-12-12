@@ -310,3 +310,61 @@ class ConsignmentSubmission(models.Model):
             grouped_data[key]['payout'] += line.x_fixed_commission
 
         return list(grouped_data.values())
+
+    def action_view_products(self):
+        self.ensure_one()
+        return {
+            'name': 'Producten',
+            'type': 'ir.actions.act_window',
+            'res_model': 'product.template',
+            'view_mode': 'list,form',
+            # FILTER: Toon alleen producten van DEZE inzending
+            'domain': [('submission_id', '=', self.id)],
+            'context': {
+                'default_submission_id': self.id,
+                'default_is_published': True,
+                # Zorg dat we terug kunnen keren
+                'search_default_submission_id': self.id
+            },
+        }
+
+    def action_reset_products_for_test(self):
+        """
+        DEV TOOL: Archiveer producten en maak hun interne referentie (code) vrij
+        zodat je de import opnieuw kunt testen zonder 'Duplicate Code' fouten.
+        """
+        self.ensure_one()
+
+        # Haal alle actieve producten op die nog niet gearchiveerd zijn
+        products_to_reset = self.product_ids.filtered(lambda p: p.active)
+
+        count = len(products_to_reset)
+
+        for product in products_to_reset:
+            old_code = product.default_code or 'GEENCODE'
+
+            # We hernoemen de code, bv: "BROEK001" -> "DEL_145_BROEK001"
+            # Hierdoor is "BROEK001" weer vrij voor je import wizard.
+            new_code = f"DEL_{product.id}_{old_code}"
+
+            product.write({
+                # 1. Code vrijmaken
+                'default_code': new_code,
+
+                # 2. Stock op 0 zetten (gebruikt jouw bestaande logica in product_template.py)
+                'x_unsold_reason': 'other',
+
+                # 3. Archiveren (het vuilbakje effect)
+                'active': False
+            })
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Reset Geslaagd',
+                'message': f'{count} producten zijn gearchiveerd en hun codes zijn vrijgegeven.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
