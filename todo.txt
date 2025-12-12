@@ -59,6 +59,6 @@ OK --> * Schoenmaat is < 40
 * Labels goed afdrukken
 * Knop om mail naar klant te sturen als verzending klaar is
 * Link naar sendcloud label werkt niet?
-* Alle labels van een zak adrukken
-* Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
+* Alle labels van een zak afdrukken
+OK --> * Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
 
