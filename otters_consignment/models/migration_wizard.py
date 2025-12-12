@@ -235,15 +235,30 @@ class MigrationWizard(models.TransientModel):
             if not submission:
                 # === DATUM FIX ===
                 raw_date = row.get('datum_ontvangen')
-                date = fields.Date.today()  # Standaard vandaag
+                date = False
 
+                # STAP 1: Probeer de echte datum uit de CSV
                 if raw_date and raw_date not in ['0000-00-00', 'nan', '']:
                     try:
                         # Check of het formaat geldig is
                         fields.Date.from_string(raw_date)
                         date = raw_date
                     except ValueError:
-                        pass  # Bij fout, hou 'vandaag' aan
+                        pass
+
+                        # STAP 2: Geen datum? Haal jaar uit de CODE (bvb. 20210337 -> 2021-07-01)
+                if not date:
+                    code_str = str(row.get('code', '')).strip()
+                    # Check of we minstens 4 tekens hebben en dat de eerste 4 cijfers zijn
+                    if len(code_str) >= 4 and code_str[:4].isdigit():
+                        year = code_str[:4]
+                        # We zetten hem hard op 1 juli van dat jaar
+                        date = f"{year}-07-01"
+                        _logger.info(f"Datum hersteld uit code {code_str}: {date}")
+
+                # STAP 3: Nog steeds niets? Dan maar vandaag.
+                if not date:
+                    date = fields.Date.today()
 
                 # ... (Partner IBAN ophalen) ...
                 partner_iban = partner.bank_ids[:1].acc_number if partner.bank_ids else False
