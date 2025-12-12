@@ -49,4 +49,15 @@ OK --> * Klanten moeten nog zien hoeveel producten ze in de zak hebben. Dit ziet
 OK --> ** In bulk korting weghalen
 ** laatste kortingcode toevoegen.
 OK --> Uit collectie halen
+OK --> Importeer module fixen
+* Er wordt tijdens de migratie een maat 1 toegevoegd
+* Er wordt tijdens de migratie als naam Kopie Migratie gemaakt
+* Schoenmaat is < 40
+* Kadertjes in de carousel fixen (thema)
+* In bulk de categorie veranderen
+* Labels goed afdrukken
+* Knop om mail naar klant te sturen als verzending klaar is
+* Link naar sendcloud label werkt niet?
+* Alle labels van een zak adrukken
+* Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
 
