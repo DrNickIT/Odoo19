@@ -92,18 +92,32 @@ class ImageUploadWizard(models.TransientModel):
 
                 # --- UPDATE DATABASE RECORDS ---
 
-                # A. Creëer Secundaire Afbeeldingen (met sudo om ACL's van portal user te omzeilen)
-                new_image_records = []
+                # A. Creëer Secundaire Afbeeldingen (met duplicate check)
+                ImageModel = self.env['product.image'].sudo()
+
                 for product_id, data in product_updates.items():
-                    new_image_records.extend(data['secondary_images'])
+                    for img_vals in data['secondary_images']:
+                        # CHECK: Bestaat er al een extra foto voor dit product met deze naam?
+                        # De naam is bv: "Broek S.Oliver - 2"
+                        existing = ImageModel.search([
+                            ('product_tmpl_id', '=', product_id),
+                            ('name', '=', img_vals['name'])
+                        ], limit=1)
 
-                if new_image_records:
-                    self.env['product.image'].sudo().create(new_image_records)
+                        if existing:
+                            # OPTIE 1: Overschrijven (Update de foto als hij al bestaat)
+                            existing.write({'image_1920': img_vals['image_1920']})
+                            _logger.info(f"Afbeelding geüpdatet: {img_vals['name']}")
 
-                # B. Update Hoofdafbeeldingen
+                            # OPTIE 2: Negeren (doe niets)
+                            # continue
+                        else:
+                            # Bestaat nog niet -> Aanmaken
+                            ImageModel.create(img_vals)
+
+                # B. Update Hoofdafbeeldingen (Blijft hetzelfde: overschrijven is prima)
                 for product_id, data in product_updates.items():
                     if data['main_image']:
-                        # Update de hoofdafbeelding (image_1920) op de product.template
                         self.env['product.template'].browse(product_id).sudo().write({
                             'image_1920': data['main_image']
                         })
