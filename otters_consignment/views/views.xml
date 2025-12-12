@@ -105,12 +105,20 @@
                             type="action"
                             class="btn-secondary"
                             invisible="state == 'cancel'"/>
+
+                    <button name="action_set_online_and_notify"
+                            string="🚀 Zet Online &amp; Mail Klant"
+                            type="object"
+                            class="btn-primary"
+                            confirm="Dit zet de status op 'Online' en stuurt een mail naar de klant. Doorgaan?"/>
+
                     <button name="action_reset_products_for_test"
                             string="♻️ Reset voor Import Test"
                             type="object"
                             confirm="Dit archiveert alle producten en hernoemt hun codes zodat je opnieuw kunt importeren. Doorgaan?"
                             groups="base.group_no_one"
                             class="btn-warning"/>
+                    <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
