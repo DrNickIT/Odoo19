@@ -23,31 +23,22 @@
    2. DE CONFETTI FOTO CONTAINER
 ============================================== */
 .oe_product_cart .oe_product_image {
-  /* Alleen padding toevoegen voor de rand.
-     We komen NIET aan width, height of aspect-ratio. */
+  /* Alleen padding toevoegen voor de rand. */
   padding: 25px !important;
 
   /* De confetti achtergrond positioneren */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
-  /* Zorg dat de achtergrond (confetti) stopt bij de padding */
   background-origin: border-box;
 }
 
 /* ==============================================
    3. DE GEKLEURDE RAND (INFO BLOK)
+   Hier voegen we Flexbox toe om de hoogte op te vullen
 ============================================== */
 .oe_product_cart .o_wsale_product_information {
-  /* We zetten de achtergrond op wit, anders zie je de randen soms niet goed.
-     Als je dit transparant wilt, haal dan de volgende regel weg: */
   background-color: #ffffff !important;
-
-  /* We halen text-align, color en font styling WEG.
-     Dit pakt hij nu van jouw Odoo Editor instellingen. */
-
-  /* Alleen padding en rand-vormgeving */
   padding: 10px !important;
 
   border-top: none !important;
@@ -59,35 +50,61 @@
   border-left-width: 15px;
   border-right-width: 15px;
   border-style: solid;
+
+  /* --- NIEUW: ZORG DAT DIT BLOK UITREKT --- */
+  /* Dit duwt de border naar beneden zodat hij gelijk komt met de buurman */
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Duwt prijs naar beneden, titel naar boven */
 }
 
 
 /* ==============================================
    4. TECHNISCHE FIX VOOR SNIPPETS
-   Alleen nodig omdat snippets anders soms de foto verbergen.
 ============================================== */
-
-/* In de snippet zit de foto in een link (a) en een span.
-   We zorgen alleen dat die de ruimte vullen binnen de confetti-padding. */
 .o_carousel_product_card .oe_product_image a,
 .o_carousel_product_card .oe_product_image .oe_product_image_img_wrapper {
   display: block !important;
   width: 100% !important;
-  /* Min-height zorgt dat de confetti altijd zichtbaar is, ook als de foto traag laadt */
   min-height: 100%;
 }
 
-/* Specifiek voor de achtergrond-afbeelding in snippets (de span) */
 .o_carousel_product_card .oe_product_image .oe_product_image_img {
   display: block !important;
   width: 100% !important;
-
-  /* We dwingen hier een hoogte af, anders is de snippet foto 0px hoog */
   min-height: 250px;
   height: 100% !important;
-
-  /* Standaard gedrag nabootsen zonder zoom te forceren */
   background-size: contain !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
+}
+
+/* ==============================================
+   5. ALGEMENE KAART STRUCTUUR (NIEUW)
+   Dit zorgt dat de kaart zelf de volle hoogte van de rij pakt
+============================================== */
+.oe_product_cart {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Zorg dat we de border-radius en overflow respecteren */
+  border: none;
+}
+
+/* ==============================================
+   6. TITEL HOOGTE FIX (NIEUW)
+   Forceer altijd 2 regels hoogte voor de titel
+============================================== */
+.oe_product_cart .o_wsale_products_item_title {
+  line-height: 1.4;
+  min-height: 2.8em; /* 1.4 * 2 regels = 2.8em */
+
+  /* Netjes afkappen met ... als het toch langer is dan 2 regels */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  margin-bottom: 0.5rem;
 }
