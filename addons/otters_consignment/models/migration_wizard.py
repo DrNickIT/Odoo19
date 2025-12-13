@@ -741,7 +741,6 @@ class MigrationWizard(models.TransientModel):
         if not val_name or str(val_name) == 'nan': return
 
         clean_val_string = str(val_name).replace('/', '|').replace('&', '|').replace(' en ', '|')
-
         vals = clean_val_string.split('|')
 
         for v in vals:
@@ -766,17 +765,15 @@ class MigrationWizard(models.TransientModel):
                     'attribute_id': attribute.id
                 })
 
-            existing_line = product.attribute_line_ids.filtered(lambda l: l.attribute_id.id == attribute.id)
-
-            if existing_line:
-                if value.id not in existing_line.value_ids.ids:
-                    existing_line.write({'value_ids': [(4, value.id)]})
-            else:
+            try:
                 self.env['product.template.attribute.line'].create({
                     'product_tmpl_id': product.id,
                     'attribute_id': attribute.id,
                     'value_ids': [(6, 0, [value.id])]
                 })
+            except Exception as e:
+                # Vangnet: Als Odoo klaagt over duplicaten, loggen we het en gaan we door
+                _logger.warning(f"Kon aparte attribuutlijn niet maken voor {v} op {product.name}: {e}")
 
     def _add_attribute_by_id(self, product, attribute_id, value_id):
         exists = False
