@@ -19,6 +19,7 @@ class ConsignmentSubmission(models.Model):
     name = fields.Char(string="Inzending ID", required=True, readonly=True, default='Nieuw', copy=False)
     supplier_id = fields.Many2one('res.partner', string="Leverancier", required=True, tracking=True)
     submission_date = fields.Date(string="Inzendingsdatum", default=fields.Date.context_today, required=True, tracking=True)
+    date_published = fields.Date(string="Datum Online", help="De datum waarop de producten online zijn geplaatst.", tracking=True)
 
     x_submission_year = fields.Integer(string="Jaar", compute='_compute_year', store=True, readonly=True)
 
@@ -328,56 +329,20 @@ class ConsignmentSubmission(models.Model):
             },
         }
 
-    def action_reset_products_for_test(self):
-        """
-        DEV TOOL: Archiveer producten en maak hun interne referentie (code) vrij
-        zodat je de import opnieuw kunt testen zonder 'Duplicate Code' fouten.
-        """
-        self.ensure_one()
-
-        # Haal alle actieve producten op die nog niet gearchiveerd zijn
-        products_to_reset = self.product_ids.filtered(lambda p: p.active)
-
-        count = len(products_to_reset)
-
-        for product in products_to_reset:
-            old_code = product.default_code or 'GEENCODE'
-
-            # We hernoemen de code, bv: "BROEK001" -> "DEL_145_BROEK001"
-            # Hierdoor is "BROEK001" weer vrij voor je import wizard.
-            new_code = f"DEL_{product.id}_{old_code}"
-
-            product.write({
-                # 1. Code vrijmaken
-                'default_code': new_code,
-
-                # 2. Stock op 0 zetten (gebruikt jouw bestaande logica in product_template.py)
-                'x_unsold_reason': 'other',
-
-                # 3. Archiveren (het vuilbakje effect)
-                'active': False
-            })
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Reset Geslaagd',
-                'message': f'{count} producten zijn gearchiveerd en hun codes zijn vrijgegeven.',
-                'type': 'success',
-                'sticky': False,
-            }
-        }
-
     def action_set_online_and_notify(self):
-        """ Zet de status op online en stuur een mail naar de klant. """
+        """ Zet de status op online, VUL DE DATUM IN en stuur een mail naar de klant. """
         self.ensure_one()
 
-        # 1. Update status
-        if self.state != 'online':
-            self.write({'state': 'online'})
+        # 1. Update status en DATUM
+        vals = {'state': 'online'}
 
-        # 2. Stuur E-mail
+        # Als er nog geen online datum is, vul vandaag in
+        if not self.date_published:
+            vals['date_published'] = fields.Date.today()
+
+        self.write(vals)
+
+        # 2. Stuur E-mail (Bestaande code)
         if not self.supplier_id.email:
             return {
                 'type': 'ir.actions.client',
@@ -389,15 +354,14 @@ class ConsignmentSubmission(models.Model):
         if template:
             template.sudo().send_mail(self.id, force_send=True)
 
-        # 3. Logboek bericht & Feedback
-        self.message_post(body="Klant is per mail verwittigd dat de items online staan.")
+        self.message_post(body="Klant is per mail verwittigd. Datum Online is ingesteld.")
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': 'Verzonden',
-                'message': 'De klant heeft een e-mail ontvangen en de status is Online.',
+                'title': 'Online Gezet',
+                'message': 'Status is Online, datum is ingesteld en mail is verstuurd.',
                 'type': 'success',
                 'sticky': False,
             }
