@@ -66,7 +66,7 @@
             ('submission', {'title': submission.name})
         ]"/>
 
-            <div class="card o_portal_details">
+            <div class="card">
                 <div class="card-header">
                     <div class="row">
                         <div class="col-md-8">
@@ -75,6 +75,16 @@
                             </h5>
                             <div class="text-muted">
                                 Status: <span t-field="submission.state"/>
+                            </div>
+                            <div class="small">
+                                <i class="fa fa-calendar me-1"/> Ontvangen:
+                                <span t-field="submission.submission_date" t-options='{"widget": "date"}'/>
+
+                                <t t-if="submission.date_published">
+                                    <span class="mx-2">|</span>
+                                    <i class="fa fa-globe me-1 text-success"/> Online sinds:
+                                    <span t-field="submission.date_published" t-options='{"widget": "date"}' class="fw-bold text-success"/>
+                                </t>
                             </div>
                         </div>
                         <div class="col-md-4 text-md-end">

@@ -73,6 +73,7 @@
                 <field name="supplier_id"/>
                 <field name="x_submission_year" optional="show" widget="char"/>
                 <field name="submission_date"/>
+                <field name="date_published"/>
                 <field name="x_legacy_code" optional="show"/>
 
 
@@ -112,12 +113,6 @@
                             class="btn-primary"
                             confirm="Dit zet de status op 'Online' en stuurt een mail naar de klant. Doorgaan?"/>
 
-                    <button name="action_reset_products_for_test"
-                            string="♻️ Reset voor Import Test"
-                            type="object"
-                            confirm="Dit archiveert alle producten en hernoemt hun codes zodat je opnieuw kunt importeren. Doorgaan?"
-                            groups="base.group_no_one"
-                            class="btn-warning"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -141,6 +136,7 @@
                         <group string="Inzending Details">
                             <field name="supplier_id"/>
                             <field name="submission_date"/>
+                            <field name="date_published"/>
                             <field name="x_submission_year" readonly="1" options="{'format': false}" widget="char"/>
                             <field name="state"/>
                             <field name="label_count" string="Aantal Zakken" readonly="1"/>
@@ -232,95 +228,92 @@
     </record>
 
     <record id="action_fix_split_sizes" model="ir.actions.server">
-        <field name="name">✂️ Splits Gecombineerde Maten (122/128 -> 122, 128)</field>
+        <field name="name">✂️ Splits Gecombineerde Maten (Naar Aparte Regels)</field>
         <field name="model_id" ref="product.model_product_template"/>
         <field name="binding_model_id" ref="product.model_product_template"/>
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
-# CONFIGURATIE: Hoe heet je attribuut?
 ATTR_NAME = "Maat"
 
-# 1. Zoek het attribuut ID
+# 1. Attribuut zoeken
 attribute = env['product.attribute'].search([('name', '=ilike', ATTR_NAME)], limit=1)
 if not attribute:
     raise UserError(f"Attribuut '{ATTR_NAME}' niet gevonden!")
 
-# 2. Zoek alle "foute" waarden (die een / bevatten)
-# We zoeken specifiek naar waarden van dit attribuut die een slash hebben
+# 2. Zoek waarden met een slash
 bad_values = env['product.attribute.value'].search([
     ('attribute_id', '=', attribute.id),
     ('name', 'like', '/')
 ])
 
 products_fixed_count = 0
-values_fixed = []
 
 for bad_val in bad_values:
-    old_name = bad_val.name
+    # "122/128" -> ["122", "128"]
+    new_size_names = [x.strip() for x in bad_val.name.split('/') if x.strip()]
+    if not new_size_names: continue
 
-    # Splitsen: "122/128" -> ["122", "128"]
-    # We strippen spaties voor de zekerheid
-    new_size_names = [x.strip() for x in old_name.split('/') if x.strip()]
-
-    if not new_size_names:
-        continue
-
-    # 3. Zoek of maak de nieuwe losse waarden
-    new_val_ids = []
-    for size_name in new_size_names:
-        # Bestaat maat "122" al?
-        existing_val = env['product.attribute.value'].search([
-            ('attribute_id', '=', attribute.id),
-            ('name', '=', size_name)
-        ], limit=1)
-
-        if existing_val:
-            new_val_ids.append(existing_val.id)
-        else:
-            # Maak nieuw aan
-            new_val = env['product.attribute.value'].create({
-                'name': size_name,
-                'attribute_id': attribute.id,
-                'sequence': 10 # Komt achteraan, moet je straks manueel sorteren
-            })
-            new_val_ids.append(new_val.id)
-
-    # 4. Zoek alle producten die deze "foute" waarde gebruiken
-    # We zoeken in de koppelingstabel (product.template.attribute.line)
+    # Zoek alle producten die deze foute waarde hebben
     lines_to_fix = env['product.template.attribute.line'].search([
         ('attribute_id', '=', attribute.id),
         ('value_ids', 'in', bad_val.id)
     ])
 
     for line in lines_to_fix:
-        # We passen de lijst met waardes aan:
-        # (3, ID) = Verwijder relatie (De oude 122/128)
-        # (4, ID) = Voeg relatie toe (De nieuwe 122 en 128)
+        product = line.product_tmpl_id
 
-        commands = [(3, bad_val.id)]
-        for nid in new_val_ids:
-            commands.append((4, nid))
+        # STAP A: Verwijder de oude lijn met "122/128"
+        line.unlink()
 
-        line.write({'value_ids': commands})
+        # STAP B: Maak voor elk nieuw deel een NIEUWE lijn
+        for size_name in new_size_names:
+            # Zoek/Maak de waarde (122 of 128)
+            val_obj = env['product.attribute.value'].search([
+                ('attribute_id', '=', attribute.id),
+                ('name', '=', size_name)
+            ], limit=1)
+
+            if not val_obj:
+                val_obj = env['product.attribute.value'].create({
+                    'name': size_name,
+                    'attribute_id': attribute.id,
+                    'sequence': 10
+                })
+
+            # Maak de nieuwe lijn aan op het product
+            env['product.template.attribute.line'].create({
+                'product_tmpl_id': product.id,
+                'attribute_id': attribute.id,
+                'value_ids': [(6, 0, [val_obj.id])]
+            })
+
         products_fixed_count += 1
-
-    values_fixed.append(old_name)
-
-# 5. Feedback
-msg = f"Klaar! {products_fixed_count} producten gecorrigeerd.\n"
-msg += f"Gesplitste maten: {', '.join(values_fixed)}"
 
 action = {
     'type': 'ir.actions.client',
     'tag': 'display_notification',
     'params': {
-        'title': 'Maten Gesplitst',
-        'message': msg,
+        'title': 'Splitsing Voltooid',
+        'message': f'{products_fixed_count} producten hebben nu aparte regels voor dubbele maten.',
         'type': 'success',
-        'sticky': True,
+        'sticky': False,
     }
 }
+        </field>
+    </record>
+    <record id="product_template_search_view_inherit_otters" model="ir.ui.view">
+        <field name="name">product.template.search.otters</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="filter_domain">['|', '|', ('default_code', 'ilike', self), ('name', 'ilike', self), ('barcode', 'ilike', self)]</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="default_code" string="Code (Exact)"/>
+            </xpath>
         </field>
     </record>
 
