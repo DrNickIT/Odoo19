@@ -430,6 +430,7 @@ class MigrationWizard(models.TransientModel):
 
         partner_id = self.migration_partner_id
         q4_cutoff_date = self._parse_date('2025-09-30')
+        FALLBACK_DATE_PAID = self._parse_date('2022-08-31')
 
         _logger.info("--- START PRODUCTEN/ORDER MIGRATIE ---")
 
@@ -443,6 +444,11 @@ class MigrationWizard(models.TransientModel):
             old_product_id = self._clean_id(row.get('product_id'))
             zak_id_product = self._clean_id(row.get('zak_id'))
             name = row.get('naam')
+
+            if 'kadobon' in name.lower() or 'cadeaubon' in name.lower() or 'giftcard' in name.lower():
+                _logger.info(f"   [SKIP] Product {old_product_id} overgeslagen (Gedefinieerd als Kadobon).")
+                continue
+
             default_code = row.get('code')
 
             if not zak_id_product: continue
@@ -619,56 +625,112 @@ class MigrationWizard(models.TransientModel):
                                 {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
                                  'image_1920': extra_img})
 
-            # --- F. STATUS & ORDER REGELS (DE 13 SCENARIO'S) ---
+            # --- F. STATUS & ORDER REGELS (DE 12 SCENARIO'S) ---
 
+            # --------------------------------------------------------------------------------
             # REGEL 0: Absolute vlag 'Niet Actief'
+            # --------------------------------------------------------------------------------
             if is_definitief_niet_actief:
                 _logger.info(f"   [DEF. NIET ACTIEF] Product {old_product_id}. Markeren als Unsold.")
-                # HERSTELD: We geven 'waarom_weg' mee als reden tekst, hoewel image voorrang heeft
                 self._set_unsold_migration(product, stock_val, reason_text="Afbeelding 'nietactief.png'")
                 continue
 
-                # UITBETAALD = JA
-            elif is_paid_raw and has_payout_date:
+            # --------------------------------------------------------------------------------
+            # BLOK 1: UITBETAALD = JA (VERRUIMDE CHECK)
+            # --------------------------------------------------------------------------------
+            elif is_paid_raw:
                 payout_date = self._parse_date(datum_uitbetaald_str)
-                sale_date = self._parse_date(datum_verkocht_str) if has_sale_date else payout_date
+                sale_date = self._parse_date(datum_verkocht_str)
 
-                if is_sold_raw:  # 1 & 2
-                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
-                elif not is_sold_raw and not is_hidden_raw and stock_val > 0:  # 3 & 4
-                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
-                    self._create_product_copy(product, stock_val)
-                elif not is_sold_raw and (is_hidden_raw or stock_val <= 0):  # 5 & 6
-                    self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=payout_date)
-
-            # UITBETAALD = JA, GEEN DATUM (Kwartaal)
-            elif is_paid_raw and not has_payout_date:
-                if not has_sale_date:  # 10
-                    # HERSTELD: Pass reden mee
-                    self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+                # --- BEPALEN DATUMS VOOR ACTIE ---
+                if has_payout_date:
+                    # Regels 1-6 (Datum Uitbetaald is leidend of Verkoopdatum indien aanwezig)
+                    order_date = sale_date if has_sale_date else payout_date
+                    payout_date_final = payout_date
                 else:
-                    sale_date = self._parse_date(datum_verkocht_str)
-                    if sale_date and sale_date > q4_cutoff_date:  # 7
-                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
-                    elif sale_date and sale_date <= q4_cutoff_date and submission.name == '20250012':  # 8
-                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
-                    elif (
-                            is_sold_raw or is_hidden_raw) and sale_date and sale_date <= q4_cutoff_date and submission.name != '20250012':  # 9
-                        self._create_fictive_order(product, sale_date, partner_id, is_paid=True, payout_date=sale_date)
+                    # Hier valt jouw eerdere voorbeeld in: Betaald=Ja, maar Datum Uitbetaald mist.
+                    if has_sale_date:
+                        # De verkoopdatum wordt zowel de orderdatum als de (fictieve) uitbetaaldatum.
+                        order_date = sale_date
+                        payout_date_final = sale_date
+                        _logger.info(f"   [FIX DATUM] Product {old_product_id}: Uitbetaald=Ja zonder datum. Gebruikt Verkoopdatum {order_date} als Payout Datum.")
                     else:
-                        if sale_date:
-                            self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
-                        else:
-                            self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+                        # NIEUWE FALLBACK REGEL: Beide datums ontbreken, gebruik 31/08/2022
+                        order_date = FALLBACK_DATE_PAID
+                        payout_date_final = FALLBACK_DATE_PAID
+                        _logger.warning(f"   [FALLBACK DATE] Product {old_product_id}: Betaald=Ja, maar GEEN verkoop- of uitbetaaldatum. Gebruikt fallback datum {FALLBACK_DATE_PAID}.")
 
-            # UITBETAALD = NEE
+                    if not order_date: # Safety check voor het geval FALLBACK_DATE_PAID False is (bv niet geparset)
+                        self._set_unsold_migration(product, stock_val, reason_text="MIGRATIE FOUT: Betaald=Ja maar geen geldige datum.")
+                        continue
+                        # ---------------------------------
+
+                # Veiligheidscheck (Kwartaal 4)
+                if order_date and order_date > q4_cutoff_date:
+                    _logger.warning(f"   [CHECK] Product {old_product_id} is Betaald MAAR datum {order_date} > cutoff. Dit is inconsistent. Verwerkt als UITBETAALD.")
+
+                # Regels 1 & 2: Verkocht = Ja
+                if is_sold_raw:
+                    _logger.info(f"   [R 1/2] Betaald=Ja, Verkocht=Ja. Order maken.")
+                    self._create_fictive_order(product, order_date, partner_id, is_paid=True, payout_date=payout_date_final)
+
+                # Regels 3 & 4: Verkocht=Nee & (Niet Verbergen=Nee & Stock>0)
+                elif not is_sold_raw and not is_hidden_raw and stock_val > 0:
+                    _logger.info(f"   [R 3/4] Betaald=Ja, Kopie nodig. Order maken op origineel.")
+                    self._create_fictive_order(product, order_date, partner_id, is_paid=True, payout_date=payout_date_final)
+                    self._create_product_copy(product, stock_val)
+
+                # Regels 5 & 6: Verkocht=Nee & (Verbergen=Ja of Stock<=0)
+                elif not is_sold_raw and (is_hidden_raw or stock_val <= 0):
+                    _logger.info(f"   [R 5/6] Betaald=Ja, Verbergen/Stock=0. Order maken.")
+                    self._create_fictive_order(product, order_date, partner_id, is_paid=True, payout_date=payout_date_final)
+
+            # --------------------------------------------------------------------------------
+            # BLOK 2: UITBETAALD = NEE
+            # --------------------------------------------------------------------------------
             elif not is_paid_raw:
-                if is_sold_raw or is_hidden_raw:  # 11
-                    # HERSTELD: Hier is 'waarom_weg' cruciaal (terug/kapot/goed doel)
+
+                # REGEL 7: Verkocht=Ja & Datum>Cutoff
+                if is_sold_raw and has_sale_date:
+                    sale_date = self._parse_date(datum_verkocht_str)
+                    if sale_date and sale_date > q4_cutoff_date:
+                        _logger.info(f"   [R 7] Betaald=Nee, Verkocht=Ja, Datum={sale_date} > Cutoff. Order maken (Niet Betaald).")
+                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
+
+                    # REGEL 8: Verkocht=Ja & Datum<=Cutoff & Zak=20250012 (Speciale zak)
+                    elif sale_date and sale_date <= q4_cutoff_date and submission.x_legacy_code == '20250012':
+                        _logger.info(f"   [R 8] Betaald=Nee, Verkocht=Ja, Zak=20250012. Order maken (Niet Betaald).")
+                        self._create_fictive_order(product, sale_date, partner_id, is_paid=False, payout_date=False)
+
+                    # REGEL 9: Verkocht=Ja & Datum<=Cutoff & Zak != 20250012 (Onverkocht -> Unsold)
+                    elif sale_date and sale_date <= q4_cutoff_date and submission.x_legacy_code != '20250012':
+                        _logger.info(f"   [R 9] Betaald=Nee, Verkocht=Ja, Datum<=Cutoff, Zak!=20250012. Wordt Unsold (Inconsistentie).")
+                        self._set_unsold_migration(product, stock_val, reason_text=waarom_weg or "MIGRATIE: Verkocht maar niet betaald vóór cutoff (inconsistentie).")
+
+                    else:
+                        # Fallback voor onleesbare data: Unsold
+                        self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
+
+
+                # REGEL 10: Verkocht=Ja & Datum NIET ingevuld
+                elif is_sold_raw and not has_sale_date:
+                    _logger.info(f"   [R 10] Betaald=Nee, Verkocht=Ja, Geen datum. Wordt Unsold (Geen Order Datum).")
+                    self._set_unsold_migration(product, stock_val, reason_text=waarom_weg or "MIGRATIE: Geen verkoopdatum bekend.")
+
+                # REGEL 11: Verkocht=Nee & Verbergen=Nee
+                elif not is_sold_raw and not is_hidden_raw:
+                    _logger.info(f"   [R 11] Betaald=Nee, Te koop. Published=True.")
+                    self._set_published_stock(product, stock_val)
+
+                # REGEL 12: Verkocht=Nee & Verbergen=Ja
+                elif is_hidden_raw:
+                    _logger.info(f"   [R 12] Betaald=Nee, Verborgen. Wordt Unsold.")
                     self._set_unsold_migration(product, stock_val, reason_text=waarom_weg)
 
-                elif not is_sold_raw and not is_hidden_raw:  # 12
-                    self._set_published_stock(product, stock_val)
+            # Fallback (Als er iets raars is zoals 'uitbetaald' leeg en 'datum_uitbetaald' gevuld)
+            else:
+                _logger.warning(f"   [FALLBACK] Onbekende statuscombinatie voor {old_product_id}. Wordt Unsold.")
+                self._set_unsold_migration(product, stock_val, reason_text="MIGRATIE FOUT: Onbekende Statuscombinatie.")
 
         return count
 
