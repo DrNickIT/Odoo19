@@ -422,7 +422,7 @@ class MigrationWizard(models.TransientModel):
         # Mappings
         condition_mapping = {
             '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
-            '3 hartjes': '❤️❤️❤️🤍🤍', '2 hartjes': '❤️❤️🤍🤍🤍', '1 hartje': '❤️🤍🤍🤍🤍'
+            '3 hartjes': '❤️❤️❤️🤍🤍'
         }
         # Accessoires types
         accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem',
