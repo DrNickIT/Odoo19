@@ -213,6 +213,19 @@ class MigrationWizard(models.TransientModel):
     def _process_submissions(self, customer_map):
         csv_data = self._read_csv(self.file_submissions)
         mapping = {}
+
+        def parse_legacy_date(d_str):
+            if not d_str: return False
+            s = str(d_str).strip()
+            if s in ['0000-00-00', 'nan', '', 'False', 'None']:
+                return False
+            try:
+                # Test of het een geldige datum is voor Odoo
+                fields.Date.from_string(s)
+                return s
+            except ValueError:
+                return False
+
         for row in csv_data:
             # ... (bestaande checks voor id en customer) ...
             old_bag_id = self._clean_id(row.get('zak_id'))
@@ -233,32 +246,47 @@ class MigrationWizard(models.TransientModel):
                 action_val = 'donate'
 
             if not submission:
-                # === DATUM FIX ===
-                raw_date = row.get('datum_ontvangen')
-                date = False
+                # === DATUM LOGICA (JOUW REGELS) ===
 
-                # STAP 1: Probeer de echte datum uit de CSV
-                if raw_date and raw_date not in ['0000-00-00', 'nan', '']:
-                    try:
-                        # Check of het formaat geldig is
-                        fields.Date.from_string(raw_date)
-                        date = raw_date
-                    except ValueError:
-                        pass
+                # 1. Haal ruwe datums op
+                raw_sent = parse_legacy_date(row.get('datum_verzonden'))
+                raw_received = parse_legacy_date(row.get('datum_ontvangen'))
 
-                        # STAP 2: Geen datum? Haal jaar uit de CODE (bvb. 20210337 -> 2021-07-01)
-                if not date:
+                final_date_received = False   # Voor veld submission_date (Inzending Datum)
+                final_date_published = False  # Voor veld date_published (Online Datum)
+
+                # SCENARIO 1: Beide datums zijn bekend
+                if raw_sent and raw_received:
+                    final_date_received = raw_sent      # "datum_verzonden -> submission_date"
+                    final_date_published = raw_received # "datum_ontvangen -> date_published"
+
+                # SCENARIO 2: Alleen datum_verzonden is bekend
+                elif raw_sent and not raw_received:
+                    final_date_received = raw_sent
+                    final_date_published = raw_sent     # "zet dan in beide velden datum_verzonden"
+
+                # SCENARIO 3: Alleen datum_ontvangen is bekend
+                elif not raw_sent and raw_received:
+                    final_date_received = raw_received  # "zet dan in beide velden datum_ontvangen"
+                    final_date_published = raw_received
+
+                # SCENARIO 4: Geen van beide is bekend (FALLBACK OP JAAR CODE)
+                else:
                     code_str = str(row.get('code', '')).strip()
-                    # Check of we minstens 4 tekens hebben en dat de eerste 4 cijfers zijn
-                    if len(code_str) >= 4 and code_str[:4].isdigit():
-                        year = code_str[:4]
-                        # We zetten hem hard op 1 juli van dat jaar
-                        date = f"{year}-07-01"
-                        _logger.info(f"Datum hersteld uit code {code_str}: {date}")
+                    fallback_year = fields.Date.today().year # Safety net
 
-                # STAP 3: Nog steeds niets? Dan maar vandaag.
-                if not date:
-                    date = fields.Date.today()
+                    # Probeer jaar uit code te halen (bv. 20210337 -> 2021)
+                    # We zoeken naar de eerste 4 cijfers
+                    if len(code_str) >= 4 and code_str[:4].isdigit():
+                        fallback_year = int(code_str[:4])
+
+                    # Zet beide op 1 juli van dat jaar
+                    fallback_date = f"{fallback_year}-07-01"
+
+                    final_date_received = fallback_date
+                    final_date_published = fallback_date
+
+                    _logger.info(f"   [DATUM FIX] Zak {old_bag_id}: Geen datums gevonden. Teruggevallen op {fallback_date} (Code: {code_str})")
 
                 # ... (Partner IBAN ophalen) ...
                 partner_iban = partner.bank_ids[:1].acc_number if partner.bank_ids else False
@@ -266,7 +294,8 @@ class MigrationWizard(models.TransientModel):
                 submission = self.env['otters.consignment.submission'].with_context(skip_sendcloud=True).create({
                     'name': 'Nieuw',
                     'supplier_id': partner.id,
-                    'submission_date': date,  # Gebruik de veilige datum
+                    'submission_date': final_date_received,  # De berekende ontvangstdatum
+                    'date_published': final_date_published,  # De berekende online datum
                     'state': 'online',
                     'payout_method': 'coupon',
                     'payout_percentage': 0.5,
