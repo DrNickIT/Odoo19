@@ -34,6 +34,7 @@
                     <field name="qty_sold" sum="Total"/>
                     <field name="x_is_paid_out"/>
                     <field name="x_payout_date" optional="show"/>
+                    <field name="x_old_id" optional="show"/>
                 </list>
             </field>
         </record>
