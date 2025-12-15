@@ -25,22 +25,4 @@
         <field name="sequence">30</field>
     </record>
 
-    <record id="attribute_value_conditie_2" model="product.attribute.value">
-        <field name="name">❤️❤️🤍🤍🤍</field>
-        <field name="attribute_id" ref="attribute_conditie_status"/>
-        <field name="sequence">20</field>
-    </record>
-
-    <record id="attribute_value_conditie_1" model="product.attribute.value">
-        <field name="name">❤️🤍🤍🤍🤍</field>
-        <field name="attribute_id" ref="attribute_conditie_status"/>
-        <field name="sequence">10</field>
-    </record>
-
-    <record id="attribute_value_conditie_0" model="product.attribute.value">
-        <field name="name">🤍🤍🤍🤍🤍</field>
-        <field name="attribute_id" ref="attribute_conditie_status"/>
-        <field name="sequence">0</field>
-    </record>
-
 </odoo>
