@@ -37,7 +37,7 @@ OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
 OK --> * Overslaan na bestelling waarom? Waarschijnlijk de demo modus
 * email opmaak
 OK --> * Rekening nummer
-* telefoon niet verplicht
+NOK --> * telefoon niet verplicht: GAAT NIET
 OK --> * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
 OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zien dat report.url en web.base.url juist staan
     voor docker
@@ -54,11 +54,38 @@ OK --> * Er wordt tijdens de migratie een maat 1 toegevoegd. Manueel via kenmerk
 OK --> * Splits maten van kleren
 OK --> * Er wordt tijdens de migratie als naam Kopie Migratie gemaakt
 OK --> * Schoenmaat is < 40
-* Kadertjes in de carousel fixen (thema)
+OK --> * Kadertjes in de carousel fixen (thema)
 OK --> * In bulk de categorie veranderen: Dit kan al in odoo. Alle producten selecteren --> kan je voor alle producten de categorie aanpassen.
 OK --> * Labels goed afdrukken: koptekst afstand = 0
 OK --> * Knop om mail naar klant te sturen als verzending klaar is
 OK --> * Link naar sendcloud label werkt niet?
 OK --> * Alle labels van een zak afdrukken: Via de link op producten bovenaan op de inzending
 OK --> * Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
+* Mijn kinderen +  kortingsbon 5% op verjaardag uitsturen
+OK --> * controleren als hij product kopieert door fout of hij alles in 1 zak zet of telkens een nieuw maakt
+* forward oude url's (ook voor seo)
+* waarom zijn producten die nog niet uitbetaald zijn toch uitbetaald? fout in de regels
+OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat je dat moet instellen in de webeditor op dat form.
+* Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.µ
+* SEO invullen via Verzendlabels op producten
+* Bij order waarom geen verkoop datum
+* Minimum 3 hartjes
+* Juiste aantal hartjes scrapen
+* Merken sorteren, Merken zoeken, --> latere fase Juiste merken tonen
+* Alle kenmerken sorteren ?
+* Categorie niet juist geconverteerd
+* types = categorie
 
+
+
+** Backup cloudpepper.io
+** cloudpepper.io upgraden
+** hertzner aankopen
+** Digital ocean stopzettenµ
+** backup terugzetten op hertzner
+** 21% btw wegdoen
+** automatische factuur uitzetten
+** Nieuwe modules installeren
+** Email instellen
+** producten migreren
+** credits opkuisen
