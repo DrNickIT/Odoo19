@@ -57,6 +57,7 @@
         'data/website_data.xml',
         'data/mail_layout.xml',
         'data/mail_templates.xml',
+        'data/action_sorting.xml',
     ],
     'assets': {
         'web.assets_frontend': [
