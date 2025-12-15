@@ -1,0 +1,37 @@
+<t t-call="otters_consignment.otters_email_layout" data-oe-version="2.0">
+
+    <p style="border-radius:0px;border-style:none;padding:0px;margin:0px 0 16px 0;box-sizing:border-box;border-left-color:#212529;border-bottom-color:#212529;border-right-color:#212529;border-top-color:#212529;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;">Hoi <t t-out="object.partner_id.name"></t>,</p>
+
+    <p style="border-radius:0px;border-style:none;padding:0px;margin:0px 0 16px 0;box-sizing:border-box;border-left-color:#212529;border-bottom-color:#212529;border-right-color:#212529;border-top-color:#212529;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;">Je bestelling werd ingepakt en naar het door jou opgegeven adres verzonden.</p>
+
+    <t t-if="object.carrier_tracking_url">
+        <div style="text-align: center; margin: 30px 0;">
+            <p style="border-radius:0px;border-style:none;padding:0px;margin:0px 0 16px 0;box-sizing:border-box;border-left-color:#666666;border-bottom-color:#666666;border-right-color:#666666;border-top-color:#666666;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;font-size: 13px; color: #666;">Volg je pakketje hier:</p>
+            <a t-att-href="object.carrier_tracking_url" style="border-style: none; padding: 0px; margin: 0px; box-sizing: border-box; border-color: #008f8c; border-width: 0px; color: #212529; background-color: #00a09d; border-radius: 4px; display: inline-block; font-size: 14px; font-weight: bold; line-height: 45px; text-align: center; text-decoration: none; width: 200px;" width="200"><font style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#ffffff;border-bottom-color:#ffffff;border-right-color:#ffffff;border-top-color:#ffffff;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;color: #ffffff;">&nbsp;Volg je Pakket&nbsp;</font></a><p style="border-radius:0px;border-style:none;padding:0px;margin:5px 0 16px 0;box-sizing:border-box;border-left-color:#999999;border-bottom-color:#999999;border-right-color:#999999;border-top-color:#999999;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;font-size: 11px; color: #999; margin-top: 5px;">
+            Tracking nummer: <t t-out="object.carrier_tracking_ref"></t>
+        </p>
+        </div>
+    </t>
+
+    <div style="margin: 25px 0; border: 1px solid #eeeeee; border-radius: 5px; padding: 15px;">
+        <p style="border-radius:0px;border-style:none;padding:0px;box-sizing:border-box;border-left-color:#00a09d;border-bottom-color:#00a09d;border-right-color:#00a09d;border-top-color:#00a09d;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;margin: 0 0 10px 0; color: #00A09D; font-weight: bold; font-size: 13px; text-transform: uppercase;">In dit pakket:</p>
+        <t t-foreach="object.move_ids" t-as="move">
+        </t><table width="100%" cellpadding="0" cellspacing="0" style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#808080;border-bottom-color:#808080;border-right-color:#808080;border-top-color:#808080;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;border-collapse:collapse;caption-side:bottom;">
+        <tbody style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#808080;border-bottom-color:#808080;border-right-color:#808080;border-top-color:#808080;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;"><tr style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#808080;border-bottom-color:#808080;border-right-color:#808080;border-top-color:#808080;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;">
+            <td style="border-radius:0px;border-style:solid;margin:0px;box-sizing:border-box;border-left-color:#808080;border-right-color:#808080;border-top-color:#808080;border-bottom-color:#f5f5f5;border-left-width:0px;border-bottom-width:0.666667px;border-right-width:0px;border-top-width:0px;padding: 5px 0; border-bottom: 1px solid #f5f5f5;">
+                <span style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#333333;border-bottom-color:#333333;border-right-color:#333333;border-top-color:#333333;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;color: #333;"><t t-out="move.product_id.name"></t></span>
+            </td>
+            <td align="right" style="border-radius:0px;border-style:solid;margin:0px;box-sizing:border-box;border-left-color:#808080;border-right-color:#808080;border-top-color:#808080;border-bottom-color:#f5f5f5;border-left-width:0px;border-bottom-width:0.666667px;border-right-width:0px;border-top-width:0px;padding: 5px 0; border-bottom: 1px solid #f5f5f5; width: 50px;" width="50">
+                <t t-out="int(move.product_uom_qty)"></t> st
+            </td>
+        </tr>
+
+        </tbody></table>
+    </div>
+
+    <p style="border-radius:0px;border-style:none;padding:0px;margin:0px 0 16px 0;box-sizing:border-box;border-left-color:#212529;border-bottom-color:#212529;border-right-color:#212529;border-top-color:#212529;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;">Lieve groetjes,<br/>Otters &amp; Flamingo's</p>
+
+    <div style="text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <a t-att-href="object.get_base_url() + '/my/orders'" style="border-radius: 0px; border-style: none; padding: 0px; margin: 0px; box-sizing: border-box; border-color: #008f8c; border-width: 0px; color: #212529; text-decoration: none; font-size: 13px;"><font style="border-radius:0px;border-style:none;padding:0px;margin:0px;box-sizing:border-box;border-left-color:#00a09d;border-bottom-color:#00a09d;border-right-color:#00a09d;border-top-color:#00a09d;border-left-width:0px;border-bottom-width:0px;border-right-width:0px;border-top-width:0px;color: #00a09d;">&nbsp;Bekijk je volledige bestelling op de site&nbsp;</font></a></div>
+
+</t>
