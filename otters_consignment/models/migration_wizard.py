@@ -334,7 +334,7 @@ class MigrationWizard(models.TransientModel):
         brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
         if not brand_attribute:
             brand_attribute = self.env['product.attribute'].create(
-                {'name': 'Merk', 'create_variant': 'no_variant', 'display_type': 'pills'})
+                {'name': 'Merk', 'create_variant': 'no_variant', 'display_type': 'radio'})
 
         count = 0
         skipped_images = 0
