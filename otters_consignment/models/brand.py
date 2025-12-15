@@ -50,7 +50,7 @@ class OttersBrand(models.Model):
             brand_attribute = self.env['product.attribute'].create({
                 'name': 'Merk',
                 'create_variant': 'no_variant',
-                'display_type': 'select'
+                'display_type': 'pills'
             })
 
         # 2. Zoek of de waarde al bestaat
