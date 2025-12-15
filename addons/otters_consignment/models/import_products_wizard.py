@@ -177,10 +177,28 @@ class ImportProductsWizard(models.TransientModel):
             ], limit=1)
 
             if not value:
+                # NIEUWE LOGICA: Bepaal slimme volgorde
+                new_sequence = 10  # Standaard
+
+                # 1. Is het een maat? Probeer het getal te pakken (bv. "98" -> 98)
+                if attribute.name in ['Maat', 'Schoenmaat', 'Conditie']:
+                    import re
+                    # Zoek het eerste getal in de string
+                    match = re.search(r'\d+', v)
+                    if match:
+                        new_sequence = int(match.group())
+
+                    # Speciale hack voor Conditie Hartjes (zodat 5 hartjes bovenaan staat)
+                    if '❤️' in v:
+                        # Tel het aantal hartjes
+                        count = v.count('❤️')
+                        # 5 hartjes = sequence 1 (bovenaan), 1 hartje = sequence 5
+                        new_sequence = 6 - count
+
                 value = self.env['product.attribute.value'].create({
                     'name': v,
                     'attribute_id': attribute.id,
-                    'sequence': 10
+                    'sequence': new_sequence
                 })
 
             commands_list.append((0, 0, {
