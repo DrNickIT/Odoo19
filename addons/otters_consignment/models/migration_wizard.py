@@ -330,12 +330,6 @@ class MigrationWizard(models.TransientModel):
         csv_data = self._read_csv(self.file_brands)
         brand_map = {}
 
-        # Attribuut zoeken/maken
-        brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
-        if not brand_attribute:
-            brand_attribute = self.env['product.attribute'].create(
-                {'name': 'Merk', 'create_variant': 'no_variant', 'display_type': 'radio'})
-
         count = 0
         skipped_images = 0
 
@@ -387,16 +381,18 @@ class MigrationWizard(models.TransientModel):
             else:
                 brand.write(brand_vals)
 
-            # 5. ATTRIBUUT WAARDE
-            brand_val = self.env['product.attribute.value'].search(
-                [('attribute_id', '=', brand_attribute.id), ('name', '=', name)], limit=1)
-            if not brand_val:
-                brand_val = self.env['product.attribute.value'].create(
-                    {'name': name, 'attribute_id': brand_attribute.id})
+            if not brand_attribute:
+                brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
+
+            # Zoek de waarde die brand.py net heeft aangemaakt
+            brand_val = self.env['product.attribute.value'].search([
+                ('attribute_id', '=', brand_attribute.id),
+                ('name', '=', name)
+            ], limit=1)
 
             brand_map[old_merk_id] = {
                 'brand_id': brand.id,
-                'attr_val_id': brand_val.id,
+                'attr_val_id': brand_val.id, # Deze hebben we nodig voor de producten import
                 'attr_id': brand_attribute.id
             }
             count += 1
@@ -1269,7 +1265,7 @@ class MigrationWizard(models.TransientModel):
         # 2. Kopie maken
         # We gebruiken strikt .id (int) voor de submission_id
         new_product = original_product.copy({
-            'name': original_product.name + ' (Kopie Migratie)',
+            'name': original_product.name,
             'submission_id': mig_submission.id, # <--- DIT MOET EEN INTEGER ZIJN
             'x_old_id': False,
             'default_code': (original_product.default_code or '') + '-C',

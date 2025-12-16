@@ -47,8 +47,13 @@
     </record>
 
     <menuitem id="menu_otters_brand"
-              name="Merken Beheer"
+              name="Merken"
               parent="otters_consignment.menu_consignment_root"
               action="action_otters_brand"
               sequence="20"/>
+    <menuitem id="menu_website_otters_brand"
+              name="Merken"
+              action="action_otters_brand"
+              parent="website_sale.menu_catalog"
+              sequence="25"/>
 </odoo>

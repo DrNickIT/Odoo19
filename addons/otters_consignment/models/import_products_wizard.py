@@ -124,8 +124,15 @@ class ImportProductsWizard(models.TransientModel):
 
                     # Merk
                     if att_name.lower() in ['merk', 'brand']:
-                        brand = self.env['otters.brand'].search([('name', '=ilike', val_name_raw)], limit=1)
-                        if not brand: brand = self.env['otters.brand'].create({'name': val_name_raw})
+                        brand = self.env['otters.brand'].with_context(active_test=False).search([('name', '=ilike', val_name_raw)], limit=1)
+
+                        if brand:
+                            if not brand.active:
+                                brand.write({'active': True})
+                        else:
+                            # Bestaat niet? Maak aan.
+                            brand = self.env['otters.brand'].create({'name': val_name_raw})
+
                         product_vals['brand_id'] = brand.id
 
                     # Kenmerken
@@ -138,6 +145,13 @@ class ImportProductsWizard(models.TransientModel):
 
             if products_to_create:
                 self.env['product.template'].create(products_to_create)
+
+            # --- NIEUW: DE GROTE FINALE ---
+            try:
+                self.env['product.attribute'].search([]).action_sort_values()
+                _logger.info("Import Wizard: Attributen succesvol nagesorteerd.")
+            except Exception as e:
+                _logger.warning(f"Kon attributen niet nasorteren: {e}")
 
         except Exception as e:
             raise UserError(_("Fout bij het verwerken van het bestand: %s") % str(e))
@@ -168,16 +182,19 @@ class ImportProductsWizard(models.TransientModel):
 
         attribute = self.env['product.attribute'].search([('name', '=ilike', att_name)], limit=1)
         if not attribute:
-            attribute = self.env['product.attribute'].create({'name': att_name, 'create_variant': 'no_variant'})
+            attribute = self.env['product.attribute'].create({'name': att_name, 'create_variant': 'no_variant', 'display_type': 'radio'})
 
         for v in values:
-            value = self.env['product.attribute.value'].search([
+            value = self.env['product.attribute.value'].with_context(active_test=False).search([
                 ('attribute_id', '=', attribute.id),
                 ('name', '=ilike', v)
             ], limit=1)
 
-            if not value:
-                # NIEUWE LOGICA: Bepaal slimme volgorde
+            if value:
+                # Gevonden (misschien gearchiveerd)? Activeer!
+                if not value.active:
+                    value.write({'active': True})
+            else:
                 new_sequence = 10  # Standaard
 
                 # 1. Is het een maat? Probeer het getal te pakken (bv. "98" -> 98)

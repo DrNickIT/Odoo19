@@ -72,8 +72,9 @@ OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat
 OK --> * Minimum 3 hartjes
 * Juiste aantal hartjes scrapen
 OK -> * Merken sorteren
-* Meken zoeken
-* latere fase Juiste merken tonen
+OK -> * Merken zoeken
+OK -> * Brands unpublish als niet in gebruik.
+OK -> * latere fase Juiste merken tonen
 OK -> * Alle kenmerken sorteren ?
 * Categorie niet juist geconverteerd
 * types = categorie
