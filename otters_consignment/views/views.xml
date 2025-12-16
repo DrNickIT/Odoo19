@@ -44,7 +44,7 @@
                                     <field name="website_meta_keywords" placeholder="trefwoord1, trefwoord2"/>
                                 </group>
                                 <group string="Website Omschrijving">
-                                    <field name="website_description" placeholder="Lange omschrijving op de productpagina..."/>
+                                    <field name="description_ecommerce" placeholder="Lange omschrijving op de productpagina..."/>
                                 </group>
                             </group>
                         </page>

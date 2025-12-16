@@ -14,17 +14,27 @@
                             <field name="consignment_supplier_id"/>
                         </group>
 
+                        <group string="Financieel">
+                            <field name="consignment_submission_date"/>
+                            <field name="x_payout_date"/>
+                            <field name="consignment_payout_method"/>
+                            <field name="consignment_payout_percentage" widget="percentage"/>
+                        </group>
+
                         <group string="Status &amp; Einde Collectie" name="end_of_life">
                             <field name="consignment_state" widget="badge"/>
                             <separator/>
                             <field name="x_customer_preference" string="Wens klant bij niet verkocht"/>
                             <field name="x_unsold_reason" widget="radio"/>
                         </group>
-
-                        <group string="Financieel">
-                            <field name="consignment_submission_date"/>
-                            <field name="consignment_payout_method"/>
-                            <field name="consignment_payout_percentage" widget="percentage"/>
+                    </group>
+                </page>
+                <page string="SEO &amp; Website">
+                    <group>
+                        <group string="Zoekmachine Optimalisatie (SEO)">
+                            <field name="website_meta_title" placeholder="Titel in Google (bv. Mooie Trui - Otters)"/>
+                            <field name="website_meta_description" placeholder="Korte omschrijving voor in zoekresultaten"/>
+                            <field name="website_meta_keywords" placeholder="trefwoord1, trefwoord2"/>
                         </group>
                     </group>
                 </page>
