@@ -192,29 +192,38 @@ class ImportProductsWizard(models.TransientModel):
         return ''
 
     def _find_or_create_category_hierarchy(self, path_str):
-        """
-        Verwerkt "Kleding / Pull".
-        Maakt "Kleding" (indien nodig) en daaronder "Pull".
-        Geeft ID van "Pull" terug.
-        Zorgt ook dat "Pull" als Type-attribuut bestaat.
-        """
+        path_str = str(path_str).strip()
+        if not path_str: return False
+
+        # --- SCENARIO 1: ENKEL WOORD (bv. "kleedje") ---
+        if '/' not in path_str:
+            existing_cat = self.env['product.public.category'].search([
+                ('name', '=ilike', path_str)
+            ], limit=1)
+
+            if existing_cat:
+                return existing_cat.id
+
+        # --- SCENARIO 2: PAD of NIEUWE CATEGORIE ---
         parts = [p.strip() for p in path_str.split('/') if p.strip()]
         parent_id = False
         last_cat = False
 
         for part in parts:
-            # Zoek categorie met deze naam en juiste parent
+            # Zoek case-insensitive met de juiste parent
             cat = self.env['product.public.category'].search([
-                ('name', '=', part),
+                ('name', '=ilike', part),
                 ('parent_id', '=', parent_id)
             ], limit=1)
 
             if not cat:
+                # NIET GEVONDEN -> AANMAKEN
+                # We gebruiken .capitalize() zodat "broek" netjes "Broek" wordt
                 cat = self.env['product.public.category'].create({
-                    'name': part,
+                    'name': part.capitalize(),
                     'parent_id': parent_id
                 })
-                # Omdat dit een nieuwe categorie is, zorgen we dat er een Type filter voor bestaat
+                # Koppel meteen het Type attribuut
                 self._ensure_category_type_link(cat)
 
             parent_id = cat.id
