@@ -84,7 +84,7 @@ OK --> * Hartjes zijn weg na actie
 OK --> * Dubbele categoriën na import
 OK --> * default bij de inzendingen mag de recentste bovenaan
 OK --> * default bij bestellingen meest recentste bovenaan (is al zo denk ik)
-* Inzending refreshen na toevoegen van Sendcloud label
+OK --> * Inzending refreshen na toevoegen van Sendcloud label
 * Niet op voorraad moet weg in onze "Recentste producten"
 * sortering op conditie niet nodig
 * Alle e-mails die verstuurd zijn niet weggooien

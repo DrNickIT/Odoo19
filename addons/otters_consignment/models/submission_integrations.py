@@ -58,7 +58,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
                         # 3. Sla het label record op (voor referentie)
                         self.env['otters.consignment.label'].sudo().create({
                             'submission_id': self.id,
-                            'label_url': label_url, # We bewaren de URL voor intern gebruik
+                            'label_url': label_url,
                             'tracking_number': tracking_nr
                         })
                     else:
@@ -70,8 +70,16 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             # 4. Stuur de e-mail MET de bijlage
             self._send_label_email(attachment_id)
 
-            return self._return_notification('Succes', 'Label aangemaakt en gemaild!', 'success')
+            # --- HIER IS DE WIJZIGING ---
+            # In plaats van een notificatie, geven we een RELOAD commando terug.
+            # Hierdoor ververst de pagina en zie je het nieuwe label direct in de lijst staan.
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'reload',
+            }
+
         else:
+            # Bij een fout behouden we wel de notificatie, want een reload heeft dan geen zin
             error_msg = result if isinstance(result, str) else "Onbekende fout"
             return self._return_notification('Fout', f'Sendcloud API: {error_msg}', 'danger', sticky=True)
 
