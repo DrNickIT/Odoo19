@@ -73,53 +73,50 @@ class ProductAttribute(models.Model):
 
 
     def action_hide_empty_brands(self):
+        attributes_to_skip = ['Conditie']
+
         # --- STAP A: WAT MAG ER ONLINE STAAN? (De Witte Lijst) ---
-        # Zoek alle producten die Gepubliceerd zijn EN Voorraad hebben
         valid_products = self.env['product.template'].search([
             ('is_published', '=', True),
             ('qty_available', '>', 0)
         ])
 
-        # 1. Verzamel alle gebruikte attribute waarden ID's (Van ALLE attributen)
-        valid_value_ids = valid_products.mapped('attribute_line_ids.value_ids').ids
+        # FIX: Gebruik active_test=False om OOK gearchiveerde waarden te vinden die gebruikt worden!
+        valid_value_ids = valid_products.with_context(active_test=False).mapped('attribute_line_ids.value_ids').ids
 
-        # 2. Verzamel de gebruikte Merknamen (voor de Brand Pages)
-        valid_brand_names = valid_products.mapped('attribute_line_ids').filtered(
+        # Merken verzamelen
+        valid_brand_names = valid_products.with_context(active_test=False).mapped('attribute_line_ids').filtered(
             lambda l: l.attribute_id.name in ['Merk', 'Brand']
         ).mapped('value_ids.name')
 
 
-        # --- STAP B: UPDATE ALLE ATTRIBUTEN (Filters) ---
-        # We pakken gewoon ALLE attributen uit het systeem
+        # --- STAP B: UPDATE ATTRIBUTEN (Filters) ---
         all_attrs = self.search([])
 
         for attr in all_attrs:
+            # Als het op de skip-lijst staat, doe niets (blijft dus aan staan)
+            if attr.name in attributes_to_skip:
+                continue
+
             all_values = attr.value_ids.with_context(active_test=False)
 
-            # 1. Aanzetten wat op de witte lijst staat (maar nu uit staat)
+            # 1. Aanzetten
             to_activate = all_values.filtered(lambda v: v.id in valid_value_ids and not v.active)
-            if to_activate:
-                to_activate.write({'active': True})
+            if to_activate: to_activate.write({'active': True})
 
-            # 2. Uitzetten wat NIET op de witte lijst staat (maar nu aan staat)
+            # 2. Uitzetten
             to_archive = all_values.filtered(lambda v: v.id not in valid_value_ids and v.active)
-            if to_archive:
-                to_archive.write({'active': False})
+            if to_archive: to_archive.write({'active': False})
 
 
-        # --- STAP C: UPDATE DE MERK PAGINA'S (Otters Brands) ---
-        # 1. Brands AANZETTEN
+        # 1. Aanzetten
         brands_to_publish = self.env['otters.brand'].with_context(active_test=False).search([
-            ('name', 'in', valid_brand_names),
-            ('is_published', '=', False)
+            ('name', 'in', valid_brand_names), ('is_published', '=', False)
         ])
-        if brands_to_publish:
-            brands_to_publish.write({'is_published': True})
+        if brands_to_publish: brands_to_publish.write({'is_published': True})
 
-        # 2. Brands UITZETTEN
+        # 2. Uitzetten
         brands_to_unpublish = self.env['otters.brand'].with_context(active_test=False).search([
-            ('name', 'not in', valid_brand_names),
-            ('is_published', '=', True)
+            ('name', 'not in', valid_brand_names), ('is_published', '=', True)
         ])
-        if brands_to_unpublish:
-            brands_to_unpublish.write({'is_published': False})
+        if brands_to_unpublish: brands_to_unpublish.write({'is_published': False})

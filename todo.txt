@@ -79,6 +79,20 @@ OK -> * Alle kenmerken sorteren ?
 OK -> * Categorie niet juist geconverteerd
 Ok -> * types = categorie
 * Sendcloud label bij order mogelijk maken
+* Sendcloud + verzendmethodes
+OK --> * Hartjes zijn weg na actie
+* default bij de inzendingen mag de recentste bovenaan
+* default bij bestellingen meest recentste bovenaan
+* Inzending refreshen na toevoegen van Sendcloud label
+* Niet op voorraad moet weg in onze "Recentste producten"
+* sortering op conditie niet nodig
+* Alle e-mails die verstuurd zijn niet weggooien
+* http://localhost:8071/website/info niet beschikbaar maken
+OK --> * Kopie bij migratie weg
+* Beter Mijn inzending icoontje
+* Portal Meer spatie voor Mijn Inzending
+
+
 
 
 
