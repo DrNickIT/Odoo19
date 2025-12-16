@@ -36,6 +36,18 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="SEO &amp; Website">
+                            <group>
+                                <group string="Zoekmachine Optimalisatie (SEO)">
+                                    <field name="website_meta_title" placeholder="Titel in Google (bv. Mooie Trui - Otters)"/>
+                                    <field name="website_meta_description" placeholder="Korte omschrijving voor in zoekresultaten"/>
+                                    <field name="website_meta_keywords" placeholder="trefwoord1, trefwoord2"/>
+                                </group>
+                                <group string="Website Omschrijving">
+                                    <field name="website_description" placeholder="Lange omschrijving op de productpagina..."/>
+                                </group>
+                            </group>
+                        </page>
                     </notebook>
                 </sheet>
             </form>
