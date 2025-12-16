@@ -68,7 +68,7 @@ OK --> * waarom zijn producten die nog niet uitbetaald zijn toch uitbetaald? fou
 OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat je dat moet instellen in de webeditor op dat form.
 * Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.µ
 * SEO invullen via Verzendlabels op producten
-* Bij order waarom geen verkoop datum
+OK --> * Bij order waarom geen verkoop datum
 OK --> * Minimum 3 hartjes
 OK -> * Juiste aantal hartjes scrapen
 OK -> * Merken sorteren
