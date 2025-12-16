@@ -315,6 +315,17 @@ action = {
         </field>
     </record>
 
+    <record id="product_public_category_form_view_inherit_otters" model="ir.ui.view">
+        <field name="name">product.public.category.form.inherit.otters</field>
+        <field name="model">product.public.category</field>
+        <field name="inherit_id" ref="website_sale.product_public_category_form_view"/>
+        <field name="arch" type="xml">
+            <field name="parent_id" position="after">
+                <field name="x_linked_type_value_id"/>
+            </field>
+        </field>
+    </record>
+
     <menuitem id="menu_consignment_root" name="Verzendlabels" sequence="10"/>
     <menuitem id="menu_consignment_submission" name="Inzendingen" parent="otters_consignment.menu_consignment_root" action="action_consignment_submission" sequence="10"/>
 </odoo>

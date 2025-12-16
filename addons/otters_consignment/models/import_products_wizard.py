@@ -5,37 +5,40 @@ import base64
 import csv
 import io
 import logging
+import re
 
 _logger = logging.getLogger(__name__)
 
 class ImportProductsWizard(models.TransientModel):
     _name = 'otters.consignment.import_products_wizard'
-    _description = 'Wizard om producten te importeren in een inzending'
+    _description = 'Wizard om producten te importeren (CSV van Marleen)'
 
     file_data = fields.Binary(string="CSV-bestand", required=True)
     filename = fields.Char(string="Bestandsnaam")
 
+    # Mapping voor de conditie cijfers naar hartjes
     CONDITION_MAPPING = {
         '5': '❤️❤️❤️❤️❤️',
         '4': '❤️❤️❤️❤️🤍',
         '3': '❤️❤️❤️🤍🤍',
     }
 
+    # Lijst met kolommen die GEEN attribuut mogen worden (omdat het basisvelden zijn)
+    # Alles wat hier NIET in staat, wordt een Kenmerk (Attribuut)
     BASE_FIELDS = [
         'name', 'naam', 'titel',
         'price', 'prijs', 'verkoopprijs',
-        'category', 'categorie',
-        'condition_number', 'conditie', 'staat',
-        'submission_id', 'id',
+        'category', 'categorie', 'cat',
         'code', 'default_code', 'interne referentie', 'ref',
-        'image_url',
+        'image_url', 'foto', 'afbeelding',
         'seo_title', 'meta title',
         'seo_description', 'meta description',
-        'website_description', 'omschrijving'
+        'website_description', 'omschrijving', 'lange omschrijving',
+        'merk', 'brand', # Merk behandelen we apart (want is Brand ID + Attribuut)
+        'condition_number', 'conditie', 'staat' # Conditie behandelen we apart (mapping)
     ]
 
     def import_products(self):
-        """ Leest het CSV-bestand en creëert de producten en hun kenmerken. """
         self.ensure_one()
         submission_id = self.env.context.get('active_id')
         if not submission_id:
@@ -47,43 +50,40 @@ class ImportProductsWizard(models.TransientModel):
             raise UserError(_("Selecteer a.u.b. een .csv-bestand."))
 
         try:
-            # 1. Decodeer en detecteer delimiter
+            # 1. CSV Lezen
             file_content = base64.b64decode(self.file_data).decode('utf-8')
+            # Check delimiter (puntkomma of komma)
             first_line = file_content.split('\n')[0]
             delimiter = ';' if first_line.count(';') > first_line.count(',') else ','
 
-            _logger.info(f"Import Wizard: Gedetecteerde delimiter is '{delimiter}'")
-
             csv_data = csv.DictReader(io.StringIO(file_content), delimiter=delimiter)
 
-            # Headers normaliseren
-            normalized_fieldnames = [x.strip().replace('\ufeff', '') for x in (csv_data.fieldnames or [])]
-            csv_data.fieldnames = normalized_fieldnames
+            # Headers opschonen (BOM characters weg)
+            csv_data.fieldnames = [x.strip().replace('\ufeff', '') for x in (csv_data.fieldnames or [])]
+
+            _logger.info(f"Import start. Delimiter: '{delimiter}'. Headers: {csv_data.fieldnames}")
 
             products_to_create = []
-            base_fields_lower = [f.lower() for f in self.BASE_FIELDS]
 
-            # --- START LOOP PER RIJ ---
+            # --- RIJ PER RIJ VERWERKEN ---
             for row in csv_data:
 
-                # 1. Basis Velden Ophalen (Nu via de nette methode onderaan)
+                # A. Basis Velden
                 name = self._get_csv_value(row, ['name', 'naam', 'titel'])
-                if not name: continue
+                if not name: continue # Sla lege regels over
 
                 price_str = self._get_csv_value(row, ['price', 'prijs', 'verkoopprijs']).replace(',', '.') or '0.0'
-                category_name = self._get_csv_value(row, ['category', 'categorie'])
-                condition_num_str = self._get_csv_value(row, ['condition_number', 'conditie', 'staat'])
-                default_code = self._get_csv_value(row, ['code', 'default_code', 'interne referentie', 'ref'])
-
-                # SEO & Omschrijving
-                seo_title = self._get_csv_value(row, ['seo_title', 'meta title'])
-                seo_description = self._get_csv_value(row, ['seo_description', 'meta description'])
-                website_description = self._get_csv_value(row, ['website_description', 'omschrijving'])
-
                 try: price = float(price_str)
                 except ValueError: price = 0.0
 
-                # 2. Product Values
+                default_code = self._get_csv_value(row, ['code', 'default_code', 'ref', 'DRO code'])
+
+                # SEO & Omschrijvingen
+                seo_title = self._get_csv_value(row, ['seo_title', 'meta title'])
+                seo_desc = self._get_csv_value(row, ['seo_description', 'meta description'])
+                web_desc = self._get_csv_value(row, ['website_description', 'omschrijving'])
+
+                # B. Maak de Product Dictionary
                 product_vals = {
                     'name': name,
                     'list_price': price,
@@ -94,131 +94,217 @@ class ImportProductsWizard(models.TransientModel):
                     'qty_available': 1,
                     'default_code': default_code,
                     'website_meta_title': seo_title,
-                    'website_meta_description': seo_description,
-                    'website_description': website_description,
+                    'website_meta_description': seo_desc,
+                    'website_description': web_desc,
                 }
 
-                # 3. Categorieën
-                if category_name:
-                    category = self.env['product.public.category'].search([('name', '=ilike', category_name)], limit=1)
-                    if not category:
-                        category = self.env['product.public.category'].create({'name': category_name})
-                    product_vals['public_categ_ids'] = [(6, 0, [category.id])]
+                # C. Categorie Logica (Hierarchie)
+                # Bv: "Kleding / Pull" -> Maakt Kleding (indien nodig) en Pull eronder
+                cat_raw = self._get_csv_value(row, ['category', 'categorie'])
+                if cat_raw:
+                    category_id = self._find_or_create_category_hierarchy(cat_raw)
+                    product_vals['public_categ_ids'] = [(6, 0, [category_id])]
 
-                # 4. Attributen Verwerken
-                attribute_lines_commands = []
 
-                # Conditie
-                if condition_num_str and condition_num_str in self.CONDITION_MAPPING:
-                    val_name = self.CONDITION_MAPPING[condition_num_str]
-                    self._process_attribute_value('Conditie', val_name, attribute_lines_commands)
+                # D. Attributen Verzamelen
+                attribute_lines = []
 
-                # Dynamische kolommen
+                # 1. Merk (Speciaal: moet ook Otters Brand zijn)
+                merk_raw = self._get_csv_value(row, ['merk', 'brand'])
+                if merk_raw:
+                    brand = self._find_or_create_brand(merk_raw)
+                    # OUDE FOUTE CODE:
+                    # if not brand.active: brand.write({'active': True})
+
+                    # NIEUWE CORRECTE CODE:
+                    if not brand.is_published:
+                        brand.write({'is_published': True})
+
+                    product_vals['brand_id'] = brand.id
+                    self._add_attribute_line(attribute_lines, 'Merk', merk_raw)
+
+                # 2. Conditie (Speciaal: mapping van cijfer naar hartjes)
+                conditie_raw = self._get_csv_value(row, ['condition_number', 'conditie', 'staat'])
+                if conditie_raw:
+                    # Kijk of het 3, 4, 5 is, anders neem de tekst letterlijk
+                    val = self.CONDITION_MAPPING.get(conditie_raw, conditie_raw)
+                    self._add_attribute_line(attribute_lines, 'Conditie', val)
+
+                # 3. Dynamische Kolommen (Alles wat overblijft)
+                # We lopen door de CSV headers heen.
+                # Als een header NIET in de basislijst staat, maken we er een attribuut van.
                 for header in row.keys():
                     if not header: continue
-                    att_name = header.strip().replace('\ufeff', '')
-                    val_name_raw = row[header].strip()
+                    clean_header = header.strip()
+                    val = row[header].strip()
 
-                    if att_name.lower() in base_fields_lower or not val_name_raw:
+                    if not val: continue # Lege waarde overslaan
+
+                    # Als deze kolom al verwerkt is of basis is, skip hem
+                    if clean_header.lower() in [x.lower() for x in self.BASE_FIELDS]:
                         continue
 
-                    # Merk
-                    if att_name.lower() in ['merk', 'brand']:
-                        brand = self.env['otters.brand'].with_context(active_test=False).search([('name', '=ilike', val_name_raw)], limit=1)
+                    # Speciale check: Maat vs Schoenmaat
+                    # Als de categorie 'Schoen' bevat, noemen we de attribuut 'Schoenmaat' ipv 'Maat'
+                    attr_name = clean_header.capitalize() # Bv. "Geslacht", "Seizoen"
 
-                        if brand:
-                            if not brand.active:
-                                brand.write({'active': True})
+                    if attr_name.lower() in ['maat', 'size']:
+                        if cat_raw and 'schoen' in cat_raw.lower():
+                            attr_name = 'Schoenmaat'
                         else:
-                            # Bestaat niet? Maak aan.
-                            brand = self.env['otters.brand'].create({'name': val_name_raw})
+                            attr_name = 'Maat'
 
-                        product_vals['brand_id'] = brand.id
+                    self._add_attribute_line(attribute_lines, attr_name, val)
 
-                    # Kenmerken
-                    self._process_attribute_value(att_name, val_name_raw, attribute_lines_commands)
-
-                if attribute_lines_commands:
-                    product_vals['attribute_line_ids'] = attribute_lines_commands
+                if attribute_lines:
+                    product_vals['attribute_line_ids'] = attribute_lines
 
                 products_to_create.append(product_vals)
 
+            # E. Alles aanmaken
             if products_to_create:
                 self.env['product.template'].create(products_to_create)
 
-            # --- NIEUW: DE GROTE FINALE ---
+            # F. Nasorteren
             try:
                 self.env['product.attribute'].search([]).action_sort_values()
-                _logger.info("Import Wizard: Attributen succesvol nagesorteerd.")
+                _logger.info("Import: Attributen gesorteerd.")
             except Exception as e:
-                _logger.warning(f"Kon attributen niet nasorteren: {e}")
+                _logger.warning(f"Sorteerfout: {e}")
 
         except Exception as e:
-            raise UserError(_("Fout bij het verwerken van het bestand: %s") % str(e))
+            raise UserError(_("Fout bij importeren: %s") % str(e))
 
         return {'type': 'ir.actions.act_window_close'}
 
-    # -------------------------------------------------------------------------
-    # HULPFUNCTIES (Nu netjes apart)
-    # -------------------------------------------------------------------------
 
-    def _get_csv_value(self, row, key_list):
-        """ Zoekt case-insensitive naar een waarde in de CSV rij op basis van een lijst mogelijke headers. """
-        for k in key_list:
-            # 1. Exacte match in keys
-            if k in row and row[k]:
-                return row[k].strip()
+    # --- HULPFUNCTIES ---
 
-            # 2. Case-insensitive match in keys
+    def _get_csv_value(self, row, key_variants):
+        """ Zoekt een waarde in de rij, checkt verschillende schrijfwijzen van de header """
+        for k in key_variants:
+            # Check exacte match
+            if k in row and row[k]: return row[k].strip()
+            # Check case-insensitive match
             for header in row.keys():
                 if header.lower() == k.lower() and row[header]:
                     return row[header].strip()
         return ''
 
-    def _process_attribute_value(self, att_name, val_string, commands_list):
-        """ Verwerkt attributen en maakt APARTE regels aan (bv 122/128 -> 2 lijnen). """
-        clean_string = str(val_string).replace('/', '|').replace('&', '|').replace(' en ', '|')
-        values = [v.strip() for v in clean_string.split('|') if v.strip()]
+    def _find_or_create_category_hierarchy(self, path_str):
+        """
+        Verwerkt "Kleding / Pull".
+        Maakt "Kleding" (indien nodig) en daaronder "Pull".
+        Geeft ID van "Pull" terug.
+        Zorgt ook dat "Pull" als Type-attribuut bestaat.
+        """
+        parts = [p.strip() for p in path_str.split('/') if p.strip()]
+        parent_id = False
+        last_cat = False
 
-        attribute = self.env['product.attribute'].search([('name', '=ilike', att_name)], limit=1)
+        for part in parts:
+            # Zoek categorie met deze naam en juiste parent
+            cat = self.env['product.public.category'].search([
+                ('name', '=', part),
+                ('parent_id', '=', parent_id)
+            ], limit=1)
+
+            if not cat:
+                cat = self.env['product.public.category'].create({
+                    'name': part,
+                    'parent_id': parent_id
+                })
+                # Omdat dit een nieuwe categorie is, zorgen we dat er een Type filter voor bestaat
+                self._ensure_category_type_link(cat)
+
+            parent_id = cat.id
+            last_cat = cat
+
+        return last_cat.id if last_cat else False
+
+    def _ensure_category_type_link(self, category):
+        """
+        Zorgt dat voor categorie 'Broek' er ook een Attribuut Waarde 'Broek' bestaat
+        in het attribuut 'Type', en koppelt deze.
+        """
+        type_attr = self.env['product.attribute'].search([('name', '=', 'Type')], limit=1)
+        if not type_attr:
+            type_attr = self.env['product.attribute'].create({'name': 'Type', 'display_type': 'pills'})
+
+        # Zoek of waarde bestaat
+        type_val = self.env['product.attribute.value'].search([
+            ('attribute_id', '=', type_attr.id),
+            ('name', '=', category.name)
+        ], limit=1)
+
+        if not type_val:
+            type_val = self.env['product.attribute.value'].create({
+                'attribute_id': type_attr.id,
+                'name': category.name
+            })
+
+        # Koppel aan de categorie (voor de automatische sync later)
+        if category.x_linked_type_value_id != type_val:
+            category.write({'x_linked_type_value_id': type_val.id})
+
+    def _find_or_create_brand(self, name):
+        """ Zoekt of maakt Otters Brand """
+        # We zoeken gewoon op naam (active_test is niet nodig als er geen active veld is)
+        brand = self.env['otters.brand'].search([
+            ('name', '=ilike', name)
+        ], limit=1)
+
+        if brand:
+            # Als hij bestaat maar 'uit' staat (ongepubliceerd), zet hem aan!
+            if not brand.is_published:
+                brand.write({'is_published': True})
+        else:
+            # Bestaat niet? Maak aan en zet meteen gepubliceerd
+            brand = self.env['otters.brand'].create({
+                'name': name,
+                'is_published': True
+            })
+        return brand
+
+    def _add_attribute_line(self, lines_list, attr_name, val_string):
+        """ Parsed 'Jongen|Meisje' en voegt toe aan attribute lines """
+        if not val_string: return
+
+        # Split op | of ,
+        values = [v.strip() for v in val_string.replace('|', ',').split(',') if v.strip()]
+
+        attribute = self.env['product.attribute'].search([('name', '=ilike', attr_name)], limit=1)
         if not attribute:
-            attribute = self.env['product.attribute'].create({'name': att_name, 'create_variant': 'no_variant', 'display_type': 'radio'})
+            # Nieuw kenmerk gevonden in CSV (bv. "Materiaal") -> Aanmaken!
+            attribute = self.env['product.attribute'].create({
+                'name': attr_name,
+                'create_variant': 'no_variant',
+                'display_type': 'pills' # Of 'select'
+            })
 
+        val_ids = []
         for v in values:
-            value = self.env['product.attribute.value'].with_context(active_test=False).search([
+            val_obj = self.env['product.attribute.value'].with_context(active_test=False).search([
                 ('attribute_id', '=', attribute.id),
                 ('name', '=ilike', v)
             ], limit=1)
 
-            if value:
-                # Gevonden (misschien gearchiveerd)? Activeer!
-                if not value.active:
-                    value.write({'active': True})
-            else:
-                new_sequence = 10  # Standaard
-
-                # 1. Is het een maat? Probeer het getal te pakken (bv. "98" -> 98)
-                if attribute.name in ['Maat', 'Schoenmaat', 'Conditie']:
-                    import re
-                    # Zoek het eerste getal in de string
-                    match = re.search(r'\d+', v)
-                    if match:
-                        new_sequence = int(match.group())
-
-                    # Speciale hack voor Conditie Hartjes (zodat 5 hartjes bovenaan staat)
-                    if '❤️' in v:
-                        # Tel het aantal hartjes
-                        count = v.count('❤️')
-                        # 5 hartjes = sequence 1 (bovenaan), 1 hartje = sequence 5
-                        new_sequence = 6 - count
-
-                value = self.env['product.attribute.value'].create({
-                    'name': v,
+            if not val_obj:
+                # Nieuwe waarde aanmaken
+                val_obj = self.env['product.attribute.value'].create({
                     'attribute_id': attribute.id,
-                    'sequence': new_sequence
+                    'name': v
                 })
+            elif not val_obj.active:
+                val_obj.write({'active': True})
 
-            commands_list.append((0, 0, {
+            val_ids.append(val_obj.id)
+
+        # Toevoegen aan de lijst commando's
+        if val_ids:
+            # Check of dit attribuut al in de lijst zit (bv 2 kolommen voor zelfde attr?)
+            # Voor simpelheid voegen we gewoon toe, Odoo merged dit vaak wel, of we maken 1 lijn.
+            lines_list.append((0, 0, {
                 'attribute_id': attribute.id,
-                'value_ids': [(6, 0, [value.id])],
+                'value_ids': [(6, 0, val_ids)],
             }))

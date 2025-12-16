@@ -242,3 +242,31 @@ class ProductTemplate(models.Model):
                 product.x_payout_date = line.x_payout_date or line.order_id.date_order.date()
             else:
                 product.x_payout_date = False
+
+    @api.constrains('public_categ_ids')
+    def _check_category_type_sync(self):
+        """ Sync Categorie -> Type Kenmerk """
+        for product in self:
+            # 1. Welk type hoort bij de gekozen categorie?
+            linked_types = product.public_categ_ids.mapped('x_linked_type_value_id')
+            if not linked_types:
+                continue
+
+            target_type_value = linked_types[0] # Pak de eerste
+            type_attribute = target_type_value.attribute_id
+
+            # 2. Check of product al een regel voor 'Type' heeft
+            existing_line = product.attribute_line_ids.filtered(lambda l: l.attribute_id == type_attribute)
+
+            if existing_line:
+                # Update bestaande regel
+                if target_type_value.id not in existing_line.value_ids.ids:
+                    existing_line.write({'value_ids': [(6, 0, [target_type_value.id])]})
+            else:
+                # Maak nieuwe regel
+                product.write({
+                    'attribute_line_ids': [(0, 0, {
+                        'attribute_id': type_attribute.id,
+                        'value_ids': [(6, 0, [target_type_value.id])]
+                    })]
+                })

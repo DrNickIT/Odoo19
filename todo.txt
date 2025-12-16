@@ -70,14 +70,15 @@ OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat
 * SEO invullen via Verzendlabels op producten
 * Bij order waarom geen verkoop datum
 OK --> * Minimum 3 hartjes
-* Juiste aantal hartjes scrapen
+OK -> * Juiste aantal hartjes scrapen
 OK -> * Merken sorteren
 OK -> * Merken zoeken
 OK -> * Brands unpublish als niet in gebruik.
 OK -> * latere fase Juiste merken tonen
 OK -> * Alle kenmerken sorteren ?
-* Categorie niet juist geconverteerd
-* types = categorie
+OK -> * Categorie niet juist geconverteerd
+Ok -> * types = categorie
+* Sendcloud label bij order mogelijk maken
 
 
 

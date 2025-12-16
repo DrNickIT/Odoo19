@@ -12,3 +12,4 @@ from . import brand
 from . import res_users
 from . import res_config_settings
 from . import attribute_sorting
+from . import category_type_mapping

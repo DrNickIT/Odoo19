@@ -47,6 +47,34 @@ class MigrationWizard(models.TransientModel):
 
     old_site_url = fields.Char(string="Oude Website URL", default="https://www.ottersenflamingos.be")
 
+    CATEGORY_MAPPING = {
+        'Zalig zotte deals':    ('Kleding / Zalig zotte deals',      'Zalig zotte deals'),
+        'Feest!':               ('Kleding / Feest!',                 'Feest!'),
+        'Tutjes':               ('Accessoires / Tutjes',             'Tutjes'),
+        'kousen':               ('Schoenen en Kousen / Kousen',      'Kousen'),
+        'Speelgoed':            ('Accessoires / Speelgoed',          'Speelgoed'),
+        'Setje':                ('Kleding / Setje',                  'Setje'),
+        'Skiwear':              ('Kleding / Skiwear',                'Skiwear'),
+        'Accessoires':          ('Accessoires / Accessoires',        'Accessoires'),
+        'Body':                 ('Kleding / Body',                   'Body'),
+        'Schoenen':             ('Schoenen en Kousen / Schoenen',    'Schoenen'),
+        'Jumpsuit/Salopet':     ('Kleding / Jumpsuit/Salopet',       'Jumpsuit/Salopet'),
+        'Boxpak':               ('Kleding / Boxpak',                 'Boxpak'),
+        'Hoedjes & Petjes':     ('Accessoires / Hoedjes & Petjes',   'Hoedjes & Petjes'),
+        'Muts & Sjaal':         ('Accessoires / Muts & Sjaal',       'Muts & Sjaal'),
+        'Swim & Beachwear':     ('Kleding / Swim & Beachwear',       'Swim & Beachwear'),
+        'Blousje':              ('Kleding / Blousje',                'Blousje'),
+        'Hemd':                 ('Kleding / Hemd',                   'Hemd'),
+        'Pyjama & Pantoffels':  ('Kleding / Pyjama & Pantoffels',    'Pyjama & Pantoffels'),
+        'Jas':                  ('Kleding / Jas',                    'Jas'),
+        'Rokje':                ('Kleding / Rokje',                  'Rokje'),
+        'Kleedje':              ('Kleding / Kleedje',                'Kleedje'),
+        'Short':                ('Kleding / Short',                  'Short'),
+        'Trui & Cardigan':      ('Kleding / Trui & Cardigan',        'Trui & Cardigan'),
+        'T - Shirt':            ('Kleding / T-Shirt',                'T-Shirt'),
+        'Broek':                ('Kleding / Broek',                  'Broek'),
+    }
+
     def _clean_id(self, value):
         if not value: return False
         try:
@@ -71,9 +99,8 @@ class MigrationWizard(models.TransientModel):
             pass
 
     def start_migration(self):
-        """
-        MASTER FUNCTIE: Draait de volledige import ÉN alle fixes erachteraan.
-        """
+        self._setup_categories_and_types()
+
         # 1. Veiligheidscheck
         if not self.file_customers and not self.file_products:
             raise UserError("Upload minstens de basisbestanden (klanten/producten) om te starten!")
@@ -329,9 +356,19 @@ class MigrationWizard(models.TransientModel):
         if not self.file_brands: return {}
         csv_data = self._read_csv(self.file_brands)
         brand_map = {}
-
         count = 0
         skipped_images = 0
+
+        # --- FIX: Zoek het attribuut 'Merk' EENMALIG op voor de lus begint ---
+        # Dit voorkomt de UnboundLocalError en is veel sneller
+        brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
+        if not brand_attribute:
+            brand_attribute = self.env['product.attribute'].create({
+                'name': 'Merk',
+                'create_variant': 'no_variant',
+                'display_type': 'pills'
+            })
+        # ---------------------------------------------------------------------
 
         _logger.info("--- START MERKEN IMPORT ---")
 
@@ -343,22 +380,20 @@ class MigrationWizard(models.TransientModel):
             name = row.get('naam')
             if not old_merk_id or not name: continue
 
-            # 1. ZOEK HET MERK
+            # 1. ZOEK HET MERK (Otters Brand Model)
             brand = self.env['otters.brand'].search([('name', '=', name)], limit=1)
 
-            # 2. BASIS DATA
             brand_vals = {
                 'name': name,
                 'description': row.get('omschrijving_nl'),
-                'is_published': True,
+                'is_published': True, # We gebruiken is_published, geen active!
                 'website_meta_title': row.get('seo_titel'),
                 'website_meta_description': row.get('seo_description'),
                 'website_meta_keywords': row.get('seo_keywords'),
             }
 
-            # 3. FOTO LOGICA (MET CACHING)
+            # 2. FOTO LOGICA
             logo_url = row.get('foto')
-            img_data = False
             should_download = False
 
             if not brand:
@@ -371,28 +406,31 @@ class MigrationWizard(models.TransientModel):
 
             if should_download and logo_url and str(logo_url) != 'nan':
                 img_data = self._download_image(logo_url, fix_old_id=f"MERK_{old_merk_id}")
-
                 if img_data:
                     brand_vals['logo'] = img_data
 
-            # 4. MAAK AAN OF UPDATE
+            # 3. MAAK AAN OF UPDATE
             if not brand:
                 brand = self.env['otters.brand'].create(brand_vals)
             else:
                 brand.write(brand_vals)
 
-            if not brand_attribute:
-                brand_attribute = self.env['product.attribute'].search([('name', '=', 'Merk')], limit=1)
-
-            # Zoek de waarde die brand.py net heeft aangemaakt
+            # 4. ZOEK DE ATTRIBUUT WAARDE (Gebruik de brand_attribute van boven de lus)
             brand_val = self.env['product.attribute.value'].search([
                 ('attribute_id', '=', brand_attribute.id),
                 ('name', '=', name)
             ], limit=1)
 
+            if not brand_val:
+                brand_val = self.env['product.attribute.value'].create({
+                    'attribute_id': brand_attribute.id,
+                    'name': name
+                })
+
+            # Opslaan in map voor gebruik bij producten
             brand_map[old_merk_id] = {
                 'brand_id': brand.id,
-                'attr_val_id': brand_val.id, # Deze hebben we nodig voor de producten import
+                'attr_val_id': brand_val.id,
                 'attr_id': brand_attribute.id
             }
             count += 1
@@ -402,6 +440,10 @@ class MigrationWizard(models.TransientModel):
         return brand_map
 
     def _process_products_new_logic(self, submission_map, brand_map):
+        # 1. SETUP: Zorg dat categorieën en types klaar staan
+        self._setup_categories_and_types()
+
+        if not self.file_products: return
         csv_data = self._read_csv(self.file_products)
         count = 0
 
@@ -413,6 +455,10 @@ class MigrationWizard(models.TransientModel):
         )
         existing_by_old_id = {str(r['x_old_id']): r['id'] for r in existing_recs if r['x_old_id']}
         existing_by_code = {r['default_code']: r['id'] for r in existing_recs if r['default_code']}
+
+        # Merk Cache (nodig omdat we merk mapping gebruiken)
+        # We gaan ervan uit dat _process_brands() al gedraaid heeft en de merken bestaan
+
         _logger.info(f"--- CACHE KLAAR: {len(existing_recs)} producten. ---")
 
         # Mappings
@@ -420,9 +466,6 @@ class MigrationWizard(models.TransientModel):
             '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
             '3 hartjes': '❤️❤️❤️🤍🤍'
         }
-        # Accessoires types
-        accessoires_types = ['muts & sjaal', 'hoedjes & petjes', 'tutjes', 'accessoires', 'speelgoed', 'riem',
-                             'haarband', 'rugzakken en tassen', 'slab', 'speenkoord', 'badcape', 'dekentje']
 
         partner_id = self.migration_partner_id
         q4_cutoff_date = self._parse_date('2025-09-30')
@@ -441,35 +484,35 @@ class MigrationWizard(models.TransientModel):
             zak_id_product = self._clean_id(row.get('zak_id'))
             name = row.get('naam')
 
-            if 'kadobon' in name.lower() or 'cadeaubon' in name.lower() or 'giftcard' in name.lower():
-                _logger.info(f"   [SKIP] Product {old_product_id} overgeslagen (Gedefinieerd als Kadobon).")
+            if 'kadobon' in str(name).lower() or 'cadeaubon' in str(name).lower() or 'giftcard' in str(name).lower():
                 continue
 
             default_code = row.get('code')
 
             if not zak_id_product: continue
             submission = submission_map.get(zak_id_product)
+            # Als submission er niet is, kunnen we geen partner koppelen, maar misschien wel product maken?
+            # Jouw logica zei: continue. Dus dat houden we zo.
             if not submission: continue
 
             # Vlaggen & Waarden
             uitbetaald_raw = str(row.get('uitbetaald', '')).lower()
             verkocht_raw = str(row.get('verkocht', '')).lower()
             niet_weergeven_raw = str(row.get('product_niet_weergeven', '')).lower()
-            status_image_raw = str(row.get('status_image', '')).lower()  # Of 'status_afbeelding', check je CSV header!
-            waarom_weg = row.get('waarom_niet_weergeven', '')  # HERSTELD: Tekstreden
+            status_image_raw = str(row.get('status_image', '')).lower()
+            waarom_weg = row.get('waarom_niet_weergeven', '')
 
             is_paid_raw = (uitbetaald_raw == 'ja')
             is_sold_raw = (verkocht_raw == 'ja')
             is_hidden_raw = (niet_weergeven_raw == 'ja')
             is_definitief_niet_actief = ('nietactief.png' in status_image_raw)
 
-            # Datums
+            # Datums & Stock
             datum_uitbetaald_str = str(row.get('datum_uitbetaald', '')).strip()
             datum_verkocht_str = str(row.get('datum_verkocht', '')).strip()
             has_payout_date = not self._is_empty_date(datum_uitbetaald_str)
             has_sale_date = not self._is_empty_date(datum_verkocht_str)
 
-            # Stock
             try:
                 stock_val = float(str(row.get('stock') or '0').replace(',', '.'))
             except:
@@ -484,24 +527,22 @@ class MigrationWizard(models.TransientModel):
 
             product = self.env['product.template'].browse(product_id) if product_id else False
 
-            # --- C. COMMISSIE LOGICA (HERSTELD) ---
-            # Dit stukje zorgt dat de inzending geüpdatet wordt als er 'cash' of 'coupon' staat
+            # --- C. COMMISSIE LOGICA ---
             commissie_raw = row.get('commissie')
             if commissie_raw:
                 try:
                     comm_val = int(float(str(commissie_raw).replace(',', '.')))
-                    method = False;
-                    percentage = 0.0
+                    method = False; percentage = 0.0
                     if comm_val == 30:
                         method = 'cash'; percentage = 0.30
                     elif comm_val == 50:
                         method = 'coupon'; percentage = 0.50
 
-                    if method:
+                    if method and submission:
                         if submission.payout_method != method:
                             submission.write({'payout_method': method, 'payout_percentage': percentage})
                         partner = submission.supplier_id
-                        if partner.x_payout_method != method:
+                        if partner and partner.x_payout_method != method:
                             partner.write({
                                 'x_payout_method': method,
                                 'x_cash_payout_percentage': 0.3 if method == 'cash' else 0.0,
@@ -510,69 +551,63 @@ class MigrationWizard(models.TransientModel):
                 except Exception:
                     pass
 
-            # --- D. CATEGORIE & MERK & DATA (HERSTELD) ---
-            # 1. Categorie
-            type_raw = str(row.get('type', '')).strip()
-            type_lower = type_raw.lower()
-            maat_raw = str(row.get('maat', '')).strip()
-            target_cat_name = 'Kleding';
-            target_sub_name = type_raw.capitalize()
+            # --- D. CATEGORIE LOGICA (NIEUWE METHODE MET MAPPING) ---
+            # We vervangen jouw oude logica volledig door de mapping check.
 
-            if type_lower in accessoires_types:
-                target_cat_name = 'Accessoires'
-            elif 'kousen' in type_lower or 'sokken' in type_lower:
-                target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Kousen'
-            elif any(x in type_lower for x in ['schoen', 'laars', 'sneaker', 'sandaal']):
-                target_cat_name = 'Schoenen & Kousen'; target_sub_name = 'Schoenen'  # Pantoffel fix zit hierin
+            final_categ_ids = []
+            is_shoe_category = False # Vlaggetje om straks te kiezen tussen 'Maat' en 'Schoenmaat'
 
-            # Maat fix
-            if maat_raw:
-                try:
-                    clean_maat = re.match(r"(\d+)", maat_raw)
-                    if clean_maat and int(clean_maat.group(1)) < 44 and target_cat_name not in ['Accessoires',
-                                                                                                 'Schoenen & Kousen']:
-                        target_cat_name = 'Schoenen & Kousen';
-                        target_sub_name = 'Schoenen'
-                except:
-                    pass
+            legacy_cat = row.get('type', '').strip()
 
-            # Categorieën aanmaken
-            main_cat = self.env['product.public.category'].search(
-                [('name', '=', target_cat_name), ('parent_id', '=', False)], limit=1)
-            if not main_cat: main_cat = self.env['product.public.category'].create({'name': target_cat_name})
-            final_categ_ids = [main_cat.id]
-            if target_sub_name:
-                sub_cat = self.env['product.public.category'].search(
-                    [('name', '=', target_sub_name), ('parent_id', '=', main_cat.id)], limit=1)
-                if not sub_cat: sub_cat = self.env['product.public.category'].create(
-                    {'name': target_sub_name, 'parent_id': main_cat.id})
-                final_categ_ids.append(sub_cat.id)
+            if legacy_cat in self.CATEGORY_MAPPING:
+                # Haal de nieuwe naam op uit de mapping: bv "Schoenen en Kousen / Schoenen"
+                new_cat_full_name = self.CATEGORY_MAPPING[legacy_cat][0]
 
-            int_main = self.env['product.category'].search([('name', '=', target_cat_name), ('parent_id', '=', False)],
-                                                           limit=1)
-            if not int_main: int_main = self.env['product.category'].create({'name': target_cat_name})
-            final_int_id = int_main.id
-            if target_sub_name:
-                int_sub = self.env['product.category'].search(
-                    [('name', '=', target_sub_name), ('parent_id', '=', int_main.id)], limit=1)
-                if not int_sub: int_sub = self.env['product.category'].create(
-                    {'name': target_sub_name, 'parent_id': int_main.id})
-                final_int_id = int_sub.id
+                # Check of het schoenen zijn voor de attribuut logica
+                if 'Schoenen' in new_cat_full_name:
+                    is_shoe_category = True
 
-            # Merk
+                # We zoeken de categorie ID (de onderste laag)
+                leaf_name = new_cat_full_name.split('/')[-1].strip()
+                category = self.env['product.public.category'].search([('name', '=', leaf_name)], limit=1)
+
+                if category:
+                    final_categ_ids = [category.id]
+                    # Let op: De interne categorie (backend) updaten we best ook
+                    # We zoeken een interne categorie met dezelfde naam
+                    int_cat = self.env['product.category'].search([('name', '=', leaf_name)], limit=1)
+                    if not int_cat:
+                        int_cat = self.env['product.category'].create({'name': leaf_name})
+                    final_int_id = int_cat.id
+                else:
+                    # Fallback als categorie niet gevonden is (zou niet mogen door setup)
+                    final_int_id = self.env.ref('product.product_category_all').id
+            else:
+                # Geen mapping gevonden? Fallback naar 'All'
+                final_int_id = self.env.ref('product.product_category_all').id
+
+
+            # Merk Data Ophalen
             old_merk_id = self._clean_id(row.get('merk_id'))
             brand_data = None
-            if old_merk_id and old_merk_id in brand_map: brand_data = brand_map[old_merk_id]
+            if old_merk_id and brand_map and old_merk_id in brand_map:
+                brand_data = brand_map[old_merk_id]
 
-            # Product Values
+            # Product Values Opbouwen
             product_vals = {
-                'name': name, 'submission_id': submission.id, 'type': 'consu', 'is_storable': True,
-                'default_code': default_code, 'x_old_id': str(old_product_id),
+                'name': name,
+                'submission_id': submission.id if submission else False,
+                'type': 'consu',
+                'is_storable': True,
+                'default_code': default_code,
+                'x_old_id': str(old_product_id),
                 'description_ecommerce': row.get('lange_omschrijving'),
                 'description_sale': row.get('korte_omschrijving_nl'),
-                'website_meta_title': row.get('seo_titel'), 'website_meta_description': row.get('seo_description'),
+                'website_meta_title': row.get('seo_titel'),
+                'website_meta_description': row.get('seo_description'),
                 'website_meta_keywords': row.get('seo_keywords'),
-                'public_categ_ids': [(6, 0, final_categ_ids)], 'categ_id': final_int_id,
+                'public_categ_ids': [(6, 0, final_categ_ids)],
+                'categ_id': final_int_id,
                 'brand_id': brand_data['brand_id'] if brand_data else False
             }
 
@@ -581,6 +616,7 @@ class MigrationWizard(models.TransientModel):
                 product.write(product_vals)
                 # Attributen & Foto's bijwerken
                 if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
                 if not product.product_template_image_ids and not product.image_1920:
                     extra_fotos = row.get('extra_fotos')
                     if extra_fotos and str(extra_fotos) != 'nan':
@@ -591,6 +627,7 @@ class MigrationWizard(models.TransientModel):
                                     {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
                                      'image_1920': extra_img})
             else:
+                # Nieuw product maken
                 image_url = row.get('foto')
                 product_vals['image_1920'] = self._download_image(image_url, fix_old_id=old_product_id)
                 try:
@@ -601,17 +638,26 @@ class MigrationWizard(models.TransientModel):
                 product = self.env['product.template'].create(product_vals)
                 if old_product_id: existing_by_old_id[str(old_product_id)] = product.id
 
-                # Attributen
-                if maat_raw: self._add_attribute(product,
-                                                 'Schoenmaat' if target_cat_name == 'Schoenen & Kousen' else 'Maat',
-                                                 maat_raw)
-                if row.get('merk'): self._add_attribute(product, 'Merk', row.get('merk'))
+                # --- ATTRIBUTEN TOEVOEGEN ---
+
+                # 1. MAAT / SCHOENMAAT FIX
+                # We kijken hier naar onze vlag 'is_shoe_category'.
+                # Is het een schoen? Dan noemen we het attribuut 'Schoenmaat'. Anders 'Maat'.
+                maat_raw = str(row.get('maat', '')).strip()
+                if maat_raw:
+                    attr_name = 'Schoenmaat' if is_shoe_category else 'Maat'
+                    self._add_attribute(product, attr_name, maat_raw)
+
+                # 2. OVERIGE ATTRIBUTEN
                 if row.get('seizoen'): self._add_attribute(product, 'Seizoen', row.get('seizoen'))
                 if row.get('categorie'): self._add_attribute(product, 'Geslacht', row.get('categorie'))
-                if row.get('type'): self._add_attribute(product, 'Type', row.get('type'))
-                if row.get('staat') in condition_mapping: self._add_attribute(product, 'Conditie',
-                                                                              condition_mapping[row.get('staat')])
+
+                if row.get('staat') in condition_mapping:
+                    self._add_attribute(product, 'Conditie', condition_mapping[row.get('staat')])
+
                 if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+
+                # Extra foto's
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
                     for idx, url in enumerate(extra_fotos.split(',')):
@@ -729,6 +775,46 @@ class MigrationWizard(models.TransientModel):
                 self._set_unsold_migration(product, stock_val, reason_text="MIGRATIE FOUT: Onbekende Statuscombinatie.")
 
         return count
+
+    def _setup_categories_and_types(self):
+        """ Maakt categorieën en types aan volgens mapping """
+        _logger.info("--- SETUP CATEGORIES & TYPES ---")
+
+        # Maak attribuut Type
+        type_attr = self.env['product.attribute'].search([('name', '=', 'Type')], limit=1)
+        if not type_attr:
+            type_attr = self.env['product.attribute'].create({
+                'name': 'Type', 'display_type': 'radio', 'create_variant': 'no_variant'
+            })
+
+        for old_name, (new_cat_name, type_value_name) in self.CATEGORY_MAPPING.items():
+            # 1. Maak Type Waarde
+            type_val = self.env['product.attribute.value'].search([
+                ('attribute_id', '=', type_attr.id), ('name', '=', type_value_name)
+            ], limit=1)
+            if not type_val:
+                type_val = self.env['product.attribute.value'].create({
+                    'attribute_id': type_attr.id, 'name': type_value_name
+                })
+
+            # 2. Maak Categorie Structuur
+            parent_id = False
+            parts = new_cat_name.split('/')
+            current_cat = False
+            for part in parts:
+                cat_name = part.strip()
+                current_cat = self.env['product.public.category'].search([
+                    ('name', '=', cat_name), ('parent_id', '=', parent_id)
+                ], limit=1)
+                if not current_cat:
+                    current_cat = self.env['product.public.category'].create({
+                        'name': cat_name, 'parent_id': parent_id
+                    })
+                parent_id = current_cat.id
+
+            # 3. Koppel ze!
+            if current_cat.x_linked_type_value_id != type_val:
+                current_cat.write({'x_linked_type_value_id': type_val.id})
 
     def _download_image(self, url, fix_old_id=None):
         if not url or str(url) == 'nan': return False
