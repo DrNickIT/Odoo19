@@ -95,7 +95,7 @@ OK --> * http://localhost:8071/website/info niet beschikbaar maken
 OK --> * Kopie bij migratie weg
 OK --> * Beter Mijn inzending icoontje
 OK --> * Portal Meer spatie voor Mijn Inzending
-* Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
+OK --> * Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
 
 
 
