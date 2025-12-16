@@ -82,8 +82,8 @@ Ok -> * types = categorie
 * Sendcloud + verzendmethodes
 OK --> * Hartjes zijn weg na actie
 OK --> * Dubbele categoriën na import
-* default bij de inzendingen mag de recentste bovenaan
-* default bij bestellingen meest recentste bovenaan
+OK --> * default bij de inzendingen mag de recentste bovenaan
+OK --> * default bij bestellingen meest recentste bovenaan (is al zo denk ik)
 * Inzending refreshen na toevoegen van Sendcloud label
 * Niet op voorraad moet weg in onze "Recentste producten"
 * sortering op conditie niet nodig
@@ -92,6 +92,7 @@ OK --> * Dubbele categoriën na import
 OK --> * Kopie bij migratie weg
 * Beter Mijn inzending icoontje
 * Portal Meer spatie voor Mijn Inzending
+* Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
 
 
 

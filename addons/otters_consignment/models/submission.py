@@ -82,6 +82,8 @@ class ConsignmentSubmission(models.Model):
 
     label_count = fields.Integer(string="Aantal Zakken", default=1, required=True)
 
+    _order = "submission_date desc, date_published desc, id desc"
+
     # =================================================================================
     # LOGICA
     # =================================================================================
