@@ -81,6 +81,7 @@ Ok -> * types = categorie
 * Sendcloud label bij order mogelijk maken
 * Sendcloud + verzendmethodes
 OK --> * Hartjes zijn weg na actie
+OK --> * Dubbele categoriën na import
 * default bij de inzendingen mag de recentste bovenaan
 * default bij bestellingen meest recentste bovenaan
 * Inzending refreshen na toevoegen van Sendcloud label
