@@ -86,12 +86,15 @@ OK --> * default bij de inzendingen mag de recentste bovenaan
 OK --> * default bij bestellingen meest recentste bovenaan (is al zo denk ik)
 OK --> * Inzending refreshen na toevoegen van Sendcloud label
 * Niet op voorraad moet weg in onze "Recentste producten"
-* sortering op conditie niet nodig
+OK --> * sortering op conditie niet nodig
 * Alle e-mails die verstuurd zijn niet weggooien
-* http://localhost:8071/website/info niet beschikbaar maken
+OK --> * http://localhost:8071/website/info niet beschikbaar maken
+    Klik rechtsboven op Bewerken (Edit).
+    In de rechter zijbalk (of in het menuutje "Aanpassen" / "Customize" in de bovenbalk, afhankelijk van je thema) zie je opties voor deze pagina.
+    Zoek naar een vinkje dat heet "Toon Odoo Informatie" (of Show Odoo Information) en zet dit UIT.
 OK --> * Kopie bij migratie weg
-* Beter Mijn inzending icoontje
-* Portal Meer spatie voor Mijn Inzending
+OK --> * Beter Mijn inzending icoontje
+OK --> * Portal Meer spatie voor Mijn Inzending
 * Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
 
 

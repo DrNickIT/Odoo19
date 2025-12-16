@@ -2,14 +2,16 @@
 <odoo>
     <template id="portal_my_home_menu_consignment" name="Portal My Home: Consignment Menu"
               inherit_id="portal.portal_my_home" priority="99">
-        <xpath expr="//div[hasclass('o_portal_my_home')]" position="inside">
+        <xpath expr="//div[@id='portal_client_category']" position="inside">
+
             <t t-call="portal.portal_docs_entry">
-                <t t-set="icon" t-value="'/otters_consignment/static/src/img/consignment_icon.png'"/>
+                <t t-set="icon" t-value="'/otters_consignment/static/src/img/verzending_icon.png'"/>
                 <t t-set="title">Mijn Inzendingen</t>
                 <t t-set="text">Bekijk de status van je opgestuurde kleren</t>
                 <t t-set="url" t-value="'/my/consignments'"/>
                 <t t-set="config_card" t-value="True"/>
             </t>
+
         </xpath>
     </template>
 
