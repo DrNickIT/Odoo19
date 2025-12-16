@@ -270,3 +270,79 @@ class ProductTemplate(models.Model):
                         'value_ids': [(6, 0, [target_type_value.id])]
                     })]
                 })
+
+    def action_fix_split_sizes(self):
+        """
+        Zoekt naar attributen (Maat) met een '/' (bv 92/98) en splitst deze
+        in twee aparte lijnen op het product (92 en 98).
+        """
+        attr_name = "Maat"
+
+        # 1. Attribuut zoeken
+        attribute = self.env['product.attribute'].search([('name', '=ilike', attr_name)], limit=1)
+        if not attribute:
+            raise UserError(_(f"Attribuut '{attr_name}' niet gevonden!"))
+
+        # 2. Zoek waarden met een slash
+        bad_values = self.env['product.attribute.value'].search([
+            ('attribute_id', '=', attribute.id),
+            ('name', 'like', '/')
+        ])
+
+        products_fixed_count = 0
+
+        for bad_val in bad_values:
+            # "122/128" -> ["122", "128"]
+            new_size_names = [x.strip() for x in bad_val.name.split('/') if x.strip()]
+            if not new_size_names:
+                continue
+
+            # Zoek alle attribute lines die deze foute waarde hebben
+            # (Dit zoekt globaal over alle producten!)
+            lines_to_fix = self.env['product.template.attribute.line'].search([
+                ('attribute_id', '=', attribute.id),
+                ('value_ids', 'in', bad_val.id)
+            ])
+
+            for line in lines_to_fix:
+                product = line.product_tmpl_id
+
+                # STAP A: Verwijder de oude lijn met "122/128"
+                line.unlink()
+
+                # STAP B: Maak voor elk nieuw deel een NIEUWE lijn
+                for size_name in new_size_names:
+                    # Zoek/Maak de waarde (122 of 128)
+                    val_obj = self.env['product.attribute.value'].search([
+                        ('attribute_id', '=', attribute.id),
+                        ('name', '=', size_name)
+                    ], limit=1)
+
+                    if not val_obj:
+                        val_obj = self.env['product.attribute.value'].create({
+                            'name': size_name,
+                            'attribute_id': attribute.id,
+                            'sequence': 10
+                        })
+
+                    # Maak de nieuwe lijn aan op het product.
+                    # FORCEER een nieuwe lijn (create) in plaats van toevoegen aan bestaande.
+                    self.env['product.template.attribute.line'].create({
+                        'product_tmpl_id': product.id,
+                        'attribute_id': attribute.id,
+                        'value_ids': [(6, 0, [val_obj.id])]
+                    })
+
+                products_fixed_count += 1
+
+        # Return de actie voor de notificatie
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Splitsing Voltooid',
+                'message': f'{products_fixed_count} producten zijn opgesplitst naar aparte regels.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
