@@ -96,6 +96,7 @@ class ImportProductsWizard(models.TransientModel):
                     'website_meta_title': seo_title,
                     'website_meta_description': seo_desc,
                     'website_description': web_desc,
+                    'description_ecommerce': web_desc,
                 }
 
                 # C. Categorie Logica (Hierarchie)

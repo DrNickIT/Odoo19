@@ -1,7 +1,7 @@
 OK --> * Indien user is ingelogged bij verzendlabel aanvragen de data al invullen. --> OK
 OK --> * Alle huidige klanten zijn akkoord met de voorwaarden? OK
 OK --> * email versturen bij verzendlabel OK
-BIJNA OK --> * Bestellingen inladen
+OK --> * Bestellingen inladen
 OK --> * cadeabonnen enzo
 OK --> * actiecodes
 * mollie
@@ -96,7 +96,8 @@ OK --> * Kopie bij migratie weg
 OK --> * Beter Mijn inzending icoontje
 OK --> * Portal Meer spatie voor Mijn Inzending
 OK --> * Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
-
+OK --> * Omschrijving voor op website invullen
+OK --> * Uitbetalingsdatum tonen op producten scherm.
 
 
 
