@@ -1327,7 +1327,8 @@ class MigrationWizard(models.TransientModel):
         # We hoeven invoice_status niet meer te forceren, Odoo berekent die nu zelf als 'invoiced'
         # omdat qty_invoiced == product_uom_qty.
         order.write({
-            'state': 'sale',             # Gewoon 'Sale' gebruiken
+            'state': 'sale',
+            'date_order': date_order_dt,
             'effective_date': date_order_dt,
         })
 
