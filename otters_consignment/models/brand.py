@@ -43,25 +43,28 @@ class OttersBrand(models.Model):
 
     def _ensure_attribute_value(self):
         """ Hulpfunctie: Zorg dat dit merk bestaat als Attribuutwaarde """
-        # 1. Zoek het attribuut 'Merk'
         brand_attribute = self.env['product.attribute'].search([('name', '=ilike', 'Merk')], limit=1)
         if not brand_attribute:
-            # Bestaat 'Merk' nog niet? Maak het dan nu aan
             brand_attribute = self.env['product.attribute'].create({
                 'name': 'Merk',
                 'create_variant': 'no_variant',
                 'display_type': 'radio'
             })
 
-        # 2. Zoek of de waarde al bestaat
         val_name = self.name
-        existing_val = self.env['product.attribute.value'].search([
+
+        # AANGEPAST: We zoeken nu ook in gearchiveerde waarden (.with_context(active_test=False))
+        existing_val = self.env['product.attribute.value'].with_context(active_test=False).search([
             ('attribute_id', '=', brand_attribute.id),
             ('name', '=ilike', val_name)
         ], limit=1)
 
-        # 3. Bestaat niet? Maak aan!
-        if not existing_val:
+        if existing_val:
+            # Als hij bestaat maar verborgen is -> Activeer hem!
+            if not existing_val.active:
+                existing_val.write({'active': True})
+        else:
+            # Bestaat nog niet -> Aanmaken
             self.env['product.attribute.value'].create({
                 'name': val_name,
                 'attribute_id': brand_attribute.id,
