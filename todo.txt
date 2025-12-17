@@ -85,7 +85,7 @@ OK --> * Dubbele categoriën na import
 OK --> * default bij de inzendingen mag de recentste bovenaan
 OK --> * default bij bestellingen meest recentste bovenaan (is al zo denk ik)
 OK --> * Inzending refreshen na toevoegen van Sendcloud label
-* Niet op voorraad moet weg in onze "Recentste producten"
+OK --> * Niet op voorraad moet weg in onze "Recentste producten"
 OK --> * sortering op conditie niet nodig
 * Alle e-mails die verstuurd zijn niet weggooien
 OK --> * http://localhost:8071/website/info niet beschikbaar maken
