@@ -78,8 +78,8 @@ OK -> * latere fase Juiste merken tonen
 OK -> * Alle kenmerken sorteren ?
 OK -> * Categorie niet juist geconverteerd
 Ok -> * types = categorie
-* Sendcloud label bij order mogelijk maken
-* Sendcloud + verzendmethodes
+OK -> * Sendcloud label bij order mogelijk maken. Levering bevestigen.
+OK -> * Sendcloud + verzendmethodes
 OK --> * Hartjes zijn weg na actie
 OK --> * Dubbele categoriën na import
 OK --> * default bij de inzendingen mag de recentste bovenaan
@@ -105,7 +105,7 @@ OK --> * Uitbetalingsdatum tonen op producten scherm.
 ** Backup cloudpepper.io
 ** cloudpepper.io upgraden
 ** hertzner aankopen
-** Digital ocean stopzettenµ
+** Digital ocean stopzetten
 ** backup terugzetten op hertzner
 ** 21% btw wegdoen
 ** automatische factuur uitzetten
@@ -113,3 +113,4 @@ OK --> * Uitbetalingsdatum tonen op producten scherm.
 ** Email instellen
 ** producten migreren
 ** credits opkuisen
+** Verzend methodes instellen
