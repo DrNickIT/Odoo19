@@ -366,7 +366,7 @@ class MigrationWizard(models.TransientModel):
             brand_attribute = self.env['product.attribute'].create({
                 'name': 'Merk',
                 'create_variant': 'no_variant',
-                'display_type': 'pills'
+                'display_type': 'radio'
             })
         # ---------------------------------------------------------------------
 
@@ -463,8 +463,8 @@ class MigrationWizard(models.TransientModel):
 
         # Mappings
         condition_mapping = {
-            '5 hartjes': '❤️❤️❤️❤️❤️', '4 hartjes': '❤️❤️❤️❤️🤍',
-            '3 hartjes': '❤️❤️❤️🤍🤍'
+            '5': '❤️❤️❤️❤️❤️', '4': '❤️❤️❤️❤️🤍',
+            '3': '❤️❤️❤️🤍🤍'
         }
 
         partner_id = self.migration_partner_id
@@ -1403,3 +1403,91 @@ class MigrationWizard(models.TransientModel):
             'is_published': True,
             'x_unsold_reason': False
         })
+
+    def fix_product_conditions(self):
+        """
+        Specifieke fix om alleen de Conditie (Staat) van producten bij te werken
+        op basis van het CSV bestand, zonder de rest te overschrijven.
+        """
+        if not self.file_products:
+            raise UserError("Upload a.u.b. het bestand '4. Producten' voordat je deze fix draait.")
+
+        _logger.info("==========================================")
+        _logger.info("🚀 START CONDITIE FIX")
+        _logger.info("==========================================")
+
+        # 1. Cache opbouwen van bestaande producten (Snelheidswinst)
+        # We zoeken alle producten die een x_old_id hebben.
+        _logger.info("... Product Cache opbouwen ...")
+        existing_products = self.env['product.template'].search_read(
+            [('x_old_id', '!=', False)],
+            ['id', 'x_old_id']
+        )
+        # Map maken: "12345" -> 99 (Odoo ID)
+        product_map = {str(p['x_old_id']): p['id'] for p in existing_products}
+
+        _logger.info(f"✅ Cache klaar: {len(product_map)} producten gevonden.")
+
+        # 2. CSV Inlezen
+        csv_data = self._read_csv(self.file_products)
+
+        # Mapping definitie (exact zoals in je originele script)
+        condition_mapping = {
+            '5': '❤️❤️❤️❤️❤️',
+            '4': '❤️❤️❤️❤️🤍',
+            '3': '❤️❤️❤️🤍🤍'
+        }
+
+        count = 0
+        updated_count = 0
+
+        for row in csv_data:
+            count += 1
+            if count % 500 == 0:
+                _logger.info(f"   ... {count} regels gecheckt ({updated_count} geüpdatet)")
+                self.env.cr.commit() # Tussentijds opslaan
+
+            # Data ophalen
+            old_product_id = self._clean_id(row.get('product_id'))
+            staat_raw = str(row.get('staat', '')).strip()
+
+            # Check 1: Hebben we een ID en staat er iets in de kolom 'staat'?
+            if not old_product_id or not staat_raw:
+                continue
+
+            # Check 2: Bestaat dit product in Odoo?
+            if old_product_id not in product_map:
+                # Optioneel: loggen als je wilt weten wat er mist
+                # _logger.warning(f"Product {old_product_id} niet gevonden in Odoo, overgeslagen.")
+                continue
+
+            # Check 3: Is het een bekende staat code (3, 4 of 5)?
+            if staat_raw in condition_mapping:
+                try:
+                    # Haal het product op
+                    odoo_product_id = product_map[old_product_id]
+                    product = self.env['product.template'].browse(odoo_product_id)
+
+                    # Gebruik je bestaande helper functie
+                    # Deze checkt zelf of het attribuut al bestaat, dus dat is veilig.
+                    self._add_attribute(product, 'Conditie', condition_mapping[staat_raw])
+
+                    updated_count += 1
+                except Exception as e:
+                    _logger.error(f"Fout bij updaten conditie voor {old_product_id}: {e}")
+
+        _logger.info("==========================================")
+        _logger.info(f"🏁 CONDITIE FIX KLAAR!")
+        _logger.info(f"Totaal geüpdatet: {updated_count}")
+        _logger.info("==========================================")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Fix Voltooid',
+                'message': f'{updated_count} producten zijn voorzien van de juiste conditie.',
+                'type': 'success',
+                'sticky': False
+            }
+        }

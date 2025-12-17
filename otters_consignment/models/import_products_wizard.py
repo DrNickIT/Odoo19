@@ -258,7 +258,7 @@ class ImportProductsWizard(models.TransientModel):
         """
         type_attr = self.env['product.attribute'].search([('name', '=', 'Type')], limit=1)
         if not type_attr:
-            type_attr = self.env['product.attribute'].create({'name': 'Type', 'display_type': 'pills'})
+            type_attr = self.env['product.attribute'].create({'name': 'Type', 'display_type': 'radio'})
 
         # Zoek of waarde bestaat
         type_val = self.env['product.attribute.value'].search([
