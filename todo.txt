@@ -98,6 +98,7 @@ OK --> * Portal Meer spatie voor Mijn Inzending
 OK --> * Migratie orderdatum met vandaag ingevuld ipv verkoopdatum product?
 OK --> * Omschrijving voor op website invullen
 OK --> * Uitbetalingsdatum tonen op producten scherm.
+OK --> * Kenmerken terug op 2 lijnen + indien enter de enter overnemen.
 
 
 
