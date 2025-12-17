@@ -50,22 +50,40 @@ class ImportProductsWizard(models.TransientModel):
             raise UserError(_("Selecteer a.u.b. een .csv-bestand."))
 
         try:
-            # 1. CSV Lezen
-            file_content = base64.b64decode(self.file_data).decode('utf-8')
-            # Check delimiter (puntkomma of komma)
+            # ---------------------------------------------------------------
+            # STAP 1: DECODING & INLEZEN (FOCUS HIEROP)
+            # ---------------------------------------------------------------
+
+            # A. Decodeer de binaire data
+            raw_data = base64.b64decode(self.file_data)
+
+            # B. Probeer UTF-8, val terug op Windows CP1252 (standaard Excel export)
+            # Dit voorkomt crashes op speciale tekens zoals é, €, ë
+            try:
+                file_content = raw_data.decode('utf-8')
+            except UnicodeDecodeError:
+                file_content = raw_data.decode('cp1252')
+
+            # C. Bepaal delimiter (puntkomma of komma)
             first_line = file_content.split('\n')[0]
             delimiter = ';' if first_line.count(';') > first_line.count(',') else ','
 
-            csv_data = csv.DictReader(io.StringIO(file_content), delimiter=delimiter)
+            # D. De CSV Reader instellen (DIT LOST HET ENTER PROBLEEM OP)
+            # quotechar='"' -> Zorgt dat: "Tekst met \n enter" -> als 1 veld wordt gelezen
+            f = io.StringIO(file_content)
+            csv_data = csv.DictReader(f, delimiter=delimiter, quotechar='"')
 
-            # Headers opschonen (BOM characters weg)
+            # E. Headers opschonen (BOM characters wegpoetsen)
             csv_data.fieldnames = [x.strip().replace('\ufeff', '') for x in (csv_data.fieldnames or [])]
 
             _logger.info(f"Import start. Delimiter: '{delimiter}'. Headers: {csv_data.fieldnames}")
 
+            # ---------------------------------------------------------------
+            # STAP 2: DE BESTAANDE LOGICA (ONGWIJZIGD)
+            # ---------------------------------------------------------------
+
             products_to_create = []
 
-            # --- RIJ PER RIJ VERWERKEN ---
             for row in csv_data:
 
                 # A. Basis Velden
@@ -81,7 +99,8 @@ class ImportProductsWizard(models.TransientModel):
                 # SEO & Omschrijvingen
                 seo_title = self._get_csv_value(row, ['seo_title', 'meta title'])
                 seo_desc = self._get_csv_value(row, ['seo_description', 'meta description'])
-                web_desc = self._get_csv_value(row, ['website_description', 'omschrijving'])
+                web_desc_raw = self._get_csv_value(row, ['website_description', 'omschrijving'])
+                web_desc = web_desc_raw.replace('\n', '<br/>') if web_desc_raw else ''
 
                 # B. Maak de Product Dictionary
                 product_vals = {
@@ -95,7 +114,7 @@ class ImportProductsWizard(models.TransientModel):
                     'default_code': default_code,
                     'website_meta_title': seo_title,
                     'website_meta_description': seo_desc,
-                    'website_description': web_desc,
+                    'description_sale': web_desc,
                     'description_ecommerce': web_desc,
                 }
 
@@ -277,21 +296,22 @@ class ImportProductsWizard(models.TransientModel):
         return brand
 
     def _add_attribute_line(self, lines_list, attr_name, val_string):
-        """ Parsed 'Jongen|Meisje' en voegt toe aan attribute lines """
-        if not val_string: return
+        if not val_string:
+            return
 
-        # Split op | of ,
+        # 1. Split op | of , en schoonmaken
         values = [v.strip() for v in val_string.replace('|', ',').split(',') if v.strip()]
 
+        # 2. Attribuut zoeken of aanmaken
         attribute = self.env['product.attribute'].search([('name', '=ilike', attr_name)], limit=1)
         if not attribute:
-            # Nieuw kenmerk gevonden in CSV (bv. "Materiaal") -> Aanmaken!
             attribute = self.env['product.attribute'].create({
                 'name': attr_name,
-                'create_variant': 'no_variant',
-                'display_type': 'pills' # Of 'select'
+                'create_variant': 'no_variant', # Belangrijk: geen varianten genereren
+                'display_type': 'radio'
             })
 
+        # 3. Alle waardes (Jongen, Meisje) zoeken of aanmaken
         val_ids = []
         for v in values:
             val_obj = self.env['product.attribute.value'].with_context(active_test=False).search([
@@ -300,7 +320,6 @@ class ImportProductsWizard(models.TransientModel):
             ], limit=1)
 
             if not val_obj:
-                # Nieuwe waarde aanmaken
                 val_obj = self.env['product.attribute.value'].create({
                     'attribute_id': attribute.id,
                     'name': v
@@ -310,11 +329,10 @@ class ImportProductsWizard(models.TransientModel):
 
             val_ids.append(val_obj.id)
 
-        # Toevoegen aan de lijst commando's
-        if val_ids:
-            # Check of dit attribuut al in de lijst zit (bv 2 kolommen voor zelfde attr?)
-            # Voor simpelheid voegen we gewoon toe, Odoo merged dit vaak wel, of we maken 1 lijn.
+        # 4. CRUCIAAL: Voor elk gevonden ID een NIEUWE, APARTE lijn toevoegen
+        # We checken NIET of de lijn al bestaat, want we willen juist dubbele lijnen (Jongen apart, Meisje apart).
+        for val_id in val_ids:
             lines_list.append((0, 0, {
                 'attribute_id': attribute.id,
-                'value_ids': [(6, 0, val_ids)],
+                'value_ids': [(6, 0, [val_id])], # Let op de haakjes: [val_id]
             }))
