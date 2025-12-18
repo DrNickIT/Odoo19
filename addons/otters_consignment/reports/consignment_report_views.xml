@@ -23,7 +23,7 @@
             <field name="name">otters.consignment.report.list</field>
             <field name="model">otters.consignment.report</field>
             <field name="arch" type="xml">
-                <list string="Verkoop Rapport" create="false" delete="false" edit="false">
+                <list string="Verkoop Rapport" create="false" delete="false" edit="false" default_order="date desc">
                     <field name="supplier_id"/>
                     <field name="product_id"/>
                     <field name="order_id"/>
@@ -65,28 +65,24 @@
         </record>
 
         <record id="action_mark_as_paid" model="ir.actions.server">
-            <field name="name">Markeer als Uitbetaald</field>
+            <field name="name">Markeer als Betaald</field>
             <field name="model_id" ref="model_otters_consignment_report"/>
             <field name="binding_model_id" ref="model_otters_consignment_report"/>
             <field name="binding_view_types">list</field>
             <field name="state">code</field>
             <field name="code">
-# Voor elke geselecteerde regel in het rapport
-for report_line in records:
-    # 1. Haal de echte orderregel op
-    sol = report_line.order_line_id
+                records.action_mark_paid()
+            </field>
+        </record>
 
-    # 2. Alleen doen als nog niet uitbetaald
-    if not sol.x_is_paid_out:
-        # 3. Pak de waarde die het rapport NU berekent (op basis van % van VANDAAG)
-        current_calc = report_line.commission_amount
-
-        # 4. Schrijf weg: Zet vinkje AAN en schrijf bedrag HARD weg
-        sol.write({
-            'x_is_paid_out': True,
-            'x_payout_date' : datetime.date.today(),
-            'x_fixed_commission': current_calc
-        })
+        <record id="action_mark_as_unpaid" model="ir.actions.server">
+            <field name="name">Markeer als Nog Te Betalen</field>
+            <field name="model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">
+                records.action_mark_unpaid()
             </field>
         </record>
 
@@ -95,6 +91,7 @@ for report_line in records:
             <field name="res_model">otters.consignment.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_consignment_report_search"/>
+            <field name="context">{'search_default_unpaid': 1}</field>
         </record>
 
         <menuitem id="menu_consignment_report"

@@ -5,6 +5,7 @@ class ConsignmentReport(models.Model):
     _name = "otters.consignment.report"
     _description = "Consignatie Verkoop Rapport"
     _auto = False
+    _order = 'date desc'
 
     # Velden (Deze waren correct)
     submission_id = fields.Many2one('otters.consignment.submission', string="Inzending", readonly=True)
@@ -63,3 +64,26 @@ class ConsignmentReport(models.Model):
                     AND sol.qty_invoiced > 0
             )
         """ % (self._table,))
+
+    def action_mark_paid(self):
+        """ Markeer geselecteerde regels als betaald en leg commissie vast. """
+        for report_line in self:
+            # We moeten schrijven op de orderregel, niet op het rapport
+            sol = report_line.order_line_id
+            if not sol.x_is_paid_out:
+                current_calc = report_line.commission_amount
+                sol.write({
+                    'x_is_paid_out': True,
+                    'x_payout_date': fields.Date.context_today(self),
+                    'x_fixed_commission': current_calc
+                })
+
+    def action_mark_unpaid(self):
+        """ Reset geselecteerde regels naar onbetaald. """
+        for report_line in self:
+            sol = report_line.order_line_id
+            sol.write({
+                'x_is_paid_out': False,
+                'x_payout_date': False,
+                'x_fixed_commission': 0.0
+            })
