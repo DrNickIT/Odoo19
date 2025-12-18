@@ -66,7 +66,7 @@ OK --> * controleren als hij product kopieert door fout of hij alles in 1 zak ze
 * forward oude url's (ook voor seo)
 OK --> * waarom zijn producten die nog niet uitbetaald zijn toch uitbetaald? fout in de regels
 OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat je dat moet instellen in de webeditor op dat form.
-* Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.µ
+
 OK -> * SEO invullen via Verzendlabels op producten
 OK --> * Bij order waarom geen verkoop datum
 OK --> * Minimum 3 hartjes
@@ -100,9 +100,17 @@ OK --> * Omschrijving voor op website invullen
 OK --> * Uitbetalingsdatum tonen op producten scherm.
 OK --> * Kenmerken terug op 2 lijnen + indien enter de enter overnemen.
 
+* Sendclous straat / huisnr verkeerd gesplitst?
+* Verkoop rapport Zakken: sorteer op verkoopdatum default
+OK --> * Dubbele login mogelijk met capitalcase (info@ottersenflamingos.be)
+* Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur. Waarom zowel mail bij order als bij factuur?
+* Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.
+* Lesley BTW Vrijgsteld / verwijderen
+* Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
 
 
 
+Productie
 ** Backup cloudpepper.io
 ** cloudpepper.io upgraden
 ** hertzner aankopen
