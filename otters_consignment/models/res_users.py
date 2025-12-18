@@ -1,36 +1,29 @@
 # -*- coding: utf-8 -*-
 from odoo import models, api, _
-import logging
-
-_logger = logging.getLogger(__name__)
+from odoo.exceptions import UserError
 
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
     @api.model
     def _signup_create_user(self, values):
-        """
-        Overschrijf de signup create methode.
-        Als iemand zich registreert met e-mail X, en we hebben al een Partner met e-mail X
-        (maar zonder user), koppel dan de nieuwe user aan die BESTAANDE partner.
-        """
+        # 1. Normalisatie: Alles naar kleine letters
+        if values.get('login'):
+            values['login'] = values['login'].lower()
+        if values.get('email'):
+            values['email'] = values['email'].lower()
+
         login = values.get('login')
 
-        # Als er nog geen partner_id is meegegeven in de waarden...
-        if login and not values.get('partner_id'):
-            # Zoek een bestaande partner op e-mail (hoofdletterongevoelig)
-            # We filteren op partners die nog GEEN user hebben om conflicten te vermijden
-            existing_partner = self.env['res.partner'].sudo().search([
-                ('email', '=ilike', login),
-                ('user_ids', '=', False) # Zorg dat deze partner nog niet gekoppeld is aan iemand anders
+        # 2. Extra Veiligheid: Check of dit e-mailadres al bestaat bij een user
+        # (Odoo checkt standaard op login, maar wij checken extra streng op e-mail match)
+        if login:
+            existing_user = self.env['res.users'].sudo().search([
+                ('partner_id.email', '=ilike', login)
             ], limit=1)
 
-            if existing_partner:
-                _logger.info(f"Signup: Bestaande partner gevonden voor {login} (ID: {existing_partner.id}). Koppelen maar!")
-                values['partner_id'] = existing_partner.id
+            if existing_user:
+                raise UserError(_("Er bestaat reeds een account met dit e-mailadres. Probeer in te loggen."))
 
-                # Optioneel: Update de naam van de partner als de gebruiker een nieuwe naam invoert
-                # if values.get('name'):
-                #     existing_partner.write({'name': values['name']})
-
+        # 3. Voer de standaard aanmaak uit (maakt nieuwe user + nieuwe partner)
         return super(ResUsers, self)._signup_create_user(values)
