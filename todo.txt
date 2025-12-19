@@ -101,7 +101,7 @@ OK --> * Uitbetalingsdatum tonen op producten scherm.
 OK --> * Kenmerken terug op 2 lijnen + indien enter de enter overnemen.
 
 OK --> * Sendcloud straat / huisnr verkeerd gesplitst?
-* Sendcloud label dadelijk aanmaken Ja / Nee
+OK --> * Sendcloud label dadelijk aanmaken Ja / Nee
 OK --> * Verkoop rapport Zakken: sorteer op verkoopdatum default
 OK --> * Dubbele login mogelijk met capitalcase (info@ottersenflamingos.be)
 * Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur. Waarom zowel mail bij order als bij factuur?

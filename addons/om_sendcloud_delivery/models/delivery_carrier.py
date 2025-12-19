@@ -51,6 +51,7 @@ class DeliveryCarrier(models.Model):
                 data = response.json().get('parcel', {})
                 tracking = data.get('tracking_number')
 
+                # Label ophalen als het er is
                 label_url = data.get('label', {}).get('normal_printer')
                 if isinstance(label_url, list) and len(label_url) > 0:
                     label_url = label_url[0]
@@ -73,26 +74,18 @@ class DeliveryCarrier(models.Model):
         if weight <= 0.0:
             weight = 5.0
 
-        # --- SLIMME SPLITSING ---
         street_name, house_number = self._split_street_number(partner.street)
 
-        # Als er een busnummer in street2 zit, voegen we die toe aan het huisnummer voor Sendcloud
-        # Sendcloud verwacht: house_number="20 a" (waarbij 'a' de toevoeging is)
-        full_house_number = house_number
-        if partner.street2:
-            # Voorkom dubbele 'Bus' vermelding als het al in het nummer zit
-            # We vervangen 'Bus' en 'bus' door niets, en plakken het achter het huisnummer
-            toevoeging = partner.street2.replace('Bus', '').replace('bus', '').strip()
-            full_house_number = f"{full_house_number} {toevoeging}".strip()
+        request_label = picking.company_id.sendcloud_request_label
 
         vals = {
             "name": partner.name,
             "address": street_name,
-            "house_number": full_house_number,
+            "house_number": house_number,
             "city": partner.city,
             "postal_code": partner.zip,
             "country": partner.country_id.code,
-            "request_label": False,
+            "request_label": request_label,
             "email": partner.email or "",
             "telephone": partner.phone or "",
             "weight": str(weight),
@@ -110,15 +103,17 @@ class DeliveryCarrier(models.Model):
 
         return {"parcel": vals}
 
-    def _split_street_number(self, full_street):
-        if not full_street:
+    def _split_street_number(self, street_input):
+        if not street_input:
             return "", ""
 
-        match = re.match(r'^(.*?)\s+(\d+.*)$', full_street.strip())
+        match = re.match(r'^(.*?)\s+(\d+.*)$', street_input.strip())
 
         if match:
             return match.group(1), match.group(2)
-        return full_street, ""
+
+        # Fallback: alles is straat
+        return street_input, ""
 
     def _save_label_attachment(self, picking, url):
         try:
