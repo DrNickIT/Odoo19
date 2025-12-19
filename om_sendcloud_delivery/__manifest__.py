@@ -5,9 +5,9 @@
     'summary': 'Sendcloud integratie voor Odoo Community',
     'depends': ['delivery', 'website_sale', 'stock_delivery'],
     'data': [
+        'views/res_company_views.xml',
         'views/delivery_carrier_views.xml',
         'views/website_sale_templates.xml',
-        'views/res_company_views.xml',
         'views/res_config_settings_views.xml',
     ],
     'assets': {

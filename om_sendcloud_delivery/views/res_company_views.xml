@@ -11,6 +11,7 @@
                         <field name="is_sendcloud_enabled"/>
                         <field name="sendcloud_public_key"/>
                         <field name="sendcloud_secret_key" password="True"/>
+                        <field name="sendcloud_request_label"/>
                     </group>
                 </page>
             </xpath>

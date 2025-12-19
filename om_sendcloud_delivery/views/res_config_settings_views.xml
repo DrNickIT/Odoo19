@@ -1,21 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_company_form_sendcloud" model="ir.ui.view">
-        <field name="name">res.company.form.sendcloud</field>
-        <field name="model">res.company</field>
-        <field name="inherit_id" ref="base.view_company_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//notebook" position="inside">
-                <page string="Sendcloud">
-                    <group>
-                        <field name="is_sendcloud_enabled"/>
-                        <field name="sendcloud_public_key"/>
-                        <field name="sendcloud_secret_key" password="True"/>
-                    </group>
-                </page>
-            </xpath>
-        </field>
-    </record>
     <record id="res_config_settings_view_form_inherit_sendcloud_stock" model="ir.ui.view">
         <field name="name">res.config.settings.view.form.inherit.sendcloud.stock</field>
         <field name="model">res.config.settings</field>
@@ -32,6 +16,10 @@
                         <div class="mt8">
                             <label for="sendcloud_secret_key" class="o_light_label"/>
                             <field name="sendcloud_secret_key" password="True" placeholder="Secret Key"/>
+                        </div>
+                        <div class="mt8">
+                            <field name="sendcloud_request_label"/>
+                            <label for="sendcloud_request_label" class="o_light_label"/>
                         </div>
                         <div class="mt8">
                             <a href="https://app.sendcloud.com/v2/settings/integrations/manage" target="_blank" class="oe_link">
@@ -62,6 +50,10 @@
                             <field name="sendcloud_secret_key" password="True" placeholder="Secret Key"/>
                         </div>
                         <div class="mt8">
+                            <field name="sendcloud_request_label"/>
+                            <label for="sendcloud_request_label" class="o_light_label"/>
+                        </div>
+                        <div class="mt8">
                             <a href="https://app.sendcloud.com/v2/settings/integrations/manage" target="_blank" class="oe_link">
                                 <i class="fa fa-arrow-right"/> Haal je API keys hier op
                             </a>
@@ -71,5 +63,4 @@
             </xpath>
         </field>
     </record>
-
 </odoo>
