@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   web:
-    image: odoo:19.0
+    image: mijn-odoo-image
     env_file: .env
     depends_on:
       - db

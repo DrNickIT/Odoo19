@@ -14,3 +14,4 @@ access_otters_brand_public,otters.brand.public,model_otters_brand,base.group_pub
 access_otters_brand_portal,otters.brand.portal,model_otters_brand,base.group_portal,1,0,0,0
 access_otters_bulk_discount_wizard,otters.bulk.discount.wizard,model_otters_consignment_bulk_discount_wizard,base.group_user,1,1,1,1
 access_otters_consignment_bulk_remove_wizard,otters.consignment.bulk.remove.wizard,model_otters_consignment_bulk_remove_wizard,base.group_user,1,1,1,1
+access_otters_payout_session_wizard,otters.payout.session.wizard,model_otters_payout_session_wizard,base.group_user,1,1,1,1

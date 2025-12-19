@@ -4,8 +4,8 @@ OK --> * email versturen bij verzendlabel OK
 OK --> * Bestellingen inladen
 OK --> * cadeabonnen enzo
 OK --> * actiecodes
-* mollie
-* sendcloud --> gewoon de api
+OK --> * mollie
+OK --> * sendcloud --> gewoon de api
 * google analytics --> Marleen
 OK --> * 20 stuks voorwaarden
 OK --> * Consignment --> Verzendlabels
@@ -20,7 +20,6 @@ OK --> ** aantal stuks niet weerhouden (niet editeerbaar)
 OK --> ** Korting op verzendlabel --> mee rekening houden in portaal
 OK --> ** BULK korting op meerdere zakken
 OK --> ** Producten niet meer verkopen dan we in stock hebben: zorg ervoor dat dat vinkje op false staat bij website instellingen VOOR de migratie
-* Outfit publiceren
 OK --> ** outfit pagina niet publiceren gaat dat? Geen link maken naar de pagina + outfits niet publishen
 OK --> ** Verzendlabel pagina hetzelfde
 OK --> ** kenmerk categoriën?
@@ -35,9 +34,7 @@ OK --> * Wacthwoord complexer
 OK --> * Portal overal verkocht bijzetten bij die tabjes
 OK --> * Keuze coupon of cash nog te veranderen zolang er geen uitbetaling is
 OK --> * Overslaan na bestelling waarom? Waarschijnlijk de demo modus
-* email opmaak
 OK --> * Rekening nummer
-NOK --> * telefoon niet verplicht: GAAT NIET
 OK --> * Merken aantal stuks in merken is fout. Die houdt geen rekening met de stock.
 OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zien dat report.url en web.base.url juist staan
     voor docker
@@ -47,7 +44,6 @@ OK --> * Mail moet verstuurd worden vanuit ottersenflamingos en niet odoobot? Zi
     web.base.url.freeze,True,Zodat Odoo het niet per ongeluk terugzet.
 OK --> * Klanten moeten nog zien hoeveel producten ze in de zak hebben. Dit ziet hij al in de tabjes staan
 OK --> ** In bulk korting weghalen
-** laatste kortingcode toevoegen.
 OK --> Uit collectie halen
 OK --> Importeer module fixen
 OK --> * Er wordt tijdens de migratie een maat 1 toegevoegd. Manueel via kenmerken / maat de 1 weggooien.
@@ -61,9 +57,6 @@ OK --> * Knop om mail naar klant te sturen als verzending klaar is
 OK --> * Link naar sendcloud label werkt niet?
 OK --> * Alle labels van een zak afdrukken: Via de link op producten bovenaan op de inzending
 OK --> * Verzendzak indien geen indieningsdatum --> 1/7/jaar van verzendcode
-* Mijn kinderen +  kortingsbon 5% op verjaardag uitsturen
-OK --> * controleren als hij product kopieert door fout of hij alles in 1 zak zet of telkens een nieuw maakt
-* forward oude url's (ook voor seo)
 OK --> * waarom zijn producten die nog niet uitbetaald zijn toch uitbetaald? fout in de regels
 OK --> * Waarom moeten we plots weer btw-nummer enzo invullen bij verkoop? Omdat je dat moet instellen in de webeditor op dat form.
 
@@ -87,7 +80,7 @@ OK --> * default bij bestellingen meest recentste bovenaan (is al zo denk ik)
 OK --> * Inzending refreshen na toevoegen van Sendcloud label
 OK --> * Niet op voorraad moet weg in onze "Recentste producten"
 OK --> * sortering op conditie niet nodig
-* Alle e-mails die verstuurd zijn niet weggooien
+OK --> * controleren als hij product kopieert door fout of hij alles in 1 zak zet of telkens een nieuw maakt
 OK --> * http://localhost:8071/website/info niet beschikbaar maken
     Klik rechtsboven op Bewerken (Edit).
     In de rechter zijbalk (of in het menuutje "Aanpassen" / "Customize" in de bovenbalk, afhankelijk van je thema) zie je opties voor deze pagina.
@@ -104,14 +97,30 @@ OK --> * Sendcloud straat / huisnr verkeerd gesplitst?
 OK --> * Sendcloud label dadelijk aanmaken Ja / Nee
 OK --> * Verkoop rapport Zakken: sorteer op verkoopdatum default
 OK --> * Dubbele login mogelijk met capitalcase (info@ottersenflamingos.be)
-* Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur. Waarom zowel mail bij order als bij factuur?
 OK --> * Default Belgie
-* Lesley BTW Vrijgsteld / verwijderen
-* Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
+OK --> * Lesley BTW Vrijgsteld / verwijderen. In te stellen op CP bij facturatie
 OK --> * Telefoonnummer niet verplicht maken bij verkoop
-* Informatie bijwerken --> BTW, ontvangen facturen en electronisch formaat weg doen
+
+OK --> * laatste kortingcode toevoegen.
+OK --> * Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur. Waarom zowel mail bij order als bij factuur?
+        Automatische factuur uit
+        Voor verkoopcijfers en geschiedenis: Gebruik de app Verkoop.
+        Om pakketjes te maken en labels te printen: Gebruik de app Voorraad > Leveringen > Te Verwerken.
+OK --> * Verkoop rapport default wat niet uitbetaald op laatste kwartaaal per leverancier.
+OK --> * Uitbetalings sessie met QR-code
+OK --> QR code aanmaken.
+* Alle e-mails die verstuurd zijn niet weggooien
+
 * bug in odoo footer verdwijnt weer en contact pagina wijzingen verdwijnen
+* Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
 * In voorraad: Te verdienen toevoegen + totaal + foto's
+* forward oude url's (ook voor seo)
+
+* email opmaak
+
+* Informatie bijwerken --> BTW, ontvangen facturen en electronisch formaat weg doen
+* Mijn kinderen +  kortingsbon 5% op verjaardag uitsturen
+* Outfit publiceren
 
 
 

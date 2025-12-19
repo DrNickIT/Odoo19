@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_payout_session_wizard_form" model="ir.ui.view">
+        <field name="name">otters.payout.session.wizard.form</field>
+        <field name="model">otters.payout.session.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Uitbetalingsronde">
+                <field name="queue_partner_ids" invisible="1"/>
+                <field name="qr_filename" invisible="1"/>
+
+                <div class="alert alert-info text-center" role="alert" invisible="queue_count == 0">
+                    Nog <strong><field name="queue_count"/></strong> leveranciers te gaan in deze ronde.
+                </div>
+
+                <group invisible="not current_partner_id">
+                    <group>
+                        <h1><field name="current_partner_id" options="{'no_open': True}"/></h1>
+                        <h2>
+                            Totaal: <field name="total_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                        </h2>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="qr_image" widget="image" filename="qr_filename"
+                               width="200" height="200"
+                               invisible="not qr_image"/>
+
+                        <div invisible="qr_image" class="text-danger fw-bold">
+                            <i class="fa fa-exclamation-triangle"/> Geen rekeningnummer gevonden!<br/>
+                            Je kan deze betaling niet uitvoeren. Klik op Overslaan.
+                        </div>
+                    </group>
+                </group>
+
+                <notebook invisible="not current_partner_id">
+                    <page string="Details">
+                        <field name="line_ids" readonly="1">
+                            <list>
+                                <field name="product_id"/>
+                                <field name="price_total" string="Verkoopprijs"/>
+                                <field name="x_computed_percentage" string="Perc." widget="percentage"/>
+                                <field name="x_computed_commission" string="Commissie" sum="Totaal"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
+
+                <div invisible="current_partner_id">
+                    <h2 class="text-center text-success">
+                        <i class="fa fa-check-circle"/> Alles is betaald!
+                    </h2>
+                    <p class="text-center">Er zijn geen openstaande cash-betalingen meer.</p>
+                </div>
+
+                <footer>
+                    <button string="Betaald &amp; Volgende ➡"
+                            name="action_pay_and_next"
+                            type="object"
+                            class="btn-primary"
+                            invisible="not current_partner_id or not qr_image"/>
+
+                    <button string="Overslaan ⏩"
+                            name="action_skip_and_next"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="not current_partner_id"/>
+
+                    <button string="Sluiten" class="btn-link" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_payout_session_wizard" model="ir.actions.act_window">
+        <field name="name">Start Uitbetalingsronde</field>
+        <field name="res_model">otters.payout.session.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_payout_session"
+              name="Start Uitbetalingsronde"
+              parent="otters_consignment.menu_consignment_root"
+              action="action_payout_session_wizard"
+              sequence="12"/>
+</odoo>
