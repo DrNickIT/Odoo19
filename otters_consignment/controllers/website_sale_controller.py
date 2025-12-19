@@ -22,3 +22,11 @@ class OttersWebsiteSale(WebsiteSale):
             mandatory_fields.remove('phone')
 
         return mandatory_fields
+
+    def _get_default_country(self, **kwargs):
+        country = request.env.user.country_id
+
+        if country:
+            return country
+
+        return request.env['res.country'].sudo().search([('code', '=', 'BE')], limit=1)
