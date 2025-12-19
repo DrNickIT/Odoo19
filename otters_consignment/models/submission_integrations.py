@@ -27,6 +27,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             return self._return_notification('Fout', 'Sendcloud configuratie ontbreekt.', 'danger')
 
         payload = self._prepare_sendcloud_payload(config)
+        _logger.info("------- SENDCLOUD payload: %s", payload)
         success, result = self._call_sendcloud_api(config, payload)
 
         if success:
@@ -70,7 +71,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             # 4. Stuur de e-mail MET de bijlage
             self._send_label_email(attachment_id)
 
-            # --- HIER IS DE WIJZIGING ---
+            # --- RELOAD OPDRACHT ---
             # In plaats van een notificatie, geven we een RELOAD commando terug.
             # Hierdoor ververst de pagina en zie je het nieuwe label direct in de lijst staan.
             return {
@@ -110,6 +111,19 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
         customer_phone = self._format_phone_be(partner.phone)
         store_phone = self._format_phone_be(config['store_phone'])
 
+        # --- SLIMME SPLITSING ---
+        street_name, house_number = self._split_street_number(partner.street)
+        _logger.info("Street: %s, Housenumber: %s, Full street: %s", street_name, house_number, partner.street)
+
+        # Als er een busnummer in street2 zit, voegen we die toe aan het huisnummer voor Sendcloud
+        # Sendcloud verwacht: house_number="20 a" (waarbij 'a' de toevoeging is)
+        full_house_number = house_number
+        if partner.street2:
+            # Voorkom dubbele 'Bus' vermelding als het al in het nummer zit
+            # We vervangen 'Bus' en 'bus' door niets, en plakken het achter het huisnummer
+            toevoeging = partner.street2.replace('Bus', '').replace('bus', '').strip()
+            full_house_number = f"{full_house_number} {toevoeging}".strip()
+
         return {
             "parcel": {
                 "request_label": True,
@@ -126,8 +140,8 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
                 "country": config['store_country'],
                 "telephone": store_phone,
                 "from_name": partner.name,
-                "from_address_1": partner.street,
-                "from_house_number": partner.street2 or "",
+                "from_address_1": street_name,
+                "from_house_number": full_house_number,
                 "from_city": partner.city,
                 "from_postal_code": partner.zip,
                 "from_country": partner.country_id.code or "BE",
@@ -135,6 +149,26 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
                 "from_email": partner.email
             }
         }
+
+    def _split_street_number(self, full_street):
+        """
+        Splits 'Kerkstraat 20 a' naar ('Kerkstraat', '20 a').
+        Werkt voor de meeste Belgische formaten.
+        """
+        if not full_street:
+            return "", ""
+
+        # Regex uitleg:
+        # ^(.*?): Pak alles aan het begin (non-greedy) -> Straatnaam
+        # \s+: Gevolgd door spatie(s)
+        # (\d+.*)$: Gevolgd door een cijfer en alles wat erna komt -> Huisnummer + Bus
+        match = re.match(r'^(.*?)\s+(\d+.*)$', full_street.strip())
+
+        if match:
+            return match.group(1), match.group(2)
+
+        # Fallback: Geen nummer gevonden? Alles is straatnaam.
+        return full_street, ""
 
     def _call_sendcloud_api(self, config, payload):
         url = "https://panel.sendcloud.sc/api/v2/parcels"
