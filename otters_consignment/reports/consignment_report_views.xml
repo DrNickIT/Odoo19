@@ -7,14 +7,12 @@
             <field name="arch" type="xml">
                 <pivot string="Verkoop Rapport" disable_linking="True">
                     <field name="supplier_id" type="row"/>
-                    <field name="payout_method" type="row"/>
-                    <field name="product_id" type="row"/>
-                    <field name="date" interval="month" type="col"/>
-                    <field name="x_payout_date" optional="show"/>
-                    <field name="x_is_paid_out" type="col"/>
-                    <field name="price_subtotal" type="measure"/>
+
+                    <field name="date" interval="quarter" type="col"/>
+
                     <field name="commission_amount" type="measure"/>
                     <field name="qty_sold" type="measure"/>
+                    <field name="price_subtotal" type="measure"/>
                 </pivot>
             </field>
         </record>
@@ -91,7 +89,9 @@
             <field name="res_model">otters.consignment.report</field>
             <field name="view_mode">list,pivot</field>
             <field name="search_view_id" ref="view_consignment_report_search"/>
-            <field name="context">{'search_default_unpaid': 1}</field>
+            <field name="context">{
+                'search_default_unpaid': 1
+                }</field>
         </record>
 
         <menuitem id="menu_consignment_report"

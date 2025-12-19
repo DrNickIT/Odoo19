@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields, tools
+from odoo import models, fields, tools, _
+from odoo.exceptions import UserError
 
 class ConsignmentReport(models.Model):
     _name = "otters.consignment.report"
@@ -7,7 +8,6 @@ class ConsignmentReport(models.Model):
     _auto = False
     _order = 'date desc'
 
-    # Velden (Deze waren correct)
     submission_id = fields.Many2one('otters.consignment.submission', string="Inzending", readonly=True)
     supplier_id = fields.Many2one('res.partner', string="Leverancier", readonly=True)
     product_id = fields.Many2one('product.template', string="Product", readonly=True)
@@ -24,10 +24,6 @@ class ConsignmentReport(models.Model):
     x_old_id = fields.Char(string="Oude Id", readonly=True)
 
     def init(self):
-        """
-        DE SQL QUERY MET DE GECORRIGEERDE BEREKENING
-        De '/ 100.0' is verwijderd.
-        """
         tools.drop_view_if_exists(self.env.cr, self._table)
         self.env.cr.execute("""
             CREATE OR REPLACE VIEW %s AS (
@@ -44,12 +40,10 @@ class ConsignmentReport(models.Model):
                     so.date_order AS date,
                     sol.price_subtotal AS price_subtotal,
                     sol.price_total AS price_total,
-                    sol.qty_invoiced AS qty_sold,
+                    sol.product_uom_qty AS qty_sold, -- AANGEPAST: Kijk naar besteld aantal (product_uom_qty) ipv gefactureerd
                     sub.payout_method AS payout_method,
                     
-                    -- === HIER ZIT DE CORRECTIE ===
                     COALESCE(sol.x_fixed_commission, (sub.payout_percentage * sol.price_total)) AS commission_amount
-                    -- === EINDE CORRECTIE ===
                     
                 FROM sale_order_line sol
                 JOIN sale_order so ON sol.order_id = so.id
@@ -61,14 +55,13 @@ class ConsignmentReport(models.Model):
                 WHERE
                     pt.submission_id IS NOT NULL
                     AND so.state IN ('sale', 'done')
-                    AND sol.qty_invoiced > 0
+                    AND sol.product_uom_qty > 0 -- AANGEPAST: Kijk naar besteld aantal
             )
         """ % (self._table,))
 
     def action_mark_paid(self):
         """ Markeer geselecteerde regels als betaald en leg commissie vast. """
         for report_line in self:
-            # We moeten schrijven op de orderregel, niet op het rapport
             sol = report_line.order_line_id
             if not sol.x_is_paid_out:
                 current_calc = report_line.commission_amount
