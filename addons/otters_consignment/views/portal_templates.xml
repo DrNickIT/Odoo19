@@ -165,15 +165,22 @@
                     <div class="tab-content pt-3" id="myTabContent">
 
                         <div class="tab-pane fade show active" id="stock" role="tabpanel" aria-labelledby="stock-tab">
-                            <table class="table table-sm">
+                            <table class="table table-sm align-middle">
                                 <thead>
                                     <tr>
+                                        <th width="60">Foto</th>
                                         <th>Product</th>
-                                        <th class="text-end">Jouw Prijs</th>
+                                        <th class="text-end">Verkoopprijs</th>
+                                        <th class="text-end">Commissie</th>
+                                        <th class="text-end">Jouw Deel</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="stock_products" t-as="product">
+                                        <td>
+                                            <img t-att-src="'/web/image/product.template/%s/image_128' % product.id"
+                                                 style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;"/>
+                                        </td>
                                         <td><span t-field="product.name"/></td>
                                         <td class="text-end">
                                             <t t-if="product.compare_list_price and product.compare_list_price > product.list_price">
@@ -187,38 +194,60 @@
                                                   t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
                                                   t-att-class="'fw-bold text-danger' if product.compare_list_price else ''"/>
                                         </td>
+                                        <td class="text-end">
+                                            <span t-out="'{:.0f}'.format(submission.payout_percentage * 100)"/>%
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-out="product.list_price * submission.payout_percentage"
+                                                  t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
+                                                  class="fw-bold text-success"/>
+                                        </td>
                                     </tr>
                                 </tbody>
+                                <tfoot>
+                                    <tr class="bg-light">
+                                        <td colspan="4" class="text-end">
+                                            <strong>Totaal te verdienen bij verkoop:</strong>
+                                        </td>
+                                        <td class="text-end">
+                                            <strong t-out="total_payout_stock"
+                                                    t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
 
                         <div class="tab-pane fade" id="unpaid" role="tabpanel" aria-labelledby="unpaid-tab">
-                            <table class="table table-sm">
+                            <table class="table table-sm align-middle">
                                 <thead>
                                     <tr>
+                                        <th width="60">Foto</th>
                                         <th>Product</th>
                                         <th class="text-end">Aantal</th>
                                         <th class="text-end">Verkoopprijs</th>
+                                        <th class="text-end">Commissie</th>
                                         <th class="text-end">Jouw Uitbetaling</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr t-foreach="aggregated_unpaid" t-as="line"> <td><span t-out="line['name']"/></td>
+                                    <tr t-foreach="aggregated_unpaid" t-as="line">
+                                        <td>
+                                            <img t-att-src="'/web/image/product.template/%s/image_128' % line['product'].id"
+                                                 style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;"/>
+                                        </td>
+                                        <td><span t-out="line['name']"/></td>
                                         <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
                                             <t t-set="prod" t-value="line['product']"/>
                                             <t t-set="unit_price" t-value="line['price_sold'] / line['qty']"/>
 
-                                            <t t-if="prod.compare_list_price and prod.compare_list_price > unit_price">
-                                                <span class="text-muted text-decoration-line-through me-1"
-                                                      t-out="prod.compare_list_price * line['qty']"
-                                                      t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
-                                                <br/>
-                                            </t>
-
                                             <span t-out="line['price_sold']"
                                                   t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
                                                   class="fw-bold"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-out="'{:.0f}'.format(line['percentage'] * 100)"/>%
                                         </td>
                                         <td class="text-end">
                                             <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
@@ -227,7 +256,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="bg-light">
-                                        <td colspan="3" class="text-end">
+                                        <td colspan="5" class="text-end">
                                             <strong>Totaal nog uit te betalen:</strong>
                                         </td>
                                         <td class="text-end">
@@ -239,36 +268,36 @@
                         </div>
 
                         <div class="tab-pane fade" id="paid" role="tabpanel" aria-labelledby="paid-tab">
-                            <table class="table table-sm">
+                            <table class="table table-sm align-middle">
                                 <thead>
                                     <tr>
+                                        <th width="60">Foto</th>
                                         <th>Product</th>
                                         <th class="text-end">Datum</th>
                                         <th class="text-end">Aantal</th>
                                         <th class="text-end">Verkoopprijs</th>
+                                        <th class="text-end">Commissie</th>
                                         <th class="text-end">Uitbetaald Bedrag</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="aggregated_paid" t-as="line">
+                                        <td>
+                                            <img t-att-src="'/web/image/product.template/%s/image_128' % line['product'].id"
+                                                 style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;"/>
+                                        </td>
                                         <td><span t-out="line['name']"/></td>
                                         <td class="text-end">
                                             <span t-out="line['date']" t-options='{"widget": "date"}'/>
                                         </td>
                                         <td class="text-end"><span t-out="line['qty']"/> st</td>
                                         <td class="text-end">
-                                            <t t-set="prod" t-value="line['product']"/>
-                                            <t t-set="unit_price" t-value="line['price_sold'] / (line['qty'] or 1)"/>
-                                            <t t-if="prod.compare_list_price and prod.compare_list_price > unit_price">
-                                                <span class="text-muted text-decoration-line-through me-1"
-                                                      t-out="prod.compare_list_price * line['qty']"
-                                                      t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
-                                                <br/>
-                                            </t>
-
                                             <span t-out="line['price_sold']"
                                                   t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"
                                                   class="fw-bold"/>
+                                        </td>
+                                        <td class="text-end">
+                                            <span t-out="'{:.0f}'.format(line['percentage'] * 100)"/>%
                                         </td>
                                         <td class="text-end">
                                             <span t-out="line['payout']" t-options="{'widget': 'monetary', 'display_currency': submission.supplier_id.currency_id}"/>
@@ -277,7 +306,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr class="fw-bold bg-light border-top">
-                                        <td colspan="4" class="text-end">Totaal Reeds Uitbetaald:</td>
+                                        <td colspan="6" class="text-end">Totaal Reeds Uitbetaald:</td>
 
                                         <td class="text-end text-success">
                                             <span t-out="total_payout_paid"
@@ -292,9 +321,10 @@
                             <div class="alert alert-light border mb-3">
                                 <i class="fa fa-info-circle text-warning"/> Deze items zijn uit de verkoop gehaald (niet verkocht).
                             </div>
-                            <table class="table table-sm">
+                            <table class="table table-sm align-middle">
                                 <thead>
                                     <tr>
+                                        <th width="60">Foto</th>
                                         <th>Product</th>
                                         <th>Reden</th>
                                         <th class="text-end">Oorspr. Prijs</th>
@@ -302,6 +332,10 @@
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="removed_products" t-as="product">
+                                        <td>
+                                            <img t-att-src="'/web/image/product.template/%s/image_128' % product.id"
+                                                 style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;"/>
+                                        </td>
                                         <td>
                                             <span t-field="product.name"/>
                                             <br/>

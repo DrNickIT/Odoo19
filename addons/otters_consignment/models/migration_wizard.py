@@ -1299,7 +1299,15 @@ class MigrationWizard(models.TransientModel):
             _logger.error(f"❌ CRASH bij maken order voor {product.x_old_id}: {e}")
             return
 
-        # 3. Lijn Maken
+        # 3. FIX: Bereken commissie voor betaalde items
+        fixed_comm = 0.0
+        if is_paid:
+            # We gebruiken het percentage van de submission
+            percentage = product.submission_id.payout_percentage
+            # List price is de prijs uit de CSV (die we gebruiken als verkoopprijs)
+            fixed_comm = product.list_price * percentage
+
+        # 4. Lijn Maken
         line = self.env['sale.order.line'].create({
             'order_id': order.id,
             'product_id': product_variant.id,
@@ -1307,10 +1315,11 @@ class MigrationWizard(models.TransientModel):
             'product_uom_qty': 1,
             'x_is_paid_out': is_paid,
             'x_payout_date': payout_date,
+            'x_fixed_commission': fixed_comm,  # <--- HIER IS DE FIX
             'x_old_id': f"MIGR_{product.x_old_id}"
         })
 
-        # 4. Bevestigen (Zet status op 'sale')
+        # 5. Bevestigen (Zet status op 'sale')
         order.action_confirm()
 
         # --- DE CRUCIALE FIX ---
@@ -1323,7 +1332,7 @@ class MigrationWizard(models.TransientModel):
             })
         # -----------------------
 
-        # 5. Finaliseren
+        # 6. Finaliseren
         # We hoeven invoice_status niet meer te forceren, Odoo berekent die nu zelf als 'invoiced'
         # omdat qty_invoiced == product_uom_qty.
         order.write({
@@ -1332,11 +1341,11 @@ class MigrationWizard(models.TransientModel):
             'effective_date': date_order_dt,
         })
 
-        # 6. Opruimen
+        # 7. Opruimen
         self._update_stock(product, 0)
         product.write({'is_published': False})
 
-        _logger.info(f"✅ ORDER AANGEMAAKT: {order.name} voor {product.name}")
+        _logger.info(f"✅ ORDER AANGEMAAKT: {order.name} voor {product.name} (Commissie: {fixed_comm})")
 
     def _create_product_copy(self, original_product, stock_qty):
         """ Kopieert het product en zet het nieuwe exemplaar op voorraad en gepubliceerd. """

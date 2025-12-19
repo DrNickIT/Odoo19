@@ -112,8 +112,8 @@ OK --> QR code aanmaken.
 * Alle e-mails die verstuurd zijn niet weggooien
 
 * bug in odoo footer verdwijnt weer en contact pagina wijzingen verdwijnen
-* Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
-* In voorraad: Te verdienen toevoegen + totaal + foto's
+OK -> * Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
+OK -> * In voorraad: Te verdienen toevoegen + totaal + foto's
 * forward oude url's (ook voor seo)
 
 * email opmaak

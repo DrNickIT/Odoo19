@@ -60,15 +60,20 @@ class ConsignmentReport(models.Model):
         """ % (self._table,))
 
     def action_mark_paid(self):
-        """ Markeer geselecteerde regels als betaald en leg commissie vast. """
+        """ Markeer geselecteerde regels als betaald en leg commissie én percentage vast. """
         for report_line in self:
             sol = report_line.order_line_id
             if not sol.x_is_paid_out:
-                current_calc = report_line.commission_amount
+                current_amount = report_line.commission_amount
+
+                # Haal het percentage op via het gelinkte product/submission
+                current_perc = sol.product_id.submission_id.payout_percentage
+
                 sol.write({
                     'x_is_paid_out': True,
                     'x_payout_date': fields.Date.context_today(self),
-                    'x_fixed_commission': current_calc
+                    'x_fixed_commission': current_amount,
+                    'x_fixed_percentage': current_perc  # <--- HIER OOK OPSLAAN
                 })
 
     def action_mark_unpaid(self):
@@ -78,5 +83,19 @@ class ConsignmentReport(models.Model):
             sol.write({
                 'x_is_paid_out': False,
                 'x_payout_date': False,
-                'x_fixed_commission': 0.0
+                'x_fixed_commission': 0.0,
+                'x_fixed_percentage': 0.0 # <--- RESETTEN
             })
+
+    def action_fix_commissions(self):
+        for report_line in self:
+            sol = report_line.order_line_id
+            # Fix alleen als het betaald is maar het percentage nog op 0 staat
+            if sol.x_is_paid_out and sol.x_fixed_percentage == 0.0:
+                submission = sol.product_id.submission_id
+                if submission:
+                    perc = submission.payout_percentage
+                    sol.write({
+                        'x_fixed_percentage': perc,
+                        'x_fixed_commission': sol.price_total * perc
+                    })

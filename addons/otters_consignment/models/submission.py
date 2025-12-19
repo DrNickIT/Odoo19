@@ -305,7 +305,8 @@ class ConsignmentSubmission(models.Model):
                     'payout': 0.0,
                     'date': date_val,
                     'is_paid': is_paid,       # <--- Belangrijk voor filtering straks
-                    'currency': line.currency_id
+                    'currency': line.currency_id,
+                    'percentage': line.x_computed_percentage # <--- NIEUW: Voeg percentage toe aan de data
                 }
 
             grouped_data[key]['qty'] += line.product_uom_qty

@@ -83,6 +83,7 @@ class ConsignmentPortal(CustomerPortal):
         # Bereken totalen voor de samenvatting bovenaan de pagina
         total_payout_paid = sum(item['payout'] for item in aggregated_paid)
         total_payout_unpaid = sum(item['payout'] for item in aggregated_unpaid)
+        total_payout_stock = sum(p.list_price * submission_sudo.payout_percentage for p in stock_products)
 
         values = {
             'submission': submission_sudo,
@@ -98,6 +99,7 @@ class ConsignmentPortal(CustomerPortal):
             # De totalen:
             'total_payout_paid': total_payout_paid,
             'total_payout_unpaid': total_payout_unpaid,
+            'total_payout_stock': total_payout_stock,
         }
 
         return request.render("otters_consignment.portal_consignment_submission", values)
