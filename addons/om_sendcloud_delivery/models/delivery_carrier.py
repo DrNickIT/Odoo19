@@ -71,14 +71,24 @@ class DeliveryCarrier(models.Model):
         partner = picking.partner_id
         weight = picking.shipping_weight
         if weight <= 0.0:
-            weight = 0.1
+            weight = 5.0
 
+        # --- SLIMME SPLITSING ---
         street_name, house_number = self._split_street_number(partner.street)
+
+        # Als er een busnummer in street2 zit, voegen we die toe aan het huisnummer voor Sendcloud
+        # Sendcloud verwacht: house_number="20 a" (waarbij 'a' de toevoeging is)
+        full_house_number = house_number
+        if partner.street2:
+            # Voorkom dubbele 'Bus' vermelding als het al in het nummer zit
+            # We vervangen 'Bus' en 'bus' door niets, en plakken het achter het huisnummer
+            toevoeging = partner.street2.replace('Bus', '').replace('bus', '').strip()
+            full_house_number = f"{full_house_number} {toevoeging}".strip()
 
         vals = {
             "name": partner.name,
             "address": street_name,
-            "house_number": house_number,
+            "house_number": full_house_number,
             "city": partner.city,
             "postal_code": partner.zip,
             "country": partner.country_id.code,
@@ -100,13 +110,15 @@ class DeliveryCarrier(models.Model):
 
         return {"parcel": vals}
 
-    def _split_street_number(self, street_input):
-        if not street_input:
+    def _split_street_number(self, full_street):
+        if not full_street:
             return "", ""
-        match = re.search(r'^(.+?)\s+(\d+.*)$', street_input)
+
+        match = re.match(r'^(.*?)\s+(\d+.*)$', full_street.strip())
+
         if match:
             return match.group(1), match.group(2)
-        return street_input, ""
+        return full_street, ""
 
     def _save_label_attachment(self, picking, url):
         try:
