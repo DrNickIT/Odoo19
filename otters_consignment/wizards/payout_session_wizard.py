@@ -117,16 +117,24 @@ class PayoutSessionWizard(models.TransientModel):
 
         # 1. MARKEER HUIDIGE ALS BETAALD
         if self.line_ids:
+            # Eerst basis vlaggen zetten
             self.line_ids.write({
                 'x_is_paid_out': True,
                 'x_payout_date': fields.Date.context_today(self),
-                'x_fixed_commission': 0 # Wordt normaal door compute gedaan, maar voor zekerheid
             })
-            # Odoo's rapport berekent commissie dynamisch tenzij vastgelegd.
-            # We moeten de berekende commissie vastleggen!
+
+            # Dan de bedragen en percentages vastklikken
             for line in self.line_ids:
-                amount = line.price_total * line.product_id.submission_id.payout_percentage
-                line.x_fixed_commission = amount
+                # Haal het huidige percentage op
+                perc = line.product_id.submission_id.payout_percentage
+                # Bereken het bedrag
+                amount = line.price_total * perc
+
+                # Sla BEIDE op
+                line.write({
+                    'x_fixed_commission': amount,
+                    'x_fixed_percentage': perc
+                })
 
         # 2. VERWIJDER HUIDIGE UIT DE WACHTRIJ
         self.write({'queue_partner_ids': [(3, self.current_partner_id.id)]})

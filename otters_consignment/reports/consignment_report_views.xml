@@ -94,6 +94,17 @@
                 }</field>
         </record>
 
+        <record id="action_fix_historical_commissions" model="ir.actions.server">
+            <field name="name">🔧 Fix Historische Commissies</field>
+            <field name="model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_model_id" ref="model_otters_consignment_report"/>
+            <field name="binding_view_types">list</field>
+            <field name="state">code</field>
+            <field name="code">
+                records.action_fix_commissions()
+            </field>
+        </record>
+
         <menuitem id="menu_consignment_report"
                   name="Verkoop Rapport"
                   parent="menu_consignment_root"
