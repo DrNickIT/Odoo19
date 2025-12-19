@@ -105,7 +105,7 @@ OK --> * Sendcloud label dadelijk aanmaken Ja / Nee
 OK --> * Verkoop rapport Zakken: sorteer op verkoopdatum default
 OK --> * Dubbele login mogelijk met capitalcase (info@ottersenflamingos.be)
 * Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur. Waarom zowel mail bij order als bij factuur?
-* Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.
+OK --> * Default Belgie
 * Lesley BTW Vrijgsteld / verwijderen
 * Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
 OK --> * Telefoonnummer niet verplicht maken bij verkoop
