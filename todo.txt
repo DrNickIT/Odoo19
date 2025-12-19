@@ -107,6 +107,10 @@ OK --> * Dubbele login mogelijk met capitalcase (info@ottersenflamingos.be)
 * Waarom is belgie niet default ingevuld bij verkoopt? --> hij checkt de locatie van de klant.
 * Lesley BTW Vrijgsteld / verwijderen
 * Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
+OK --> * Telefoonnummer niet verplicht maken bij verkoop
+* Informatie bijwerken --> BTW, ontvangen facturen en electronisch formaat weg doen
+* bug in odoo footer verdwijnt weer en contact pagina wijzingen verdwijnen
+* In voorraad: Te verdienen toevoegen + totaal + foto's
 
 
 
