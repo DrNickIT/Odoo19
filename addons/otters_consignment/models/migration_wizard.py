@@ -613,19 +613,20 @@ class MigrationWizard(models.TransientModel):
 
             # --- E. PRODUCT AANMAAK / UPDATE ---
             if product:
-                product.write(product_vals)
-                # Attributen & Foto's bijwerken
-                if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
-
-                if not product.product_template_image_ids and not product.image_1920:
-                    extra_fotos = row.get('extra_fotos')
-                    if extra_fotos and str(extra_fotos) != 'nan':
-                        for idx, url in enumerate(extra_fotos.split(',')):
-                            if url:
-                                extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
-                                if extra_img: self.env['product.image'].create(
-                                    {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
-                                     'image_1920': extra_img})
+                # product.write(product_vals)
+                # # Attributen & Foto's bijwerken
+                # if brand_data: self._add_attribute_by_id(product, brand_data['attr_id'], brand_data['attr_val_id'])
+                #
+                # if not product.product_template_image_ids and not product.image_1920:
+                #     extra_fotos = row.get('extra_fotos')
+                #     if extra_fotos and str(extra_fotos) != 'nan':
+                #         for idx, url in enumerate(extra_fotos.split(',')):
+                #             if url:
+                #                 extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
+                #                 if extra_img: self.env['product.image'].create(
+                #                     {'product_tmpl_id': product.id, 'name': f"{name} - Extra {idx + 1}",
+                #                      'image_1920': extra_img})
+                pass
             else:
                 # Nieuw product maken
                 image_url = row.get('foto')
