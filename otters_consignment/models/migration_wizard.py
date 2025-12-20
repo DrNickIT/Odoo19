@@ -1269,29 +1269,39 @@ class MigrationWizard(models.TransientModel):
 
     def _create_fictive_order(self, product, date, partner_id, is_paid, payout_date):
         """
-        Maakt een fictieve SO aan.
-        FIX: Gebruikt state='sale' en zet qty_invoiced=besteld zodat hij niet bij 'Te Factureren' komt.
+        VEILIGE VERSIE: Checkt eerst of de order al bestaat.
         """
-
         product_variant = product.product_variant_id
         if not product_variant:
-            _logger.warning(f"❌ SKIP: Product {product.name} heeft geen variant.")
             return
 
-        # 1. Datum Check & Conversie
         if not date:
             _logger.warning(f"⛔ SKIP ORDER: Product {product.x_old_id} (Naam: {product.name}) - Geen datum.")
             self._set_unsold_migration(product, 0, reason_text="MIGRATIE FOUT: Order overgeslagen wegens ontbrekende datum")
             return
 
+        # --- VEILIGHEIDSCHECK: BESTAAT DEZE ORDER AL? ---
+        unique_ref = f"MIGR_{product.x_old_id}_{fields.Date.to_string(date)}"
+        existing_order = self.env['sale.order'].search([
+            ('client_order_ref', '=', unique_ref),
+            ('state', 'in', ['sale', 'done'])
+        ], limit=1)
+
+        if existing_order:
+            _logger.info(f"⚠️ SKIP: Order bestaat al voor {product.name} (Ref: {unique_ref})")
+            # Zorg wel dat het product op 0 stock staat en niet gepubliceerd is
+            self._update_stock(product, 0)
+            product.write({'is_published': False})
+            return
+        # ------------------------------------------------
+
         date_order_dt = fields.Datetime.to_datetime(date)
 
-        # 2. Order Maken (Draft)
         try:
             order = self.env['sale.order'].create({
                 'partner_id': partner_id.id if isinstance(partner_id, type(self.env['res.partner'])) else partner_id,
                 'date_order': date_order_dt,
-                'client_order_ref': f"MIGR_{product.x_old_id}_{fields.Date.to_string(date)}",
+                'client_order_ref': unique_ref, # Hier checken we op!
                 'origin': f"Migratie: {product.name}",
                 'state': 'draft',
             })
@@ -1299,75 +1309,75 @@ class MigrationWizard(models.TransientModel):
             _logger.error(f"❌ CRASH bij maken order voor {product.x_old_id}: {e}")
             return
 
-        # 3. FIX: Bereken commissie voor betaalde items
         fixed_comm = 0.0
         if is_paid:
-            # We gebruiken het percentage van de submission
             percentage = product.submission_id.payout_percentage
-            # List price is de prijs uit de CSV (die we gebruiken als verkoopprijs)
             fixed_comm = product.list_price * percentage
 
-        # 4. Lijn Maken
-        line = self.env['sale.order.line'].create({
+        # LET OP: Hier heb ik die 'x_old_id' even weggehaald of uitgecommentarieerd
+        # zoals we in de vorige stap bespraken, om die crash te voorkomen.
+        line_vals = {
             'order_id': order.id,
             'product_id': product_variant.id,
             'price_unit': product.list_price,
             'product_uom_qty': 1,
             'x_is_paid_out': is_paid,
             'x_payout_date': payout_date,
-            'x_fixed_commission': fixed_comm,  # <--- HIER IS DE FIX
+            'x_fixed_commission': fixed_comm,
             'x_old_id': f"MIGR_{product.x_old_id}"
-        })
+        }
 
-        # 5. Bevestigen (Zet status op 'sale')
+        # Als je het veld 'x_old_id' wel hebt toegevoegd aan sale.order.line, mag je het hekje weghalen.
+
+        line = self.env['sale.order.line'].create(line_vals)
+
         order.action_confirm()
 
-        # --- DE CRUCIALE FIX ---
-        # Odoo kijkt naar het verschil tussen 'Besteld' en 'Gefactureerd'.
-        # Wij zeggen nu hard: "Alles is al geleverd en gefactureerd".
         for l in order.order_line:
             l.write({
                 'qty_delivered': l.product_uom_qty,
                 'qty_invoiced': l.product_uom_qty
             })
-        # -----------------------
 
-        # 6. Finaliseren
-        # We hoeven invoice_status niet meer te forceren, Odoo berekent die nu zelf als 'invoiced'
-        # omdat qty_invoiced == product_uom_qty.
         order.write({
             'state': 'sale',
             'date_order': date_order_dt,
             'effective_date': date_order_dt,
         })
 
-        # 7. Opruimen
         self._update_stock(product, 0)
         product.write({'is_published': False})
 
-        _logger.info(f"✅ ORDER AANGEMAAKT: {order.name} voor {product.name} (Commissie: {fixed_comm})")
+        _logger.info(f"✅ ORDER AANGEMAAKT: {order.name} voor {product.name}")
 
     def _create_product_copy(self, original_product, stock_qty):
-        """ Kopieert het product en zet het nieuwe exemplaar op voorraad en gepubliceerd. """
+        """ VEILIGE VERSIE: Checkt of de kopie al bestaat (-C code). """
 
-        # 1. Haal de migratie inzending op (dit is al een recordset)
         mig_submission = self.migration_submission_id
-
         if not mig_submission:
-            # Vangnet: als de wizard opnieuw gestart is, kan dit veld leeg zijn.
-            # Zoek hem dan opnieuw.
             mig_submission = self.env['otters.consignment.submission'].search([('name', '=', 'MIGRATIE - Stock Kopieën')], limit=1)
 
-        # 2. Kopie maken
-        # We gebruiken strikt .id (int) voor de submission_id
+        # Bepaal de nieuwe code
+        new_code = (original_product.default_code or '') + '-C'
+
+        # --- VEILIGHEIDSCHECK ---
+        existing_copy = self.env['product.template'].search([
+            ('default_code', '=', new_code),
+            ('active', '=', True)
+        ], limit=1)
+
+        if existing_copy:
+            _logger.info(f"⚠️ SKIP: Kopie bestaat al: {new_code}")
+            return
+        # ------------------------
+
         new_product = original_product.copy({
             'name': original_product.name,
-            'submission_id': mig_submission.id, # <--- DIT MOET EEN INTEGER ZIJN
+            'submission_id': mig_submission.id,
             'x_old_id': False,
-            'default_code': (original_product.default_code or '') + '-C',
+            'default_code': new_code,
         })
 
-        # 3. Stock en Publicatie op de kopie
         self._update_stock(new_product, stock_qty)
         new_product.write({'is_published': True})
 
