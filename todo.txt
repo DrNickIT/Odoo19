@@ -109,13 +109,11 @@ OK --> * Mail factuur annuleren ofwel uitbetaling vanaf order ipv vanaf factuur.
 OK --> * Verkoop rapport default wat niet uitbetaald op laatste kwartaaal per leverancier.
 OK --> * Uitbetalings sessie met QR-code
 OK --> QR code aanmaken.
-* Alle e-mails die verstuurd zijn niet weggooien
 
-* bug in odoo footer verdwijnt weer en contact pagina wijzingen verdwijnen
+OK --> * bug in odoo footer verdwijnt weer en contact pagina wijzingen verdwijnen --> opslaan
 OK -> * Mijn inzending / Nog uit te betalen --> Jouw betaling niet 0 maar het bedrag.
 OK -> * In voorraad: Te verdienen toevoegen + totaal + foto's
 * forward oude url's (ook voor seo)
-
 * email opmaak
 
 * Informatie bijwerken --> BTW, ontvangen facturen en electronisch formaat weg doen
@@ -125,6 +123,7 @@ OK -> * In voorraad: Te verdienen toevoegen + totaal + foto's
 
 
 Productie
+** Alle e-mails die verstuurd zijn niet weggooien
 ** Backup cloudpepper.io
 ** cloudpepper.io upgraden
 ** hertzner aankopen
