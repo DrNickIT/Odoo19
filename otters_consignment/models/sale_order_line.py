@@ -11,6 +11,8 @@ class SaleOrderLine(models.Model):
     )
     x_payout_date = fields.Date(string="Uitbetaald op")
 
+    x_old_id = fields.Char(string="Oud Bestelregel ID", index=True, readonly=True)
+
     x_fixed_commission = fields.Monetary(string="Vastgelegde Commissie", currency_field='currency_id', copy=False)
     x_fixed_percentage = fields.Float(string="Vastgelegd Percentage", copy=False, digits=(16, 2))
 
