@@ -34,7 +34,6 @@
 
         'wizards/bulk_discount_wizard_views.xml',
         'wizards/bulk_remove_wizard_views.xml',
-        'wizards/payout_session_wizard_views.xml',# <--- DEZE TOEVOEGEN
 
         # 2.2 TWEEDE: Definieer de Root Menu en gebruik de import actie
         'views/views.xml',                # Bevat: menu_consignment_root EN gebruikt action_import_products_wizard
@@ -45,6 +44,7 @@
         'views/migration_wizard_views.xml',
         'views/brand_views.xml',
         'views/res_config_settings_views.xml',
+        'wizards/payout_session_wizard_views.xml',
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
