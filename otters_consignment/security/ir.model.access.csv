@@ -15,3 +15,4 @@ access_otters_brand_portal,otters.brand.portal,model_otters_brand,base.group_por
 access_otters_bulk_discount_wizard,otters.bulk.discount.wizard,model_otters_consignment_bulk_discount_wizard,base.group_user,1,1,1,1
 access_otters_consignment_bulk_remove_wizard,otters.consignment.bulk.remove.wizard,model_otters_consignment_bulk_remove_wizard,base.group_user,1,1,1,1
 access_otters_payout_session_wizard,otters.payout.session.wizard,model_otters_payout_session_wizard,base.group_user,1,1,1,1
+access_otters_split_attributes_wizard,otters.split.attributes.wizard,model_otters_consignment_split_attributes_wizard,base.group_user,1,1,1,1

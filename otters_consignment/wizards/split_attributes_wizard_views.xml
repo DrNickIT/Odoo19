@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_split_attributes_wizard_form" model="ir.ui.view">
+        <field name="name">otters.split.attributes.wizard.form</field>
+        <field name="model">otters.consignment.split.attributes.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Splits Kenmerken">
+                <sheet>
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"/>
+                        Deze wizard zoekt naar attribuutregels met <strong>meerdere waarden</strong> op één lijn
+                        (bv. 'Geslacht: Jongen, Meisje') en splitst deze op in aparte lijnen.<br/>
+                        Dit is nodig voor de correcte werking van filters op de website.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="attribute_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="bv. Geslacht, Seizoen"/>
+                            <field name="process_all"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_split" string="✂️ Splitsen Uitvoeren" type="object" class="btn-primary"/>
+                        <button string="Annuleren" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_split_attributes_wizard" model="ir.actions.act_window">
+        <field name="name">✂️ Splits Kenmerken...</field>
+        <field name="res_model">otters.consignment.split.attributes.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="product.model_product_template"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+</odoo>

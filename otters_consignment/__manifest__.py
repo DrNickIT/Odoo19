@@ -45,6 +45,7 @@
         'views/brand_views.xml',
         'views/res_config_settings_views.xml',
         'wizards/payout_session_wizard_views.xml',
+        'wizards/split_attributes_wizard_views.xml',
 
         # 3. PRINT ACTIES & WEBLAYOUTS (Moet hier komen zodat alle modellen bestaan)
         'reports/product_labels.xml',
