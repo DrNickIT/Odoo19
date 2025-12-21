@@ -661,7 +661,8 @@ class MigrationWizard(models.TransientModel):
                 # Extra foto's
                 extra_fotos = row.get('extra_fotos')
                 if extra_fotos and str(extra_fotos) != 'nan':
-                    for idx, url in enumerate(extra_fotos.split(',')):
+                    clean_string = extra_fotos.replace('\n', ',').replace('\r', '')
+                    for idx, url in enumerate(clean_string.split(',')):
                         if url:
                             extra_img = self._download_image(url.strip(), fix_old_id=old_product_id)
                             if extra_img: self.env['product.image'].create(
@@ -1509,5 +1510,106 @@ class MigrationWizard(models.TransientModel):
                 'message': f'{updated_count} producten zijn voorzien van de juiste conditie.',
                 'type': 'success',
                 'sticky': False
+            }
+        }
+
+    def action_import_extra_photos_only(self):
+        """
+        FIX SCRIPT:
+        1. Leest '4. Producten' opnieuw in.
+        2. Kijkt naar 'extra_fotos'.
+        3. Splitst correct op enters (\n).
+        4. SKIP DE EERSTE FOTO (want die is bij de vorige migratie al gelukt).
+        5. Downloadt de overige foto's en voegt ze toe.
+        6. Commits elke 100 regels.
+        """
+        if not self.file_products:
+            raise UserError("Upload a.u.b. het bestand '4. Producten' opnieuw in de wizard.")
+
+        _logger.info("==========================================")
+        _logger.info("🚀 START EXTRA FOTO IMPORT (SKIP EERSTE)")
+        _logger.info("==========================================")
+
+        csv_data = self._read_csv(self.file_products)
+
+        # Cache opbouwen (x_old_id -> product.template id)
+        existing_products = self.env['product.template'].search_read(
+            [('x_old_id', '!=', False)],
+            ['id', 'x_old_id', 'name']
+        )
+        product_map = {str(p['x_old_id']): p['id'] for p in existing_products}
+
+        count = 0
+        images_added = 0
+
+        for row in csv_data:
+            count += 1
+
+            # --- COMMIT LOGICA ---
+            if count % 50 == 0:
+                _logger.info(f"   ... {count} regels gecheckt... (Even opslaan)")
+                self.env.cr.commit()  # <--- HIERMEE SLA JE TUSSENTIJDS OP
+            # ---------------------
+
+            old_product_id = self._clean_id(row.get('product_id'))
+
+            # 1. Product zoeken
+            if not old_product_id or old_product_id not in product_map:
+                continue
+
+            product_id = product_map[old_product_id]
+
+            # 2. Extra foto's ophalen
+            extra_fotos_raw = row.get('extra_fotos')
+            if not extra_fotos_raw or str(extra_fotos_raw) == 'nan':
+                continue
+
+            # STAP A: Maak de lijst schoon (enters -> komma's)
+            clean_string = extra_fotos_raw.replace('\n', ',').replace('\r', '')
+            url_list = [u.strip() for u in clean_string.split(',') if u.strip()]
+
+            # STAP B: SKIP DE EERSTE FOTO
+            if len(url_list) > 0:
+                url_list = url_list[1:] # Pak alles vanaf index 1
+
+            if not url_list:
+                continue
+
+            # 3. Verwerken van de RESTERENDE foto's
+
+            # Tel hoeveel extra foto's dit product NU al heeft
+            current_image_count = self.env['product.image'].search_count([('product_tmpl_id', '=', product_id)])
+
+            for url in url_list:
+                image_data = self._download_image(url, fix_old_id=old_product_id)
+
+                if image_data:
+                    current_image_count += 1
+                    try:
+                        self.env['product.image'].create({
+                            'product_tmpl_id': product_id,
+                            'name': f"Extra {current_image_count}",
+                            'image_1920': image_data
+                        })
+                        images_added += 1
+                    except Exception as e:
+                        _logger.error(f"Kon afbeelding niet koppelen aan product {old_product_id}: {e}")
+
+        # Finale commit
+        self.env.cr.commit()
+
+        _logger.info("==========================================")
+        _logger.info(f"🏁 FOTO FIX KLAAR!")
+        _logger.info(f"Totaal {images_added} nieuwe extra afbeeldingen toegevoegd.")
+        _logger.info("==========================================")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Extra Foto\'s Geïmporteerd',
+                'message': f'{images_added} foto\'s toegevoegd en opgeslagen.',
+                'type': 'success',
+                'sticky': True
             }
         }

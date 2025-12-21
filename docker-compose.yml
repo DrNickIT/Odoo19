@@ -10,10 +10,10 @@ services:
     ports:
       - "8071:8069"
     volumes:
-      - ./addons:/mnt/extra-addons
-      - ./etc:/etc/odoo
+      - ./:/mnt/extra-addons
+      - ./_local_dev/etc:/etc/odoo
       - odoo-web-data:/var/lib/odoo
-      - ./OttersDownload/Fotos:/mnt/images_source
+      - ./_local_dev/OttersDownload/Fotos:/mnt/images_source
     environment:
       - HOST=db
       - USER=odoo
@@ -44,7 +44,7 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
     volumes:
-      - ./mailpit-data:/data
+      - ./_local_dev/mailpit-data:/data
 
 volumes:
   odoo-db-data:

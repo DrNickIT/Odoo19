@@ -240,13 +240,24 @@
     </record>
 
     <record id="action_fix_split_sizes" model="ir.actions.server">
-        <field name="name">✂️ Splits Gecombineerde Maten (Naar Aparte Regels)</field>
+        <field name="name">✂️ Splits Gecombineerde Maten (92/98 --> 92 EN 98)</field>
         <field name="model_id" ref="product.model_product_template"/>
         <field name="binding_model_id" ref="product.model_product_template"/>
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
             action = model.action_fix_split_sizes()
+        </field>
+    </record>
+
+    <record id="action_split_multi_value_attributes" model="ir.actions.server">
+        <field name="name">✂️ Splits Kenmerken</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="binding_model_id" ref="product.model_product_template"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+            action = records.action_split_multi_value_attributes()
         </field>
     </record>
 

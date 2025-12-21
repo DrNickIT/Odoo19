@@ -346,3 +346,49 @@ class ProductTemplate(models.Model):
                 'sticky': False,
             }
         }
+
+    def action_split_multi_value_attributes(self):
+        """
+        Actie voor Odoo 19:
+        Zoekt naar attribuutregels met meerdere waarden (bv. Geslacht: Jongen, Meisje)
+        en splitst deze op in aparte regels (Geslacht: Jongen én Geslacht: Meisje).
+        Hierdoor hoeft de klant niet te kiezen op de website.
+        """
+        processed_count = 0
+
+        for product in self:
+            # Filter: Zoek attribuut lijnen die meer dan 1 waarde hebben
+            multi_value_lines = product.attribute_line_ids.filtered(lambda l: len(l.value_ids) > 1)
+
+            if not multi_value_lines:
+                continue
+
+            processed_count += 1
+
+            for line in multi_value_lines:
+                attribute = line.attribute_id
+                values = line.value_ids
+
+                # 1. Verwijder de oude gecombineerde regel
+                # (Odoo verwijdert de koppeling, maar de waarden/attributen zelf blijven bestaan)
+                line.unlink()
+
+                # 2. Maak voor ELKE waarde een NIEUWE, APARTE regel aan
+                for val in values:
+                    self.env['product.template.attribute.line'].create({
+                        'product_tmpl_id': product.id,
+                        'attribute_id': attribute.id,
+                        'value_ids': [(6, 0, [val.id])] # Koppel precies 1 waarde
+                    })
+
+        # Geef feedback aan de gebruiker
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Attributen Gesplitst',
+                'message': f'{processed_count} producten zijn succesvol opgesplitst naar aparte regels.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
