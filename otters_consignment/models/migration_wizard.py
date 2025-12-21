@@ -1657,3 +1657,79 @@ class MigrationWizard(models.TransientModel):
             }
         }
 
+    def action_create_seo_redirects(self):
+        """
+        FIX ACTIE: SEO REDIRECTS (301) - VERSIE 2 (ROBUUST)
+        Maakt nu redirects aan voor ZOWEL '/nl/product/...' ALS '/product/...'.
+        Dit vangt het probleem op waarbij Odoo de taalcode stript.
+        """
+        _logger.info("==========================================")
+        _logger.info("🚀 START SEO REDIRECT GENERATIE (DUAL PATH)")
+        _logger.info("==========================================")
+
+        products = self.env['product.template'].search([
+            ('x_old_id', '!=', False)
+        ])
+
+        website = self.env['website'].search([], limit=1)
+        if not website:
+            raise UserError("Geen website gevonden!")
+
+        import re
+        created_count = 0
+        skipped_count = 0
+
+        for product in products:
+            # 1. Slugify naam
+            slug_name = str(product.name).lower()
+            slug_name = re.sub(r'[^a-z0-9]+', '-', slug_name).strip('-')
+
+            # 2. De twee varianten van de oude URL
+            # We maken ze allebei aan, zo werkt het altijd.
+            paths_to_create = [
+                f"/nl/product/{slug_name}-{product.x_old_id}", # De originele
+                f"/product/{slug_name}-{product.x_old_id}"     # De backup (zonder /nl)
+            ]
+
+            # 3. Nieuwe URL
+            new_path = f"/shop/product/{product.id}"
+
+            for old_path in paths_to_create:
+                # Check of bestaat
+                existing = self.env['website.rewrite'].search([
+                    ('url_from', '=', old_path),
+                    ('website_id', '=', website.id)
+                ], limit=1)
+
+                if not existing:
+                    self.env['website.rewrite'].create({
+                        'name': f"Migratie SEO: {product.name}",
+                        'redirect_type': '301',
+                        'url_from': old_path,
+                        'url_to': new_path,
+                        'website_id': website.id,
+                        'active': True
+                    })
+                    created_count += 1
+                else:
+                    skipped_count += 1
+
+            if (created_count + skipped_count) % 500 == 0:
+                self.env.cr.commit()
+
+        self.env.cr.commit()
+
+        _logger.info("==========================================")
+        _logger.info(f"🏁 KLAAR! {created_count} nieuwe redirects gemaakt.")
+        _logger.info("==========================================")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'SEO Redirects Klaar',
+                'message': f'{created_count} regels toegevoegd (beide varianten).',
+                'type': 'success',
+                'sticky': False
+            }
+        }
