@@ -1530,7 +1530,7 @@ class MigrationWizard(models.TransientModel):
 
         csv_data = self._read_csv(self.file_products)
 
-        # Cache opbouwen
+        # Cache opbouwen (x_old_id -> product.template id) voor snelheid
         existing_products = self.env['product.template'].search_read(
             [('x_old_id', '!=', False)],
             ['id', 'x_old_id']
@@ -1542,17 +1542,21 @@ class MigrationWizard(models.TransientModel):
 
         for row in csv_data:
             count += 1
+
+            # Tussentijdse opslag om geheugen te sparen
             if count % 100 == 0:
                 _logger.info(f"   ... {count} regels gecheckt... (Even opslaan)")
                 self.env.cr.commit()
 
             old_product_id = self._clean_id(row.get('product_id'))
 
+            # 1. Product zoeken in cache
             if not old_product_id or old_product_id not in product_map:
                 continue
 
             product_id = product_map[old_product_id]
 
+            # 2. Extra foto's ophalen
             extra_fotos_raw = row.get('extra_fotos')
             if not extra_fotos_raw or str(extra_fotos_raw) == 'nan':
                 continue
@@ -1577,12 +1581,14 @@ class MigrationWizard(models.TransientModel):
             current_image_count = self.env['product.image'].search_count([('product_tmpl_id', '=', product_id)])
 
             for url in url_list:
+                # Downloaden (gebruikt je bestaande _download_image logica)
                 image_data = self._download_image(url, fix_old_id=old_product_id)
 
                 if image_data:
                     current_image_count += 1
                     try:
                         # We voegen ze toe als 'Extra X'
+                        # Odoo hergebruikt het bestand op schijf als de data hetzelfde is!
                         self.env['product.image'].create({
                             'product_tmpl_id': product_id,
                             'name': f"Extra {current_image_count}",
@@ -1611,7 +1617,7 @@ class MigrationWizard(models.TransientModel):
             }
         }
 
-    def action_cleanup_bad_images(self):
+    def action_fix_cleanup_images(self):
         """
         STAP 1: OPRUIMEN
         Verwijdert afbeeldingen die door het vorige script zijn toegevoegd.
@@ -1621,7 +1627,7 @@ class MigrationWizard(models.TransientModel):
         _logger.info("🧹 START CLEANUP: FOUTE EXTRA FOTO'S")
         _logger.info("==========================================")
 
-        # Zoek afbeeldingen die beginnen met 'Extra '
+        # Zoek afbeeldingen die beginnen met 'Extra ' en gekoppeld zijn aan een migratie-product
         images_to_delete = self.env['product.image'].search([
             ('name', '=like', 'Extra %'),
             ('product_tmpl_id.x_old_id', '!=', False)
