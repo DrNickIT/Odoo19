@@ -1513,29 +1513,27 @@ class MigrationWizard(models.TransientModel):
             }
         }
 
-    def action_import_extra_photos_only(self):
+    def action_import_skip_last_photo(self):
         """
-        FIX SCRIPT:
-        1. Leest '4. Producten' opnieuw in.
-        2. Kijkt naar 'extra_fotos'.
-        3. Splitst correct op enters (\n).
-        4. SKIP DE EERSTE FOTO (want die is bij de vorige migratie al gelukt).
-        5. Downloadt de overige foto's en voegt ze toe.
-        6. Commits elke 100 regels.
+        STAP 2: HERSTEL (SKIP LAATSTE)
+        Leest de '4. Producten' CSV opnieuw in.
+        Splitst 'extra_fotos' correct op enters.
+        Gooit de LAATSTE foto weg (want die is bij de originele migratie al gedaan).
+        Importeert de rest.
         """
         if not self.file_products:
             raise UserError("Upload a.u.b. het bestand '4. Producten' opnieuw in de wizard.")
 
         _logger.info("==========================================")
-        _logger.info("🚀 START EXTRA FOTO IMPORT (SKIP EERSTE)")
+        _logger.info("🚀 START IMPORT: EXTRA FOTO'S (SKIP LAATSTE)")
         _logger.info("==========================================")
 
         csv_data = self._read_csv(self.file_products)
 
-        # Cache opbouwen (x_old_id -> product.template id)
+        # Cache opbouwen
         existing_products = self.env['product.template'].search_read(
             [('x_old_id', '!=', False)],
-            ['id', 'x_old_id', 'name']
+            ['id', 'x_old_id']
         )
         product_map = {str(p['x_old_id']): p['id'] for p in existing_products}
 
@@ -1544,40 +1542,38 @@ class MigrationWizard(models.TransientModel):
 
         for row in csv_data:
             count += 1
-
-            # --- COMMIT LOGICA ---
-            if count % 50 == 0:
+            if count % 100 == 0:
                 _logger.info(f"   ... {count} regels gecheckt... (Even opslaan)")
-                self.env.cr.commit()  # <--- HIERMEE SLA JE TUSSENTIJDS OP
-            # ---------------------
+                self.env.cr.commit()
 
             old_product_id = self._clean_id(row.get('product_id'))
 
-            # 1. Product zoeken
             if not old_product_id or old_product_id not in product_map:
                 continue
 
             product_id = product_map[old_product_id]
 
-            # 2. Extra foto's ophalen
             extra_fotos_raw = row.get('extra_fotos')
             if not extra_fotos_raw or str(extra_fotos_raw) == 'nan':
                 continue
 
-            # STAP A: Maak de lijst schoon (enters -> komma's)
+            # A. SPLITTEN (Correct op enters/komma's)
             clean_string = extra_fotos_raw.replace('\n', ',').replace('\r', '')
             url_list = [u.strip() for u in clean_string.split(',') if u.strip()]
-
-            # STAP B: SKIP DE EERSTE FOTO
-            if len(url_list) > 0:
-                url_list = url_list[1:] # Pak alles vanaf index 1
 
             if not url_list:
                 continue
 
-            # 3. Verwerken van de RESTERENDE foto's
+            # B. SKIP LAATSTE FOTO
+            # Als er foto's zijn, gooien we de laatste weg (want die bestaat al)
+            if len(url_list) > 0:
+                url_list = url_list[:-1]
 
-            # Tel hoeveel extra foto's dit product NU al heeft
+            if not url_list:
+                continue
+
+            # C. IMPORT DE REST
+            # Tel huidige aantal afbeeldingen voor de naamgeving
             current_image_count = self.env['product.image'].search_count([('product_tmpl_id', '=', product_id)])
 
             for url in url_list:
@@ -1586,6 +1582,7 @@ class MigrationWizard(models.TransientModel):
                 if image_data:
                     current_image_count += 1
                     try:
+                        # We voegen ze toe als 'Extra X'
                         self.env['product.image'].create({
                             'product_tmpl_id': product_id,
                             'name': f"Extra {current_image_count}",
@@ -1595,21 +1592,62 @@ class MigrationWizard(models.TransientModel):
                     except Exception as e:
                         _logger.error(f"Kon afbeelding niet koppelen aan product {old_product_id}: {e}")
 
-        # Finale commit
+        # Finale opslag
         self.env.cr.commit()
 
         _logger.info("==========================================")
         _logger.info(f"🏁 FOTO FIX KLAAR!")
-        _logger.info(f"Totaal {images_added} nieuwe extra afbeeldingen toegevoegd.")
+        _logger.info(f"Totaal {images_added} extra afbeeldingen toegevoegd (laatste overgeslagen).")
         _logger.info("==========================================")
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': 'Extra Foto\'s Geïmporteerd',
-                'message': f'{images_added} foto\'s toegevoegd en opgeslagen.',
+                'title': 'Foto Herstel Voltooid',
+                'message': f'{images_added} foto\'s zijn toegevoegd.',
                 'type': 'success',
                 'sticky': True
             }
         }
+
+    def action_cleanup_bad_images(self):
+        """
+        STAP 1: OPRUIMEN
+        Verwijdert afbeeldingen die door het vorige script zijn toegevoegd.
+        Kenmerk: Naam begint met 'Extra ' MAAR bevat geen ' - ' (productnaam).
+        """
+        _logger.info("==========================================")
+        _logger.info("🧹 START CLEANUP: FOUTE EXTRA FOTO'S")
+        _logger.info("==========================================")
+
+        # Zoek afbeeldingen die beginnen met 'Extra '
+        images_to_delete = self.env['product.image'].search([
+            ('name', '=like', 'Extra %'),
+            ('product_tmpl_id.x_old_id', '!=', False)
+        ])
+
+        # Filter: Verwijder ze ENKEL als er geen streepje in zit.
+        # De originele migratie (die we willen houden) heet meestal "Productnaam - Extra 1".
+        # De 'foute' van het vorige script heetten gewoon "Extra 1".
+        images_to_delete = images_to_delete.filtered(lambda i: ' - ' not in i.name)
+
+        count = len(images_to_delete)
+
+        if count > 0:
+            images_to_delete.unlink()
+            _logger.info(f"✅ {count} afbeeldingen verwijderd.")
+        else:
+            _logger.info("Geen afbeeldingen gevonden om te verwijderen.")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Cleanup Klaar',
+                'message': f'{count} afbeeldingen zijn verwijderd.',
+                'type': 'success',
+                'sticky': False
+            }
+        }
+
