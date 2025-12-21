@@ -1733,3 +1733,83 @@ class MigrationWizard(models.TransientModel):
                 'sticky': False
             }
         }
+
+    def action_create_brand_redirects(self):
+        """
+        FIX ACTIE: MERK REDIRECTS (VIA JOUW EIGEN OTTERS.BRAND)
+        Zoekt in 'otters.brand' en maakt redirects.
+        Oud: /nl/merk/naam-van-merk
+        Nieuw: /brand/naam-van-merk-ID
+        """
+        _logger.info("==========================================")
+        _logger.info("🚀 START MERK REDIRECTS (OTTERS.BRAND)")
+        _logger.info("==========================================")
+
+        # 1. Haal JOUW merken op
+        brands = self.env['otters.brand'].search([])
+
+        if not brands:
+            _logger.info("Geen merken gevonden in otters.brand.")
+            return
+
+        website = self.env['website'].search([], limit=1)
+        if not website:
+            raise UserError("Geen website gevonden!")
+
+        import re
+        created_count = 0
+        skipped_count = 0
+
+        # 2. Loop door alle merken
+        for brand in brands:
+
+            # A. Slugify de naam (bv. "1 + in the family" -> "1-in-the-family")
+            slug_name = str(brand.name).lower()
+            slug_name = re.sub(r'[^a-z0-9]+', '-', slug_name).strip('-')
+
+            # B. De oude URL varianten
+            paths_to_create = [
+                f"/merk/{slug_name}",      # Waar Odoo op landt (zonder /nl)
+                f"/nl/merk/{slug_name}"    # De originele link
+            ]
+
+            # C. De nieuwe URL
+            # Jouw controller (brand_controller.py) luistert op: /brand/<model("otters.brand"):brand>
+            # Odoo maakt daar automatisch van: /brand/naam-id
+            new_path = f"/brand/{slug_name}-{brand.id}"
+
+            for old_path in paths_to_create:
+                existing = self.env['website.rewrite'].search([
+                    ('url_from', '=', old_path),
+                    ('website_id', '=', website.id)
+                ], limit=1)
+
+                if not existing:
+                    self.env['website.rewrite'].create({
+                        'name': f"Migratie Merk: {brand.name}",
+                        'redirect_type': '301',
+                        'url_from': old_path,
+                        'url_to': new_path,
+                        'website_id': website.id,
+                        'active': True
+                    })
+                    created_count += 1
+                else:
+                    skipped_count += 1
+
+        self.env.cr.commit()
+
+        _logger.info("==========================================")
+        _logger.info(f"🏁 MERKEN KLAAR! {created_count} redirects aangemaakt.")
+        _logger.info("==========================================")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Merk Redirects Klaar',
+                'message': f'{created_count} redirects zijn aangemaakt voor otters.brand.',
+                'type': 'success',
+                'sticky': False
+            }
+        }
