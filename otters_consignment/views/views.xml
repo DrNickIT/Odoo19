@@ -275,6 +275,7 @@
         <field name="inherit_id" ref="product.product_template_tree_view"/>
         <field name="arch" type="xml">
             <field name="name" position="after">
+                <field name="create_date" string="Aangemaakt op" optional="show" widget="date"/>
                 <field name="x_multi_attr_info" optional="show" widget="badge" decoration-danger="x_multi_attr_info"/>
             </field>
         </field>
