@@ -1,11 +1,35 @@
 # -*- coding: utf-8 -*-
 import logging
 from odoo.addons.website_sale.controllers.main import WebsiteSale
+from odoo import http
 from odoo.http import request
 
 # Maak een logger aan
 _logger = logging.getLogger(__name__)
 class OttersWebsiteSale(WebsiteSale):
+
+    @http.route([
+        '/shop',
+        '/shop/page/<int:page>',
+        '/shop/category/<model("product.public.category"):category>',
+        '/shop/category/<model("product.public.category"):category>/page/<int:page>'
+    ], type='http', auth="public", website=True, sitemap=WebsiteSale.sitemap_shop)
+    def shop(self, page=0, category=None, search='', ppg=False, **post):
+
+        # 1. Huidige sortering ophalen
+        current_sorting = post.get('order') or ''
+
+        # 2. Als sortering "Nieuwste" is (of leeg/standaard)...
+        if current_sorting == 'create_date desc' or not current_sorting:
+
+            # ... sorteer dan eerst op 'type' (alfabetisch) en dan op datum.
+            # Odoo sorteert dan op de technische naam:
+            # - 'consu' (Goederen) -> Komt eerst
+            # - 'service' (Dienst) -> Komt laatst
+            post['order'] = 'type asc, create_date desc'
+
+        # 3. Uitvoeren
+        return super(OttersWebsiteSale, self).shop(page, category, search, ppg, **post)
 
     def _get_mandatory_billing_address_fields(self, country_sudo):
         mandatory_fields = super(OttersWebsiteSale, self)._get_mandatory_billing_address_fields(country_sudo)
