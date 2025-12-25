@@ -3,44 +3,45 @@
 import publicWidget from "@web/legacy/js/public/public_widget";
 
 publicWidget.registry.OttersShopLoader = publicWidget.Widget.extend({
-    selector: '.o_wsale_products_page', // Alleen actief op de shoppagina
+    selector: '.o_wsale_products_page',
     events: {
-        // 1. Product klikken (Afbeelding & Titel)
+        // 1. Product klikken
         'click .oe_product_image a': '_showLoader',
         'click .o_wsale_product_information a': '_showLoader',
 
         // 2. Navigatie & Sortering
-        'click .pagination a': '_showLoader',                   // Volgende pagina
-        'click .dropdown-menu a[href*="/shop"]': '_showLoader', // Sorteer menu
-        'click .o_wsale_apply_layout': '_showLoader',           // Grid/Lijst switch
+        'click .pagination a': '_showLoader',
+        'click .dropdown-menu a[href*="/shop"]': '_showLoader',
+        'click .o_wsale_apply_layout': '_showLoader',
 
-        // 3. Filters (Zijbalk)
-        'change .js_attributes input': '_showLoader',           // Checkboxen
-        'click .js_attributes label': '_showLoader',            // Labels
+        // 3. Filters (Zijbalk) - Uitgebreider
+        'change .js_attributes input': '_showLoader', // Checkboxen
+        'input .js_attributes input': '_showLoader',  // Range sliders etc
+        'click .js_attributes label': '_showLoader',  // Labels
 
-        // 4. Categorieën (Overal: Zijbalk, Bovenbalk, Breadcrumbs)
-        'click .breadcrumb a': '_showLoader',                   // Kruimelpad bovenaan
-        'click a[href*="/shop/category/"]': '_showLoader',      // ELKE link naar een categorie
-        'click a[href="/shop"]': '_showLoader',                 // Link terug naar "Alle producten"
+        // 4. Categorieën
+        'click .breadcrumb a': '_showLoader',
+        'click a[href*="/shop/category/"]': '_showLoader',
+        'click a[href="/shop"]': '_showLoader',
     },
 
     /**
      * @override
      */
     start: function () {
-        // HTML toevoegen (als die er nog niet is)
+        // HTML toevoegen als die er nog niet is
         if ($('#otters_page_loader').length === 0) {
             $('body').append(`
                 <div id="otters_page_loader">
                     <div class="otters_spinner_container">
                         <i class="fa fa-circle-o-notch fa-spin otters_spinner"></i>
                     </div>
-                    <span class="otters_text">Momentje...</span>
+                    <span class="otters_text">Even geduld...</span>
                 </div>
             `);
         }
 
-        // Luister naar browser 'terug' knop -> Loader verbergen
+        // Loader verbergen als men de 'terug' knop gebruikt
         window.addEventListener('pageshow', () => {
             $('#otters_page_loader').removeClass('active');
         });
@@ -49,24 +50,20 @@ publicWidget.registry.OttersShopLoader = publicWidget.Widget.extend({
     },
 
     _showLoader: function (ev) {
-        // 1. Check op CTRL/CMD click (nieuw tabblad = geen loader)
-        if (ev.ctrlKey || ev.metaKey) {
-            return;
-        }
+        if (ev.ctrlKey || ev.metaKey) { return; }
 
-        // 2. Check of het een "uitklap" knopje is (geen loader)
         const $target = $(ev.currentTarget);
+        // Negeer uitklap-knoppen
         if ($target.data('toggle') === 'collapse' || $target.data('bs-toggle') === 'collapse') {
             return;
         }
 
-        // 3. Check of de link wel echt ergens heen gaat (geen '#' of lege links)
+        // Negeer links die nergens heen gaan
         const href = $target.attr('href');
-        if (!href || href === '#' || href.startsWith('javascript')) {
+        if ($target.is('a') && (!href || href === '#' || href.startsWith('javascript'))) {
             return;
         }
 
-        // Alles OK? Toon loader!
         $('#otters_page_loader').addClass('active');
     },
 });

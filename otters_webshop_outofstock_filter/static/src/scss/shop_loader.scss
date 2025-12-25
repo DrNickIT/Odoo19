@@ -1,32 +1,52 @@
-/* De container voor de lader (standaard verborgen) */
+/* De container voor de lader */
 #otters_page_loader {
-  display: none; /* Verberg standaard */
+  display: none; /* Standaard verborgen */
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.7); /* Witte waas */
-  z-index: 9999; /* Bovenop alles */
+  width: 100vw; /* Volledige breedte viewport */
+  height: 100vh; /* Volledige hoogte viewport */
+  background-color: rgba(255, 255, 255, 0.8); /* Iets wittere waas */
+
+  /* Het allerhoogste niveau, boven alles van Odoo (menu's, popups, etc) */
+  z-index: 2147483647 !important;
+
+  /* Flexbox om alles perfect in het midden te zetten */
   justify-content: center;
   align-items: center;
   flex-direction: column;
 
-  /* Wanneer we de class 'active' toevoegen, wordt hij zichtbaar */
+  /* Wanneer we de class 'active' toevoegen via JS, wordt hij zichtbaar */
   &.active {
+    display: flex !important;
+  }
+
+  .otters_spinner_container {
+    /* Zorg dat deze container niet inklapt */
+    width: auto;
+    height: auto;
     display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   /* Het icoontje */
   .otters_spinner {
-    font-size: 4rem;
-    color: #212529; /* Donkergrijs, of gebruik je eigen merkkleur */
+    font-size: 4rem !important; /* Forceer grootte */
+    color: #212529 !important; /* Forceer kleur (donkergrijs) */
+    width: 1em !important;
+    height: 1em !important;
+    line-height: 1 !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   .otters_text {
-    margin-top: 15px;
+    margin-top: 20px;
     font-weight: bold;
     font-size: 1.2rem;
-    color: #212529;
+    color: #212529 !important;
+    z-index: 2147483647;
   }
 }
