@@ -14,6 +14,12 @@
         'security/ir.model.access.csv',
         'security/ir_rule.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            'otters_webshop_outofstock_filter/static/src/scss/shop_loader.scss',
+            'otters_webshop_outofstock_filter/static/src/js/shop_loader.js',
+        ],
+    },
     'installable': True,
     'auto_install': False,
 }
