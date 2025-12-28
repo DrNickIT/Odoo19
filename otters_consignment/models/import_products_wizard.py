@@ -63,6 +63,7 @@ class ImportProductsWizard(models.TransientModel):
 
             f = io.StringIO(file_content)
             csv_data = csv.DictReader(f, delimiter=delimiter, quotechar='"')
+            # Headers opschonen (BOM verwijderen etc)
             csv_data.fieldnames = [x.strip().replace('\ufeff', '') for x in (csv_data.fieldnames or [])]
 
             _logger.info(f"Import start. Delimiter: '{delimiter}'. Headers: {csv_data.fieldnames}")
@@ -72,16 +73,30 @@ class ImportProductsWizard(models.TransientModel):
             # ---------------------------------------------------------------
 
             products_to_create = []
+            skipped_rows = []
+            success_count = 0
 
-            for row in csv_data:
+            # We gebruiken enumerate om het rijnummer te weten (start op 2 want 1 is header)
+            for i, row in enumerate(csv_data, start=2):
 
-                # A. Basis Velden
+                # A. Basis Velden Check
                 name = self._get_csv_value(row, ['name', 'naam', 'titel'])
-                if not name: continue
+
+                # UPDATE: Als naam ontbreekt, loggen we dit expliciet
+                if not name:
+                    skipped_rows.append(f"Rij {i}: Naam ontbreekt")
+                    continue
 
                 price_str = self._get_csv_value(row, ['price', 'prijs', 'verkoopprijs']).replace(',', '.') or '0.0'
-                try: price = float(price_str)
-                except ValueError: price = 0.0
+                try:
+                    price = float(price_str)
+                except ValueError:
+                    price = 0.0
+
+                # UPDATE: Optioneel - als je ook wilt dat producten zonder prijs worden gemeld:
+                # if price == 0.0:
+                #    skipped_rows.append(f"Rij {i}: Prijs is 0 of ongeldig")
+                #    continue
 
                 default_code = self._get_csv_value(row, ['code', 'default_code', 'ref', 'DRO code'])
 
@@ -108,20 +123,14 @@ class ImportProductsWizard(models.TransientModel):
                 }
 
                 # C. Categorie Logica
-                # We lezen gewoon wat er in de CSV staat
                 cat_raw = self._get_csv_value(row, ['category', 'categorie', 'type'])
 
                 if cat_raw:
-                    # 1. Website Categorie (Hiërarchie maken)
                     category_id = self._find_or_create_category_hierarchy(cat_raw)
                     if category_id:
                         product_vals['public_categ_ids'] = [(6, 0, [category_id])]
 
-                        # 2. NIEUW: Interne Categorie (voor backend)
-                        # We pakken de naam van de net gevonden/gemaakte categorie
                         public_cat = self.env['product.public.category'].browse(category_id)
-
-                        # Zoek of maak een interne categorie met diezelfde naam
                         internal_cat = self.env['product.category'].search([('name', '=', public_cat.name)], limit=1)
                         if not internal_cat:
                             internal_cat = self.env['product.category'].create({'name': public_cat.name})
@@ -158,8 +167,6 @@ class ImportProductsWizard(models.TransientModel):
 
                     attr_name = clean_header.capitalize()
 
-                    # Speciale check: Maat vs Schoenmaat
-                    # Als de categorie 'Schoen' bevat, noemen we de attribuut 'Schoenmaat'
                     if attr_name.lower() in ['maat', 'size']:
                         if cat_raw and 'schoen' in cat_raw.lower():
                             attr_name = 'Schoenmaat'
@@ -172,6 +179,7 @@ class ImportProductsWizard(models.TransientModel):
                     product_vals['attribute_line_ids'] = attribute_lines
 
                 products_to_create.append(product_vals)
+                success_count += 1
 
             # E. Alles aanmaken
             if products_to_create:
@@ -186,7 +194,27 @@ class ImportProductsWizard(models.TransientModel):
         except Exception as e:
             raise UserError(_("Fout bij importeren: %s") % str(e))
 
-        return {'type': 'ir.actions.act_window_close'}
+        # --- NIEUW: Rapportage teruggeven ---
+        msg = f"Succesvol geïmporteerd: {success_count} producten."
+        msg_type = 'success'
+
+        if skipped_rows:
+            msg += f"\n\n⚠️ {len(skipped_rows)} regels overgeslagen:\n" + "\n".join(skipped_rows[:10])
+            if len(skipped_rows) > 10:
+                msg += "\n... (en meer)"
+            msg_type = 'warning'
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Import Voltooid',
+                'message': msg,
+                'type': msg_type,
+                'sticky': True if skipped_rows else False,
+                'next': {'type': 'ir.actions.act_window_close'}
+            }
+        }
 
     # --- HULPFUNCTIES (Ongewijzigd) ---
 
