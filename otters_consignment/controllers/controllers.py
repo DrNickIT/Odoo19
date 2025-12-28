@@ -75,10 +75,13 @@ class ConsignmentController(http.Controller):
     def consignment_form_thankyou(self, **kw):
         return request.render('otters_consignment.consignment_thankyou_template', {})
 
-    @http.route(['/producten', '/producten/page/<int:page>'], type='http', auth='public', website=True)
-    def redirect_old_products_url(self, **kwargs):
+    @http.route([
+        '/producten',
+        '/producten/<path:subpath>'
+    ], type='http', auth='public', website=True)
+    def redirect_old_products_url(self, subpath=None, **kwargs):
         """
-        Vangt alle oude URLs op die beginnen met /producten
-        en stuurt ze direct door naar /shop.
+        Vangt ALLE URLs die beginnen met /producten (ook met submappen)
+        en stuurt ze door naar /shop.
         """
         return request.redirect('/shop', code=301)
