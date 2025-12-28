@@ -16,9 +16,14 @@
                         <span t-field="product.default_code"
                               style="font-weight: bold; float: left; font-size: 1.2em;"/>
 
-                        <strong t-out="pricelist._get_product_price(product, 1, currency=pricelist.currency_id or product.currency_id)"
-                                t-options="{'widget': 'monetary', 'display_currency': pricelist.currency_id or product.currency_id, 'label_price': True}"
-                                style="font-weight: bold; float: right; font-size: 1.2em;"/>
+                        <strong style="font-weight: bold; float: right; font-size: 1.2em;">
+                            <t t-set="currency" t-value="pricelist.currency_id or product.currency_id"/>
+
+                            <span t-out="currency.symbol" style="margin-right: 2px;"/>
+
+                            <span t-out="pricelist._get_product_price(product, 1, currency=currency)"
+                                  t-options="{'widget': 'float', 'precision': 2}"/>
+                        </strong>
                     </div>
 
                     <div style="clear: both;"/>
