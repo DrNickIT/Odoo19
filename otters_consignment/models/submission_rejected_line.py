@@ -11,7 +11,7 @@ class ConsignmentRejectedLine(models.Model):
     product_name = fields.Char(string="Omschrijving", required=True, help="Bv. Blauwe trui H&M")
 
     reason = fields.Selection([
-        ('stain', 'Vlekken'),
+        ('stain', 'Vlekjes'),
         ('hole', 'Gaatjes / Slijtage'),
         ('brand', 'Merk niet geaccepteerd'),
         ('outdated', 'Te oud / Uit de mode'),
