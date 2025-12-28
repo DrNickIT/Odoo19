@@ -74,3 +74,11 @@ class ConsignmentController(http.Controller):
     @http.route('/kleding-opsturen/bedankt', type='http', auth='public', website=True)
     def consignment_form_thankyou(self, **kw):
         return request.render('otters_consignment.consignment_thankyou_template', {})
+
+    @http.route(['/producten', '/producten/page/<int:page>'], type='http', auth='public', website=True)
+    def redirect_old_products_url(self, **kwargs):
+        """
+        Vangt alle oude URLs op die beginnen met /producten
+        en stuurt ze direct door naar /shop.
+        """
+        return request.redirect('/shop', code=301)
