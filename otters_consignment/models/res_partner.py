@@ -31,3 +31,9 @@ class ResPartner(models.Model):
     )
 
     x_old_id = fields.Char(string="Oud Klant ID", copy=False, readonly=True, help="ID uit de oude webshop", default="new")
+
+    submission_ids = fields.One2many(
+        'otters.consignment.submission',
+        'supplier_id',
+        string="Inzendingen"
+    )

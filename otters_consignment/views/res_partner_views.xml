@@ -19,6 +19,16 @@
                                 <field name="x_consignment_prefix"/>
                             </group>
                         </group>
+                        <separator string="Historiek Inzendingen"/>
+                        <field name="submission_ids" readonly="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="submission_date"/>
+                                <field name="state" widget="badge"/>
+                                <field name="product_count" string="Stuks"/>
+                                <field name="payout_method"/>
+                            </list>
+                        </field>
                     </page>
                 </xpath>
             </field>
