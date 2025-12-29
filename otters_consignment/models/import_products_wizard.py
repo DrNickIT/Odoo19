@@ -183,7 +183,29 @@ class ImportProductsWizard(models.TransientModel):
 
             # E. Alles aanmaken
             if products_to_create:
-                self.env['product.template'].create(products_to_create)
+                # 1. Maak de producten aan
+                created_products = self.env['product.template'].create(products_to_create)
+
+                # 2. Haal de standaard stock locatie op
+                warehouse = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
+                stock_location = warehouse.lot_stock_id
+
+                if stock_location:
+                    for product in created_products:
+                        # Haal de variant op (nodig voor stock.quant)
+                        variant = product.product_variant_id
+
+                        if variant:
+                            # 3. Maak de ECHTE voorraad aan (stock.quant)
+                            self.env['stock.quant'].with_context(inventory_mode=True).create({
+                                'product_id': variant.id,
+                                'location_id': stock_location.id,
+                                'inventory_quantity': 1.0,
+                            }).action_apply_inventory()
+
+                            # 4. CRUCIAAL: Roep handmatig de update functie aan
+                            # Dit zet x_shop_available direct op True
+                            product._update_shop_availability()
 
             # F. Nasorteren
             try:
