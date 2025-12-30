@@ -51,7 +51,13 @@ class ConsignmentSubmission(models.Model):
     discount_percentage = fields.Integer(string="Korting (%)", default=0)
     discount_reason = fields.Char(string="Reden Korting")
 
-    x_iban = fields.Char(string="IBAN Rekeningnummer", store=False)
+    x_iban = fields.Char(
+        string="IBAN Rekeningnummer",
+        compute='_compute_x_iban',
+        inverse='_set_x_iban',
+        store=False,
+        readonly=False
+    )
 
     # --- 4. VOORWAARDEN & KEUZES ---
     action_unaccepted = fields.Selection([
@@ -200,10 +206,19 @@ class ConsignmentSubmission(models.Model):
             cash_perc = float(ICP.get_param('otters_consignment.cash_payout_percentage', '0.3'))
             coupon_perc = float(ICP.get_param('otters_consignment.coupon_payout_percentage', '0.5'))
             if temp_payout_method == 'cash':
-                partner.sudo().write({'x_cash_payout_percentage': cash_perc, 'x_coupon_payout_percentage': 0.0})
+                # VOEG x_payout_method HIER TOE:
+                partner.sudo().write({
+                    'x_payout_method': 'cash',
+                    'x_cash_payout_percentage': cash_perc,
+                    'x_coupon_payout_percentage': 0.0
+                })
                 vals['payout_percentage'] = cash_perc
             else:
-                partner.sudo().write({'x_cash_payout_percentage': 0.0, 'x_coupon_payout_percentage': coupon_perc})
+                partner.sudo().write({
+                    'x_payout_method': 'coupon',
+                    'x_cash_payout_percentage': 0.0,
+                    'x_coupon_payout_percentage': coupon_perc
+                })
                 vals['payout_percentage'] = coupon_perc
             vals['payout_method'] = temp_payout_method
 
@@ -369,3 +384,29 @@ class ConsignmentSubmission(models.Model):
                 'sticky': False,
             }
         }
+
+    @api.depends('supplier_id')
+    def _compute_x_iban(self):
+        for record in self:
+            # We sorteren de bankrekeningen op ID (aflopend -> hoogste ID eerst)
+            # Zo pakken we altijd de laatst aangemaakte rekening.
+            bank = record.supplier_id.bank_ids.sorted('id', reverse=True)[:1]
+            record.x_iban = bank.acc_number if bank else False
+
+    def _set_x_iban(self):
+        for record in self:
+            if record.x_iban and record.supplier_id:
+                # Als er een nummer wordt ingevuld, sla het op bij de partner
+                clean_iban = record.x_iban.replace(' ', '').strip()
+
+                # Check of het al bestaat
+                existing = self.env['res.partner.bank'].search([
+                    ('acc_number', '=', clean_iban),
+                    ('partner_id', '=', record.supplier_id.id)
+                ], limit=1)
+
+                if not existing:
+                    self.env['res.partner.bank'].create({
+                        'acc_number': clean_iban,
+                        'partner_id': record.supplier_id.id
+                    })
