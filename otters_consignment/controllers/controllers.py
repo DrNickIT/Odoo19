@@ -85,3 +85,7 @@ class ConsignmentController(http.Controller):
         en stuurt ze door naar /shop.
         """
         return request.redirect('/shop', code=301)
+
+    @http.route('/contact-bedankt', type='http', auth='public', website=True)
+    def contactus_thanks_custom(self, **kw):
+        return request.render('otters_consignment.otters_contact_thankyou', {})

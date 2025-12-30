@@ -56,6 +56,7 @@
         'views/product_recommendation.xml',
         'views/brand_templates.xml',
         'views/website_footer.xml',
+        'views/website_contact.xml',
 
         'data/website_data.xml',
         'data/mail_layout.xml',

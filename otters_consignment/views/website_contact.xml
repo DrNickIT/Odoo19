@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="otters_contactus_page" inherit_id="website.contactus" name="Otters Contact" priority="99">
+        <xpath expr="//div[@id='wrap']" position="replace">
+            <div id="wrap" class="oe_structure oe_empty">
+
+                <section class="s_title pt24 pb24 o_colored_level o_cc o_cc1 s_parallax_no_overflow_hidden" data-vcss="001" data-snippet="s_title" data-scroll-background-ratio="0" style="position: relative;" data-oe-shape-data="{&quot;shape&quot;:&quot;html_builder/Bold/14&quot;,&quot;colors&quot;:{&quot;c1&quot;:&quot;#f4777b&quot;,&quot;c5&quot;:&quot;#2B3876&quot;},&quot;flip&quot;:[],&quot;showOnMobile&quot;:false,&quot;shapeAnimationSpeed&quot;:&quot;0&quot;}">
+                    <div class="o_we_shape o_html_builder_Bold_14" style="background-image: url('/html_editor/shape/html_builder/Bold/14.svg?c1=%23f4777b&amp;c5=%232B3876');"></div>
+                    <div class="container">
+                        <h1>Contact</h1>
+                    </div>
+                </section>
+
+                <section class="s_text_block pt40 pb40 o_colored_level" data-snippet="s_text_block">
+                    <div class="s_allow_columns container">
+                        <div class="row">
+                            <div class="col-lg-7 mt-4 mt-lg-0 o_colored_level">
+                                <p class="lead">Aarzel niet om mij te contacteren met je vragen,</p>
+                                <p class="lead">ik sta met een glimlach voor je klaar!</p>
+                                <p class="lead"><br/></p>
+
+                                <section class="s_website_form" data-vcss="001" data-snippet="s_website_form">
+                                    <div class="container">
+                                        <form id="contactus_form" action="/website/form/" method="post" enctype="multipart/form-data" class="o_mark_required" data-mark="*" data-model_name="mail.mail" data-success-mode="redirect" data-success-page="/contact-bedankt" data-pre-fill="true">
+                                            <div class="s_website_form_rows row s_col_no_bgcolor">
+                                                <div class="mb-3 col-lg-6 s_website_form_field s_website_form_custom s_website_form_required" data-type="char" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact1">
+                                                        <span class="s_website_form_label_content">Naam</span>
+                                                        <span class="s_website_form_mark"> *</span>
+                                                    </label>
+                                                    <input id="contact1" type="text" class="form-control s_website_form_input" name="name" required="" data-fill-with="name"/>
+                                                </div>
+                                                <div class="mb-3 col-lg-6 s_website_form_field s_website_form_custom" data-type="char" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact2">
+                                                        <span class="s_website_form_label_content">Telefoonnummer</span>
+                                                    </label>
+                                                    <input id="contact2" type="tel" class="form-control s_website_form_input" name="phone" data-fill-with="phone"/>
+                                                </div>
+                                                <div class="mb-3 col-lg-6 s_website_form_field s_website_form_required s_website_form_model_required" data-type="email" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact3">
+                                                        <span class="s_website_form_label_content">E-mail</span>
+                                                        <span class="s_website_form_mark"> *</span>
+                                                    </label>
+                                                    <input id="contact3" type="email" class="form-control s_website_form_input" name="email_from" required="" data-fill-with="email"/>
+                                                </div>
+                                                <div class="mb-3 col-lg-6 s_website_form_field s_website_form_custom" data-type="char" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact4">
+                                                        <span class="s_website_form_label_content">Bedrijf</span>
+                                                    </label>
+                                                    <input id="contact4" type="text" class="form-control s_website_form_input" name="company" data-fill-with="commercial_company_name"/>
+                                                </div>
+                                                <div class="mb-3 col-12 s_website_form_field s_website_form_required s_website_form_model_required" data-type="char" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact5">
+                                                        <span class="s_website_form_label_content">Onderwerp</span>
+                                                        <span class="s_website_form_mark"> *</span>
+                                                    </label>
+                                                    <input id="contact5" type="text" class="form-control s_website_form_input" name="subject" required=""/>
+                                                </div>
+                                                <div class="mb-3 col-12 s_website_form_field s_website_form_custom s_website_form_required" data-type="text" data-name="Field">
+                                                    <label class="s_website_form_label" style="width: 200px" for="contact6">
+                                                        <span class="s_website_form_label_content">Vraag</span>
+                                                        <span class="s_website_form_mark"> *</span>
+                                                    </label>
+                                                    <textarea id="contact6" class="form-control s_website_form_input" name="description" required="" rows="8"></textarea>
+                                                </div>
+                                                <div class="mb-3 col-12 s_website_form_field s_website_form_dnone">
+                                                    <div class="row s_col_no_resize s_col_no_bgcolor">
+                                                        <label class="col-form-label col-sm-auto s_website_form_label" style="width: 200px" for="contact7">
+                                                            <span class="s_website_form_label_content">E-mail naar</span>
+                                                        </label>
+                                                        <div class="col-sm">
+                                                            <input id="contact7" type="hidden" class="form-control s_website_form_input" name="email_to"/>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-0 py-2 col-12 s_website_form_submit s_website_form_no_submit_label text-end" data-name="Submit Button">
+                                                    <div style="width: 200px;" class="s_website_form_label"></div>
+                                                    <a href="#" role="button" class="btn btn-primary s_website_form_send">Indienen</a>
+                                                    <span id="s_website_form_result"></span>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div class="col-lg-4 offset-lg-1 mt-4 mt-lg-0 o_colored_level">
+                                <h5>Otters en Flamingo's</h5>
+                                <ul class="list-unstyled mb-0 ps-2 mt-3">
+                                    <li class="mb-2"><i class="fa fa-user fa-fw me-2"/>Marleen Nijs</li>
+                                    <li class="mb-2"><i class="fa fa-id-card fa-fw me-2"/>BE 0504.936.765</li>
+                                    <li class="mb-2"><i class="fa fa-map-marker fa-fw me-2"/>Jan Davidtsstraat 52,<br/><span class="ms-4 ps-1">3210 Linden</span></li>
+                                    <li class="mb-2"><i class="fa fa-envelope fa-fw me-2"/><a href="mailto:info@ottersenflamingos.be" class="text-decoration-none">info@ottersenflamingos.be</a></li>
+                                    <li class="mb-2"><i class="fa fa-phone fa-fw me-2"/>+32 (0)499 29 28 05</li>
+                                    <li class="mb-2"><i class="fa fa-whatsapp fa-fw me-2"/>+32 (0)499 29 28 05</li>
+                                    <li class="mt-3">
+                                        <a href="https://www.instagram.com/ottersenflamingos/" target="_blank" class="me-2 text-decoration-none"><i class="fa fa-instagram fa-2x"/></a>
+                                        <a href="https://www.facebook.com/ottersenflamingos" target="_blank" class="text-decoration-none"><i class="fa fa-facebook-square fa-2x"/></a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="otters_contact_thankyou" name="Bedankt Contact">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure oe_empty">
+                <section class="s_text_block pt64 pb64" data-snippet="s_text_block">
+                    <div class="container">
+                        <div class="row align-items-center">
+
+                            <div class="col-lg-7 text-center text-lg-start">
+                                <i class="fa fa-check-circle fa-5x text-success mb-4"/>
+                                <h1 class="fw-bold mb-3">Bedankt!</h1>
+                                <p class="lead">Je bericht is goed ontvangen.</p>
+                                <p class="mb-4">We hebben je vraag genoteerd en nemen zo snel mogelijk contact met je op.</p>
+                                <a href="/" class="btn btn-outline-primary btn-lg">
+                                    <i class="fa fa-home me-2"/>Terug naar startpagina
+                                </a>
+                            </div>
+
+                            <div class="col-lg-4 offset-lg-1 mt-5 mt-lg-0 border-start ps-lg-5">
+                                <h5 class="mb-4 text-primary">Otters en Flamingo's</h5>
+                                <ul class="list-unstyled mb-0" style="font-size: 1.1rem;">
+                                    <li class="mb-2"><i class="fa fa-user fa-fw me-2"/>Marleen Nijs</li>
+                                    <li class="mb-2"><i class="fa fa-id-card fa-fw me-2"/>BE 0504.936.765</li>
+                                    <li class="mb-2"><i class="fa fa-map-marker fa-fw me-2"/>Jan Davidtsstraat 52,<br/><span class="ms-4 ps-1">3210 Linden</span></li>
+                                    <li class="mb-2"><i class="fa fa-envelope fa-fw me-2"/><a href="mailto:info@ottersenflamingos.be" class="text-decoration-none">info@ottersenflamingos.be</a></li>
+                                    <li class="mb-2"><i class="fa fa-phone fa-fw me-2"/>+32 (0)499 29 28 05</li>
+                                    <li class="mb-2"><i class="fa fa-whatsapp fa-fw me-2"/>+32 (0)499 29 28 05</li>
+                                    <li class="mt-4">
+                                        <a href="https://www.instagram.com/ottersenflamingos/" target="_blank" class="me-3 text-decoration-none"><i class="fa fa-instagram fa-2x"/></a>
+                                        <a href="https://www.facebook.com/ottersenflamingos" target="_blank" class="text-decoration-none"><i class="fa fa-facebook-square fa-2x"/></a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>
