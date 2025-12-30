@@ -76,10 +76,12 @@
                                     <t t-set="payment_providers" t-value="request.env['payment.provider'].sudo().search([('state', 'in', ['enabled', 'test']), ('is_published', '=', True)])"/>
 
                                     <t t-if="payment_providers">
-                                        <t t-foreach="payment_providers" t-as="provider">
-                                            <span t-field="provider.image_128"
-                                                  t-options="{'widget': 'image', 'class': 'me-2', 'style': 'height: 40px; width: auto;'}"
-                                                  t-att-title="provider.name"/>
+                                        <t t-set="payment_icons" t-value="payment_providers.mapped('payment_icon_ids')"/>
+
+                                        <t t-foreach="payment_icons" t-as="icon">
+                                            <span t-field="icon.image"
+                                                  t-options="{'widget': 'image', 'class': 'me-2', 'style': 'height: 32px; width: auto;'}"
+                                                  t-att-title="icon.name"/>
                                         </t>
                                     </t>
                                     <t t-else="">
@@ -104,5 +106,6 @@
                 </div>
             </div>
         </xpath>
+
     </template>
 </odoo>
