@@ -51,7 +51,7 @@ class ConsignmentSubmission(models.Model):
     discount_percentage = fields.Integer(string="Korting (%)", default=0)
     discount_reason = fields.Char(string="Reden Korting")
 
-    x_iban = fields.Char(string="IBAN Rekeningnummer")
+    x_iban = fields.Char(string="IBAN Rekeningnummer", store=False)
 
     # --- 4. VOORWAARDEN & KEUZES ---
     action_unaccepted = fields.Selection([

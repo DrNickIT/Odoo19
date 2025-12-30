@@ -7,7 +7,7 @@
             <t t-if="product.submission_id">
 
                 <t t-set="wardrobe_items"
-                   t-value="product.submission_id.product_ids.filtered(lambda p: p.id != product.id and p.is_published and p.qty_available > 0)[:4]"/>
+                   t-value="product.sudo().submission_id.product_ids.filtered(lambda p: p.id != product.id and p.is_published and p.qty_available > 0)[:4]"/>
 
                 <div t-if="wardrobe_items" class="container py-5">
 

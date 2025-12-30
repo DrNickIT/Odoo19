@@ -27,7 +27,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             return self._return_notification('Fout', 'Sendcloud configuratie ontbreekt.', 'danger')
 
         payload = self._prepare_sendcloud_payload(config)
-        _logger.info("------- SENDCLOUD payload: %s", payload)
+        # _logger.info("------- SENDCLOUD payload: %s", payload)
         success, result = self._call_sendcloud_api(config, payload)
 
         if success:
