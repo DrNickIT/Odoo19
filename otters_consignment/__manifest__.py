@@ -55,6 +55,7 @@
         'views/portal_templates.xml',     # Portal Views (Mijn Inzendingen)
         'views/product_recommendation.xml',
         'views/brand_templates.xml',
+        'views/website_footer.xml',
 
         'data/website_data.xml',
         'data/mail_layout.xml',

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="otters_custom_footer" inherit_id="website.layout" name="Otters Footer" priority="99">
+
+        <xpath expr="//div[@id='footer']" position="replace">
+            <div id="footer" class="oe_structure oe_structure_solo">
+                <section class="s_text_block pt32 pb8" data-snippet="s_text_block" data-name="Footer Container">
+                    <div class="container">
+                        <div class="row">
+
+                            <div class="col-lg-3 pb24">
+                                <h5>Klantenservice</h5>
+                                <div class="s_hr pb8"><hr class="w-100 mx-auto" /></div>
+                                <ul class="list-unstyled">
+                                    <li><a href="/contactus" class="text-decoration-none">Contact</a></li>
+                                    <li><a href="/algemene-voorwaarden" class="text-decoration-none">Algemene voorwaarden</a></li>
+                                    <li><a href="/privacy-verklaring" class="text-decoration-none">Privacy verklaring</a></li>
+                                    <li><a href="/verzenden-en-retourneren" class="text-decoration-none">Verzenden en retourneren</a></li>
+                                </ul>
+
+                                <h5 class="mt-3">Meteen shoppen!</h5>
+                                <div class="s_hr pb8"><hr class="w-100 mx-auto"/></div>
+                                <a href="/shop" class="btn btn-link p-0 text-decoration-none">
+                                    <i class="fa fa-long-arrow-right"/> Alle producten
+                                </a>
+                            </div>
+
+                            <div class="col-lg-3 pb24">
+                                <h5>Bedrijfsgegevens</h5>
+                                <div class="s_hr pb8"><hr class="w-100 mx-auto"/></div>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2"><i class="fa fa-user fa-fw me-2"/>Marleen Nijs</li>
+                                    <li class="mb-2"><i class="fa fa-id-card fa-fw me-2"/>BE 0504.936.765</li>
+                                    <li class="mb-2">
+                                        <i class="fa fa-map-marker fa-fw me-2"/>Jan Davidtsstraat 52,<br/>
+                                        <span class="ms-4">3210 Linden</span>
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fa fa-envelope fa-fw me-2"/>
+                                        <a href="mailto:info@ottersenflamingos.be" class="text-decoration-none">info@ottersenflamingos.be</a>
+                                    </li>
+                                    <li class="mb-2"><i class="fa fa-phone fa-fw me-2"/>+32 (0)499 29 28 05</li>
+                                    <li class="mt-3">
+                                        <a href="https://www.instagram.com/ottersenflamingos/" target="_blank" class="me-2 text-decoration-none">
+                                            <i class="fa fa-instagram fa-2x"/>
+                                        </a>
+                                        <a href="https://www.facebook.com/ottersenflamingos" target="_blank" class="text-decoration-none">
+                                            <i class="fa fa-facebook-square fa-2x"/>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="col-lg-5 offset-lg-1 pb24">
+                                <h5>Blijf op de hoogte!</h5>
+                                <div class="s_hr pb8"><hr class="w-100 mx-auto"/></div>
+                                <p>Schrijf je in op onze nieuwsbrief en je bent als eerste op de hoogte van de nieuwtjes bij Otters en Flamingo's.</p>
+
+                                <div class="s_newsletter_subscribe_form s_newsletter_list js_subscribe" data-list-id="1">
+                                    <div class="js_subscribe_wrap">
+                                        <div class="input-group">
+                                            <input type="email" name="email" placeholder="E-mailadres" class="js_subscribe_value form-control"/>
+                                            <a role="button" href="#" class="js_subscribe_btn btn btn-primary">Inschrijven</a>
+                                        </div>
+                                    </div>
+                                    <div class="js_subscribed_wrap d-none">
+                                        <p class="text-center text-success mt-2"><i class="fa fa-check-circle"/> Bedankt voor het registreren!</p>
+                                    </div>
+                                </div>
+
+                                <br/>
+                                <h5>Onze betaalmethoden</h5>
+                                <div class="s_hr pb8"><hr class="w-100 mx-auto"/></div>
+
+                                <div class="o_footer_payment_icons mt-3 d-flex flex-wrap gap-2">
+                                    <t t-set="payment_providers" t-value="request.env['payment.provider'].sudo().search([('state', 'in', ['enabled', 'test']), ('is_published', '=', True)])"/>
+
+                                    <t t-if="payment_providers">
+                                        <t t-foreach="payment_providers" t-as="provider">
+                                            <span t-field="provider.image_128"
+                                                  t-options="{'widget': 'image', 'class': 'me-2', 'style': 'height: 40px; width: auto;'}"
+                                                  t-att-title="provider.name"/>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="text-muted small">(Nog geen betaalmethoden actief)</span>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+
+        <xpath expr="//div[hasclass('o_footer_copyright')]" position="replace">
+            <div class="o_footer_copyright o_colored_level o_cc" data-name="Copyright">
+                <div class="container py-3">
+                    <div class="row">
+                        <div class="col-12 text-center text-muted small">
+                            © 2025 Otters en Flamingo's. All rights reserved.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </xpath>
+    </template>
+</odoo>
