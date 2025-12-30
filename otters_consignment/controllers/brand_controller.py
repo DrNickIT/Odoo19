@@ -11,11 +11,13 @@ class OttersBrandController(http.Controller):
     def brands_overview(self, page=1, **kw):
         all_brands = request.env['otters.brand'].search([
             ('is_published', '=', True)
-        ], order='name asc')
+        ])
 
         visible_brands = all_brands.filtered(lambda b: b.product_ids.filtered(
             lambda p: p.is_published and p.virtual_available > 0
         ))
+
+        visible_brands = visible_brands.sorted(key=lambda r: r.name.lower())
 
         total = len(visible_brands)
         pager = request.website.pager(
@@ -35,7 +37,6 @@ class OttersBrandController(http.Controller):
             'pager': pager,
         })
 
-    # 2. Detail (AANGEPAST)
     @http.route([
         '/brand/<model("otters.brand"):brand>',
         '/brand/<model("otters.brand"):brand>/page/<int:page>'
@@ -47,8 +48,6 @@ class OttersBrandController(http.Controller):
 
         total = len(all_products)
 
-        # AANPASSING HIERONDER:
-        # We gebruiken request.env['ir.http']._slug(brand) in plaats van slug(brand)
         pager = request.website.pager(
             url='/brand/%s' % request.env['ir.http']._slug(brand),
             total=total,
