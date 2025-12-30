@@ -76,12 +76,14 @@
                                     <t t-set="payment_providers" t-value="request.env['payment.provider'].sudo().search([('state', 'in', ['enabled', 'test']), ('is_published', '=', True)])"/>
 
                                     <t t-if="payment_providers">
-                                        <t t-set="payment_icons" t-value="payment_providers.mapped('payment_icon_ids')"/>
+                                        <t t-set="payment_methods" t-value="payment_providers.mapped('payment_method_ids')"/>
 
-                                        <t t-foreach="payment_icons" t-as="icon">
-                                            <span t-field="icon.image"
-                                                  t-options="{'widget': 'image', 'class': 'me-2', 'style': 'height: 32px; width: auto;'}"
-                                                  t-att-title="icon.name"/>
+                                        <t t-foreach="payment_methods" t-as="method">
+                                            <t t-if="method.image">
+                                                <span t-field="method.image"
+                                                      t-options="{'widget': 'image', 'class': 'me-2', 'style': 'height: 32px; width: auto;'}"
+                                                      t-att-title="method.name"/>
+                                            </t>
                                         </t>
                                     </t>
                                     <t t-else="">
