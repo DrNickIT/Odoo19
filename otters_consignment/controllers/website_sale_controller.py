@@ -16,19 +16,22 @@ class OttersWebsiteSale(WebsiteSale):
     ], type='http', auth="public", website=True, sitemap=WebsiteSale.sitemap_shop)
     def shop(self, page=0, category=None, search='', ppg=False, **post):
 
-        # 1. Huidige sortering ophalen
+        # --- FIX 1: Behoud ALLE filters (meervoudige selecties) ---
+        # Jouw URL gebruikt 'attribute_values', dus we moeten die specifiek ophalen als lijst.
+        # Anders bevat 'post' alleen de laatste filter (bv. alleen Type en niet Maat).
+        if request.httprequest.args.getlist('attribute_values'):
+            post['attribute_values'] = request.httprequest.args.getlist('attribute_values')
+
+        # Voor de zekerheid ook de standaard 'attrib' meenemen (voor andere filters)
+        if request.httprequest.args.getlist('attrib'):
+            post['attrib'] = request.httprequest.args.getlist('attrib')
+
+        # --- FIX 2: Sortering ---
         current_sorting = post.get('order') or ''
-
-        # 2. Als sortering "Nieuwste" is (of leeg/standaard)...
         if current_sorting == 'create_date desc' or not current_sorting:
-
-            # ... sorteer dan eerst op 'type' (alfabetisch) en dan op datum.
-            # Odoo sorteert dan op de technische naam:
-            # - 'consu' (Goederen) -> Komt eerst
-            # - 'service' (Dienst) -> Komt laatst
             post['order'] = 'type asc, create_date desc'
 
-        # 3. Uitvoeren
+        # Uitvoeren
         return super(OttersWebsiteSale, self).shop(page, category, search, ppg, **post)
 
     def _get_mandatory_billing_address_fields(self, country_sudo):

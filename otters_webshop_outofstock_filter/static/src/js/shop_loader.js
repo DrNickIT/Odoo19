@@ -53,6 +53,15 @@ publicWidget.registry.OttersShopLoader = publicWidget.Widget.extend({
         if (ev.ctrlKey || ev.metaKey) { return; }
 
         const $target = $(ev.currentTarget);
+
+
+        // --- START FIX: Negeer zoekvelden ---
+        // Als de gebruiker typt in een tekst- of zoekveld (bv. merk zoeken),
+        // mag het laadscherm NIET getoond worden.
+        if ($target.is('input[type="text"]') || $target.is('input[type="search"]')) {
+            return;
+        }
+        // --- EINDE FIX ---
         // Negeer uitklap-knoppen
         if ($target.data('toggle') === 'collapse' || $target.data('bs-toggle') === 'collapse') {
             return;
