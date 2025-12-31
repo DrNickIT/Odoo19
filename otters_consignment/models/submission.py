@@ -165,6 +165,8 @@ class ConsignmentSubmission(models.Model):
     def _handle_website_partner_data(self, vals):
         raw_email = vals.pop('x_sender_email', '').strip()
         temp_payout_method = vals.pop('x_payout_method_temp', False)
+        action_unaccepted = vals.get('action_unaccepted', 'donate')
+        action_unsold = vals.get('action_unsold', 'donate')
 
         partner_vals = {
             'name': vals.pop('x_sender_name', False),
@@ -173,7 +175,10 @@ class ConsignmentSubmission(models.Model):
             'street2': vals.pop('x_sender_street2', ''),
             'city': vals.pop('x_sender_city', False),
             'zip': vals.pop('x_sender_postal_code', False),
-            'country_id': False
+            'country_id': False,
+            # NIEUW: Sla de keuzes op als nieuwe standaard voor deze partner
+            'x_action_unaccepted': action_unaccepted,
+            'x_action_unsold': action_unsold,
         }
 
         country_code = vals.pop('x_sender_country_code', 'BE')
@@ -321,12 +326,12 @@ class ConsignmentSubmission(models.Model):
                     'date': date_val,
                     'is_paid': is_paid,       # <--- Belangrijk voor filtering straks
                     'currency': line.currency_id,
-                    'percentage': line.x_computed_percentage # <--- NIEUW: Voeg percentage toe aan de data
+                    'percentage': line.x_computed_percentage
                 }
 
             grouped_data[key]['qty'] += line.product_uom_qty
             grouped_data[key]['price_sold'] += (line.price_unit * line.product_uom_qty)
-            grouped_data[key]['payout'] += line.x_fixed_commission
+            grouped_data[key]['payout'] += line.x_computed_commission
 
         return list(grouped_data.values())
 

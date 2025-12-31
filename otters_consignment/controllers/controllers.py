@@ -53,6 +53,9 @@ class ConsignmentController(http.Controller):
             'cash_percentage': cash_perc_int,
             'coupon_percentage': coupon_perc_int,
             'partner': {},
+            'default_payout_method': 'coupon', # Fallback voor niet-ingelogde gebruikers
+            'default_unaccepted': 'donate',
+            'default_unsold': 'donate',
         }
 
         if not request.env.user._is_public():
@@ -67,6 +70,9 @@ class ConsignmentController(http.Controller):
                 'default_zip': partner.zip,
                 'default_city': partner.city,
                 'default_iban': bank_acc,
+                'default_payout_method': partner.x_payout_method or 'coupon',
+                'default_unaccepted': partner.x_action_unaccepted or 'donate',
+                'default_unsold': partner.x_action_unsold or 'donate',
             })
 
         return request.render('otters_consignment.consignment_form_template', values)

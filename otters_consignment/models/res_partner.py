@@ -32,6 +32,16 @@ class ResPartner(models.Model):
 
     x_old_id = fields.Char(string="Oud Klant ID", copy=False, readonly=True, help="ID uit de oude webshop", default="new")
 
+    x_action_unaccepted = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Standaard actie niet-weerhouden", default='donate')
+
+    x_action_unsold = fields.Selection([
+        ('donate', 'Schenken aan goed doel'),
+        ('return', 'Terugsturen (€7,50)')
+    ], string="Standaard actie niet-verkocht", default='donate')
+
     submission_ids = fields.One2many(
         'otters.consignment.submission',
         'supplier_id',

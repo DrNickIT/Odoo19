@@ -13,7 +13,11 @@
                                 <field name="x_payout_method"/>
                                 <field name="x_cash_payout_percentage" widget="percentage" options="{'digits': [1, 0]}"/>
                                 <field name="x_coupon_payout_percentage" widget="percentage"/>
-                                <field name="user_ids" string="Gekoppelde Portal Users" widget="many2many_tags" readonly="1"/>                            </group>
+                                <field name="user_ids" string="Gekoppelde Portal Users" widget="many2many_tags" readonly="1"/>
+                                <separator string="Voorkeuren Items" class="mt-4"/>
+                                <field name="x_action_unaccepted"/>
+                                <field name="x_action_unsold"/>
+                            </group>
                             <group string="Verzendlabels ID">
                                 <field name="x_consignment_prefix"/>
                             </group>

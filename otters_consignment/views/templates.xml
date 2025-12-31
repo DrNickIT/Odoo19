@@ -118,13 +118,15 @@
                                     <div class="mb-4" data-type="char" data-name="Field: x_payout_method_temp">
                                         <label class="form-label fw-bold">Hoe wil je uitbetaald worden? *</label>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon" checked="checked"/>
+                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCoupon" value="coupon"
+                                                   t-att-checked="'checked' if default_payout_method == 'coupon' else None"/>
                                             <label class="form-check-label" for="payoutCoupon">
                                                 Uitbetaald als waardebon (<t t-out="coupon_percentage"/>% van de verkoopprijs)
                                             </label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"/>
+                                            <input class="form-check-input" type="radio" name="x_payout_method_temp" id="payoutCash" value="cash"
+                                                   t-att-checked="'checked' if default_payout_method == 'cash' else None"/>
                                             <label class="form-check-label" for="payoutCash">
                                                 Uitbetaald op rekeningnummer (<t t-out="cash_percentage"/>% van de verkoopprijs)
                                             </label>
@@ -153,11 +155,13 @@
                                     <div class="mb-4">
                                         <label class="form-label fw-bold">Wat met niet-weerhouden kledingstukken? (Nog mooi om dragen, niet verkoopbaar) </label>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate" checked="checked"/>
+                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_donate" value="donate"
+                                                   t-att-checked="'checked' if default_unaccepted == 'donate' else None"/>
                                             <label class="form-check-label" for="ua_donate">Deze mogen aan een goed doel geschonken worden</label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_return" value="return"/>
+                                            <input class="form-check-input" type="radio" name="action_unaccepted" id="ua_return" value="return"
+                                                   t-att-checked="'checked' if default_unaccepted == 'return' else None"/>
                                             <label class="form-check-label" for="ua_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
                                         </div>
                                     </div>
@@ -165,11 +169,13 @@
                                     <div class="mb-4">
                                         <label class="form-label fw-bold">Wat met kleding die na een jaar niet verkocht is?</label>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_donate" value="donate" checked="checked"/>
+                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_donate" value="donate"
+                                                   t-att-checked="'checked' if default_unsold == 'donate' else None"/>
                                             <label class="form-check-label" for="us_donate">Deze mogen aan een goed doel geschonken worden</label>
                                         </div>
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_return" value="return"/>
+                                            <input class="form-check-input" type="radio" name="action_unsold" id="us_return" value="return"
+                                                   t-att-checked="'checked' if default_unsold == 'return' else None"/>
                                             <label class="form-check-label" for="us_return">Ik ontvang deze graag terug en betaal hiervoor €7,5 verzendkosten</label>
                                         </div>
                                     </div>
