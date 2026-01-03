@@ -43,8 +43,7 @@ class ConsignmentReport(models.Model):
                     sol.product_uom_qty AS qty_sold, -- AANGEPAST: Kijk naar besteld aantal (product_uom_qty) ipv gefactureerd
                     sub.payout_method AS payout_method,
                     
-                    COALESCE(sol.x_fixed_commission, (sub.payout_percentage * sol.price_total)) AS commission_amount
-                    
+                    COALESCE(NULLIF(sol.x_fixed_commission, 0), (sub.payout_percentage * sol.price_total)) AS commission_amount                    
                 FROM sale_order_line sol
                 JOIN sale_order so ON sol.order_id = so.id
                 JOIN product_product pp ON sol.product_id = pp.id
