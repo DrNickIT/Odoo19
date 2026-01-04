@@ -126,7 +126,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
 
         return {
             "parcel": {
-                "request_label": True,
+                "request_label": False,
                 "is_return": False,
                 "order_number": self.name,
                 "weight": "5.000",
@@ -175,6 +175,19 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
         headers = {"Content-Type": "application/json"}
         try:
             response = requests.post(url, headers=headers, json=payload, auth=config['auth'])
+            # --- WIJZIGING START: Betere error handling ---
+            if response.status_code >= 400:
+                # Probeer de gedetailleerde foutboodschap van Sendcloud te lezen
+                try:
+                    error_details = response.json()
+                    error_message = error_details.get('error', {}).get('message', str(error_details))
+                except:
+                    error_message = response.text
+
+                _logger.error(f"Sendcloud API Fout ({response.status_code}): {error_message}")
+                return False, f"Sendcloud weigert: {error_message}"
+            # --- WIJZIGING EINDE ---
+
             response.raise_for_status()
             data = response.json()
             return True, data.get('parcel', {})
