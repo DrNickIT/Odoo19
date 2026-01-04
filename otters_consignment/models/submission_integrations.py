@@ -97,6 +97,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             'shipping_id': int(ICP.get_param('otters_consignment.sendcloud_shipping_method_id') or 0),
             'service_point_id': ICP.get_param('otters_consignment.service_point_id'),
             'brand_id': ICP.get_param('otters_consignment.sendcloud_brand_id'),
+            'sender_address_id': ICP.get_param('otters_consignment.sendcloud_sender_address_id'),
             'store_name': ICP.get_param('otters_consignment.store_name'),
             'store_street': ICP.get_param('otters_consignment.store_street'),
             'store_house_number': ICP.get_param('otters_consignment.store_house_number'),
@@ -153,6 +154,9 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
 
         if config.get('brand_id'):
             parcel_data['brand_id'] = int(config['brand_id'])
+
+        if config.get('sender_address_id'):
+            parcel_data['sender_address_id'] = int(config['sender_address_id'])
 
         # --- NIEUWE LOGICA VOOR POSTPUNT ---
         if config.get('service_point_id'):

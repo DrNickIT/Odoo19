@@ -26,6 +26,11 @@
             <field name="value">834</field>
         </record>
 
+        <record id="consignment_sender_address_id" model="ir.config_parameter">
+            <field name="key">otters_consignment.sendcloud_sender_address_id</field>
+            <field name="value">8621</field>
+        </record>
+
         <record id="consignment_brand_id" model="ir.config_parameter">
             <field name="key">otters_consignment.sendcloud_brand_id</field>
             <field name="value">7975</field>
