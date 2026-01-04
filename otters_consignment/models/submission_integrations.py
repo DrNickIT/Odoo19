@@ -95,6 +95,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
         config = {
             'auth': (api_key, api_secret),
             'shipping_id': int(ICP.get_param('otters_consignment.sendcloud_shipping_method_id') or 0),
+            'service_point_id': ICP.get_param('otters_consignment.service_point_id'),
             'store_name': ICP.get_param('otters_consignment.store_name'),
             'store_street': ICP.get_param('otters_consignment.store_street'),
             'store_house_number': ICP.get_param('otters_consignment.store_house_number'),
@@ -124,31 +125,37 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             toevoeging = partner.street2.replace('Bus', '').replace('bus', '').strip()
             full_house_number = f"{full_house_number} {toevoeging}".strip()
 
-        return {
-            "parcel": {
-                "request_label": False,
-                "is_return": False,
-                "order_number": self.name,
-                "weight": "5.000",
-                "shipping_method": config['shipping_id'],
-                "name": config['store_name'],
-                "company_name": config['store_name'],
-                "address": config['store_street'],
-                "house_number": config['store_house_number'],
-                "city": config['store_city'],
-                "postal_code": config['store_zip'],
-                "country": config['store_country'],
-                "telephone": store_phone,
-                "from_name": partner.name,
-                "from_address_1": street_name,
-                "from_house_number": full_house_number,
-                "from_city": partner.city,
-                "from_postal_code": partner.zip,
-                "from_country": partner.country_id.code or "BE",
-                "from_telephone": customer_phone,
-                "from_email": partner.email
-            }
+        parcel_data = {
+            "request_label": False,
+            "is_return": False,
+            "order_number": self.name,
+            "weight": "5.000",
+            "shipping_method": config['shipping_id'],
+            "name": config['store_name'],
+            "company_name": config['store_name'],
+            "address": config['store_street'],
+            "house_number": config['store_house_number'],
+            "city": config['store_city'],
+            "postal_code": config['store_zip'],
+            "country": config['store_country'],
+            "telephone": store_phone,
+            "from_name": partner.name,
+            "from_address_1": street_name,
+            "from_house_number": full_house_number,
+            "from_city": partner.city,
+            "from_postal_code": partner.zip,
+            "from_country": partner.country_id.code or "BE",
+            "from_telephone": customer_phone,
+            "from_email": partner.email
         }
+
+        # --- NIEUWE LOGICA VOOR POSTPUNT ---
+        if config.get('service_point_id'):
+            parcel_data["to_service_point"] = config['service_point_id']
+            # Vaak is bij postpunt levering ook 'to_post_number' verplicht (soms mag dit leeg zijn)
+            # parcel_data["to_post_number"] = "Poste Restante"
+
+        return {"parcel": parcel_data}
 
     def _split_street_number(self, full_street):
         """

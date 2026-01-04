@@ -21,6 +21,11 @@
             <field name="value">8</field>
         </record>
 
+        <record id="consignment_service_point_id" model="ir.config_parameter">
+            <field name="key">otters_consignment.service_point_id</field>
+            <field name="value">834</field>
+        </record>
+
         <record id="consignment_store_name" model="ir.config_parameter">
             <field name="key">otters_consignment.store_name</field>
             <field name="value">Otters en Flamingo's</field>
