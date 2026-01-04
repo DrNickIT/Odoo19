@@ -262,6 +262,18 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
     def _format_phone_be(self, phone_number):
         if not phone_number: return ""
         clean_phone = re.sub(r'\D', '', phone_number)
-        if clean_phone.startswith('32'): return f"+{clean_phone}"
-        if clean_phone.startswith('0'): return f"+32{clean_phone[1:]}"
+
+        # 1. Check op internationale '00' prefix (bv. 0032...)
+        if clean_phone.startswith('00'):
+            return f"+{clean_phone[2:]}"
+
+        # 2. Check op landcode zonder plus (bv. 32...)
+        if clean_phone.startswith('32'):
+            return f"+{clean_phone}"
+
+        # 3. Check op lokale notatie (bv. 0499...)
+        if clean_phone.startswith('0'):
+            return f"+32{clean_phone[1:]}"
+
+        # 4. Fallback (bv. 499...)
         return f"+32{clean_phone}"
