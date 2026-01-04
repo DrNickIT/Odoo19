@@ -132,6 +132,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             "weight": "5.000",
             "shipping_method": config['shipping_id'],
             "name": config['store_name'],
+            "email": self.env.company.email,
             "company_name": config['store_name'],
             "address": config['store_street'],
             "house_number": config['store_house_number'],
