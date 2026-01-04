@@ -126,7 +126,7 @@ class ConsignmentSubmissionIntegrations(models.AbstractModel):
             full_house_number = f"{full_house_number} {toevoeging}".strip()
 
         parcel_data = {
-            "request_label": False,
+            "request_label": True,
             "is_return": False,
             "order_number": self.name,
             "weight": "5.000",
