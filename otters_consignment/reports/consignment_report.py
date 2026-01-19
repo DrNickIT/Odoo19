@@ -40,10 +40,19 @@ class ConsignmentReport(models.Model):
                     so.date_order AS date,
                     sol.price_subtotal AS price_subtotal,
                     sol.price_total AS price_total,
-                    sol.product_uom_qty AS qty_sold, -- AANGEPAST: Kijk naar besteld aantal (product_uom_qty) ipv gefactureerd
+                    
+                    -- AANGEPAST: Kijk naar geleverd aantal (retours = 0)
+                    sol.qty_delivered AS qty_sold, 
+                    
                     sub.payout_method AS payout_method,
                     
-                    COALESCE(NULLIF(sol.x_fixed_commission, 0), (sub.payout_percentage * sol.price_total)) AS commission_amount                    
+                    -- AANGEPAST: Commissie herberekenen op basis van wat effectief weg is
+                    (
+                        COALESCE(NULLIF(sol.x_fixed_commission, 0), (sub.payout_percentage * sol.price_total)) 
+                        / NULLIF(sol.product_uom_qty, 0) 
+                        * sol.qty_delivered
+                    ) AS commission_amount
+                    
                 FROM sale_order_line sol
                 JOIN sale_order so ON sol.order_id = so.id
                 JOIN product_product pp ON sol.product_id = pp.id
@@ -54,7 +63,7 @@ class ConsignmentReport(models.Model):
                 WHERE
                     pt.submission_id IS NOT NULL
                     AND so.state IN ('sale', 'done')
-                    AND sol.product_uom_qty > 0 -- AANGEPAST: Kijk naar besteld aantal
+                    AND sol.qty_delivered > 0 -- AANGEPAST: Verberg regels die retour zijn gekomen
             )
         """ % (self._table,))
 

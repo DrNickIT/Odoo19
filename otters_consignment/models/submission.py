@@ -297,7 +297,8 @@ class ConsignmentSubmission(models.Model):
         # We zoeken nu alles wat in een order zit (ongeacht betaalstatus)
         return self.env['sale.order.line'].search([
             ('product_id', 'in', product_variant_ids),
-            ('order_id.state', 'in', ['sale', 'done'])
+            ('order_id.state', 'in', ['sale', 'done']),
+            ('qty_delivered', '>', 0)
         ])
 
     def _get_portal_sold_data(self):
@@ -308,12 +309,14 @@ class ConsignmentSubmission(models.Model):
         grouped_data = {}
 
         for line in lines:
-            # We voegen nu ook de betaalstatus toe aan de sleutel
-            # Zo worden betaalde en onbetaalde regels niet op één hoop gegooid
+            # GEWIJZIGD: We negeren regels waar het geleverde aantal 0 of minder is
+            # Dit filtert automatisch de retours (waar geleverd 0 is geworden) én nog niet verstuurde items.
+            if line.qty_delivered <= 0:
+                continue
+
             is_paid = line.x_is_paid_out
             date_val = line.x_payout_date or line.order_id.date_order.date()
 
-            # Key = (Product, Datum, IsBetaald)
             key = (line.product_id, date_val, is_paid)
 
             if key not in grouped_data:
@@ -324,14 +327,16 @@ class ConsignmentSubmission(models.Model):
                     'price_sold': 0.0,
                     'payout': 0.0,
                     'date': date_val,
-                    'is_paid': is_paid,       # <--- Belangrijk voor filtering straks
+                    'is_paid': is_paid,
                     'currency': line.currency_id,
                     'percentage': line.x_computed_percentage
                 }
 
-            grouped_data[key]['qty'] += line.product_uom_qty
-            grouped_data[key]['price_sold'] += (line.price_unit * line.product_uom_qty)
-            grouped_data[key]['payout'] += line.x_computed_commission
+            # GEWIJZIGD: Gebruik qty_delivered ipv product_uom_qty
+            grouped_data[key]['qty'] += line.qty_delivered
+            grouped_data[key]['price_sold'] += (line.price_unit * line.qty_delivered)
+            grouped_data[key]['payout'] += (line.x_computed_commission / line.product_uom_qty * line.qty_delivered) if line.product_uom_qty else 0
+            # Noot bij payout: We schalen de commissie naar rato van het geleverde aantal
 
         return list(grouped_data.values())
 
