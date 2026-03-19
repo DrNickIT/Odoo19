@@ -1,38 +1,47 @@
-from odoo import models, api
+# -*- coding: utf-8 -*-
+import logging
+from odoo import models
 from odoo.fields import Domain
+
+_logger = logging.getLogger(__name__)
 
 class WebsiteSnippetFilter(models.Model):
     _inherit = 'website.snippet.filter'
 
-    @api.model
-    def _get_products(self, mode, context):
-        context = context.copy() if context else {}
-        current_domain = context.get('search_domain') or []
+    def _render(self, template_key, limit, search_domain, with_sample=False, **post):
+        # Bepaal veilig welk model de carrousel probeert op te halen
+        model_name = False
+        if getattr(self, 'filter_id', False) and self.filter_id:
+            model_name = self.filter_id.model_id
+        elif getattr(self, 'action_server_id', False) and self.action_server_id:
+            model_name = self.action_server_id.model_id.model
 
-        # 1. Filter: Gebruik het snelle vinkje
-        stock_domain = [('x_shop_available', '=', True)]
+        # Als het om een product carrousel gaat, pas de SQL query aan!
+        if model_name in ['product.product', 'product.template']:
+            shop_domain = [
+                ('x_shop_available', '=', True),   # 1. Moet beschikbaar zijn in de shop
+                ('type', '!=', 'service')          # 2. Mag GEEN dienst/cadeaubon zijn
+            ]
 
-        new_domain = Domain.AND([current_domain, stock_domain])
-        context['search_domain'] = new_domain
+            # Combineer veilig Odoo's bestaande domein met ons aangepaste domein
+            search_domain = Domain.AND([search_domain or [], shop_domain])
 
-        # 2. Haal producten op
-        products = super()._get_products(mode, context)
-
-        # 3. Sortering (Nieuwste eerst, maar Diensten achteraan)
-        if products and products._name in ['product.product', 'product.template']:
-            products = products.sorted(key=lambda p: p.create_date, reverse=True)
-            products = products.sorted(key=lambda p: p.type or '')
-
-        return products
+        # Geef de aangepaste zoekopdracht (met limiet) door aan Odoo
+        res = super()._render(template_key, limit, search_domain, with_sample=with_sample, **post)
+        return res
 
     def _filter_records_to_values(self, records, is_sample=False, **kwargs):
         """
-        De 'Harde Check': Filter de resultaten nog eens na via Python.
-        TOEVOEGING: **kwargs om 'res_model' en andere toekomstige argumenten op te vangen.
+        STAP 2: DE PYTHON FILTER
         """
         if records and records._name in ['product.product', 'product.template']:
-            # Filter: behoud alleen als qty > 0 en virtual > 0
-            records = records.filtered(lambda p: p.qty_available > 0 and p.virtual_available > 0)
+            # Extra veiligheidsnet voor de zichtbaarheid
+            records = records.filtered(
+                lambda p: p.sudo().x_shop_available if records._name == 'product.template' else p.sudo().product_tmpl_id.x_shop_available
+            )
 
-        # Geef kwargs netjes door aan super()
-        return super()._filter_records_to_values(records, is_sample=is_sample, **kwargs)
+            # Zorg dat de nieuwste producten als eerste in de carrousel staan
+            records = records.sorted(key=lambda p: p.sudo().create_date, reverse=True)
+
+        res = super()._filter_records_to_values(records, is_sample=is_sample, **kwargs)
+        return res
