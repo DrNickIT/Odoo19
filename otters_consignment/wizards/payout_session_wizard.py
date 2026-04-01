@@ -3,6 +3,8 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import base64
 import io
+import unicodedata
+import re
 
 try:
     import segno
@@ -92,14 +94,28 @@ class PayoutSessionWizard(models.TransientModel):
             'qr_image': qr_image
         }
 
+    def _clean_qr_text(self, text):
+        """ Verwijdert accenten en speciale tekens voor bank-apps """
+        if not text:
+            return ''
+        # 1. Verwijder accenten (bijv. 'Renée' wordt 'Renee')
+        normalized = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8')
+        # 2. Behoud enkel letters, cijfers, spaties en simpele leestekens
+        return re.sub(r'[^a-zA-Z0-9 \-\.,\']', '', normalized)
+
     def _generate_qr(self, partner, amount):
         if not segno: return False
         if not partner.bank_ids: return False # Geen QR als geen bank
 
         iban = partner.bank_ids[0].acc_number.replace(' ', '').upper()
         bic = partner.bank_ids[0].bank_id.bic or ''
-        name = partner.name[:70]
-        comm = f"Uitbetaling Otters en Flamingo's. Dankjewel voor je vertrouwen. Marleen"
+
+        # GEWIJZIGD: Naam opschonen en afkappen op 70 karakters
+        name = self._clean_qr_text(partner.name)[:70]
+
+        # GEWIJZIGD: Mededeling ook opschonen voor de zekerheid
+        raw_comm = f"Uitbetaling Otters en Flamingo's. Dankjewel voor je vertrouwen. Marleen"
+        comm = self._clean_qr_text(raw_comm)
 
         qr_content = f"BCD\n002\n1\nSCT\n{bic}\n{name}\n{iban}\nEUR{amount:.2f}\n\n\n{comm}"
 
