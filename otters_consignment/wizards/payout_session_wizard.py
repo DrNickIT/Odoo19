@@ -46,6 +46,7 @@ class PayoutSessionWizard(models.TransientModel):
         unpaid_lines = self.env['sale.order.line'].search([
             ('x_is_paid_out', '=', False),
             ('order_id.state', 'in', ['sale', 'done']),
+            ('qty_delivered', '>', 0),
             ('product_id.submission_id.payout_method', '=', 'cash'),
             ('product_id.submission_id', '!=', False)
         ])
@@ -72,6 +73,7 @@ class PayoutSessionWizard(models.TransientModel):
             all_unpaid_lines = self.env['sale.order.line'].search([
                 ('x_is_paid_out', '=', False),
                 ('order_id.state', 'in', ['sale', 'done']),
+                ('qty_delivered', '>', 0),
                 ('product_id.submission_id.supplier_id', '=', partner.id),
                 ('product_id.submission_id.payout_method', '=', 'cash')
             ])
