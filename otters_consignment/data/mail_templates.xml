@@ -173,6 +173,50 @@
                 </table>
             </field>
         </record>
+        <record id="mail_template_google_review_request" model="mail.template">
+            <field name="name">Otters: Vraag om Google Review (Na Bestelling)</field>
+            <field name="model_id" ref="sale.model_sale_order"/> <field name="subject">Tevreden over je bestelling bij Otters en Flamingo's? 🦦</field>
+            <field name="email_from">{{ object.company_id.email_formatted or object.env.company.email_formatted }}</field>
+            <field name="partner_to">{{ object.partner_id.id }}</field>
+            <field name="email_to">{{ object.partner_id.email }}</field>
+            <field name="use_default_to" eval="False"/>
+            <field name="auto_delete" eval="False"/>
+            <field name="body_html" type="html">
+                <table border="0" cellpadding="0" cellspacing="0" width="590" style="padding: 0px; background-color: white; color: #454748; border-collapse:separate;">
+                    <tbody>
+                        <tr>
+                            <td align="center" style="min-width: 590px;">
+                                <table border="0" cellpadding="0" cellspacing="0" width="590" style="min-width: 590px; background-color: white; padding: 0px; border-collapse:separate;">
+                                    <tr>
+                                        <td valign="top" style="font-size: 13px;">
+                                            <div style="text-align: center; margin-bottom: 20px;">
+                                                <img t-att-src="'/web/image/res.company/%s/logo' % object.company_id.id" style="max-height: 80px; width: auto;" alt="Logo"/>
+                                            </div>
+                                            <h1 style="color:#00A09D; text-align: left; font-size: 20px; font-weight: bold;">
+                                                Hoe was jouw ervaring?
+                                            </h1>
+                                            <p>Beste <t t-out="object.partner_id.name"/>,</p>
+                                            <p>Enkele dagen geleden mochten we jouw bestelling <strong><t t-out="object.name"/></strong> inpakken. We hopen dat je heel blij bent met je aankoop!</p>
+                                            <p>Als kleine, lokale onderneming zijn we enorm geholpen met online reviews. Heb je even een minuutje de tijd om een Google Review achter te laten? Je helpt ons daar ontzettend mee.</p>
 
+                                            <div style="text-align: center; margin: 30px 0;">
+                                                <a href="https://g.page/r/CXWQpW8rhZy5EBM/review"
+                                                   style="background-color: #00A09D; color: #ffffff; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
+                                                    Schrijf een review 🦦
+                                                </a>
+                                            </div>
+
+                                            <p>Alvast heel erg bedankt!</p>
+                                            <hr style="background-color: #e9ecef; border: 0; height: 1px; margin: 20px 0;"/>
+                                            <p>Lieve groetjes,<br/>Marleen<br/>Otters &amp; Flamingo's</p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </field>
+        </record>
     </data>
 </odoo>

@@ -19,6 +19,14 @@
                             </div>
                         </setting>
                     </block>
+                    <block title="E-mail &amp; Reviews" id="consignment_review_settings">
+                        <setting help="Vanaf welke besteldatum moeten we beginnen met sturen?">
+                            <field name="otters_review_launch_date"/>
+                        </setting>
+                        <setting help="Na hoeveel dagen moet de mail verstuurd worden? (Standaard: 5)">
+                            <field name="otters_review_delay_days"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>
