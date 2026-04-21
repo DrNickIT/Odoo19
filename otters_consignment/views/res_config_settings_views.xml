@@ -25,6 +25,14 @@
                         </setting>
                         <setting help="Na hoeveel dagen moet de mail verstuurd worden? (Standaard: 5)">
                             <field name="otters_review_delay_days"/>
+
+                            <div class="mt16">
+                                <button name="action_run_review_cron"
+                                        type="object"
+                                        string="Mails nu verzenden"
+                                        class="btn-primary"
+                                        icon="fa-paper-plane"/>
+                            </div>
                         </setting>
                     </block>
                 </app>

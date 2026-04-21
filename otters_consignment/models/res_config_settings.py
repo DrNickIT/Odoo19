@@ -30,3 +30,20 @@ class ResConfigSettings(models.TransientModel):
         default=5,
         help="Na hoeveel dagen moet de review mail gestuurd worden? (Standaard is 5)"
     )
+
+    def action_run_review_cron(self):
+        """ Handmatige trigger voor de review e-mails cronjob vanuit de instellingen """
+        # Roep de bestaande functie aan op het sale.order model
+        self.env['sale.order']._cron_send_review_emails()
+
+        # Geef een visuele bevestiging terug aan de gebruiker
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Review Mails',
+                'message': 'De actie is uitgevoerd. Indien er in aanmerking komende bestellingen waren, zijn de mails nu verstuurd.',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
