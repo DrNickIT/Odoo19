@@ -175,7 +175,8 @@
         </record>
         <record id="mail_template_google_review_request" model="mail.template">
             <field name="name">Otters: Vraag om Google Review (Na Bestelling)</field>
-            <field name="model_id" ref="sale.model_sale_order"/> <field name="subject">Tevreden over je bestelling bij Otters en Flamingo's? 🦦</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="subject">Heb jij je bestelling goed ontvangen? Ik ben benieuwd...</field>
             <field name="email_from">{{ object.company_id.email_formatted or object.env.company.email_formatted }}</field>
             <field name="partner_to">{{ object.partner_id.id }}</field>
             <field name="email_to">{{ object.partner_id.email }}</field>
@@ -192,23 +193,47 @@
                                             <div style="text-align: center; margin-bottom: 20px;">
                                                 <img t-att-src="'/web/image/res.company/%s/logo' % object.company_id.id" style="max-height: 80px; width: auto;" alt="Logo"/>
                                             </div>
-                                            <h1 style="color:#00A09D; text-align: left; font-size: 20px; font-weight: bold;">
-                                                Hoe was jouw ervaring?
-                                            </h1>
-                                            <p>Beste <t t-out="object.partner_id.name"/>,</p>
-                                            <p>Enkele dagen geleden mochten we jouw bestelling <strong><t t-out="object.name"/></strong> inpakken. We hopen dat je heel blij bent met je aankoop!</p>
-                                            <p>Als kleine, lokale onderneming zijn we enorm geholpen met online reviews. Heb je even een minuutje de tijd om een Google Review achter te laten? Je helpt ons daar ontzettend mee.</p>
+
+                                            <p>Hoi <t t-out="object.partner_id.name"/>,</p>
+
+                                            <p>Allereerst een dikke merci.</p>
+                                            <p>Niet alleen voor je bestelling, maar ook voor je vertrouwen. Want ik weet dat vertrouwen geven aan een webshop die je nog niet zo goed kent niet vanzelfsprekend is. Dat betekent voor mij meer dan je denkt.</p>
+
+                                            <p>Ik hoop van harte dat je kids helemaal enthousiast zijn over hun 'nieuwe' kleren. En dat ze vol zelfvertrouwen de wereld ontdekken in een outfit die helemaal past bij wie ze zijn. Dat is namelijk precies waarom ik elke dag met zoveel goesting de webshop aanvul en pakketjes klaarmaak vanuit mijn kleine kamertje hier thuis. De zorg voor elk stuk en elke klant staat hier centraal.</p>
+
+                                            <p>En nu durf ik je iets te vragen...</p>
+                                            <p>Was je bestelling wat je ervan verwachtte? En verliep alles vlot? Dan zou het ontzettend veel voor mij betekenen als je dat even deelt.</p>
 
                                             <div style="text-align: center; margin: 30px 0;">
                                                 <a href="https://g.page/r/CXWQpW8rhZy5EBM/review"
                                                    style="background-color: #00A09D; color: #ffffff; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block;">
-                                                    Schrijf een review 🦦
+                                                    Laat je review achter via deze link 🦦
                                                 </a>
                                             </div>
 
-                                            <p>Alvast heel erg bedankt!</p>
-                                            <hr style="background-color: #e9ecef; border: 0; height: 1px; margin: 20px 0;"/>
-                                            <p>Lieve groetjes,<br/>Marleen<br/>Otters &amp; Flamingo's</p>
+                                            <p>Niets complex, niet teveel denken. Gewoon eerlijk, vanuit je buikgevoel. Twee minuutjes van jouw tijd helpen een andere ouder om te durven kiezen voor preloved kinderkleding.</p>
+
+                                            <h2 style="color:#00A09D; font-size: 16px; font-weight: bold; margin-top: 25px;">Of deel een foto of video</h2>
+
+                                            <p>Heeft je kind de nieuwe kleren al aangetrokken? Tag mij <strong>@ottersenflamingos</strong> of stuur rechtstreeks naar <a href="mailto:info@ottersenflamingos.be" style="color: #00A09D; text-decoration: none;">info@ottersenflamingos.be</a>. Hun gezicht bedekken met een smiley of hartje is helemaal prima. Dat doe ik ook. 😊</p>
+
+                                            <p>Het is elke keer weer een feestje voor mij om te zien hoe de stukken een nieuw thuis vinden, van de kleerkast van het ene gezin naar een volgende keer graag gedragen worden. En nog liever zie ik hoe kinderen er blij in rondlopen.</p>
+
+                                            <p>Wat levert het jou op? Niet veel misschien, maar wel dat stille tevreden gevoel van iemand anders geholpen te hebben. Want jouw eerlijke review kan precies het duwtje zijn dat een andere ouder nodig heeft om voor het eerst de stap naar preloved te zetten. En zeg nu zelf... dat geeft toch een goed gevoel?</p>
+
+                                            <p>Nogmaals bedankt.</p>
+                                            <p>Voor je bestelling, je vertrouwen en wie weet binnenkort ook je review.</p>
+
+                                            <p>Liefs,<br/>Marleen</p>
+
+                                            <hr style="background-color: #e9ecef; border: 0; height: 1px; margin: 30px 0;"/>
+
+                                            <p style="font-size: 11px; color: #6c757d;">
+                                                Antwoord niet op deze e-mail: deze berichten komen niet bij mij aan. Stuur je bericht rechtstreeks naar <a href="mailto:info@ottersenflamingos.be" style="color: #6c757d;">info@ottersenflamingos.be</a>. Ik reageer zo snel als mogelijk op elk bericht.
+                                            </p>
+                                            <p style="font-size: 11px; color: #6c757d;">
+                                                P.S. Heb je een vraag over je bestelling of gewoon iets te delen? Mijn inbox staat altijd open.
+                                            </p>
                                         </td>
                                     </tr>
                                 </table>
