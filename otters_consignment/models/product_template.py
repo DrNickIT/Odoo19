@@ -278,30 +278,31 @@ class ProductTemplate(models.Model):
 
     @api.constrains('public_categ_ids')
     def _check_category_type_sync(self):
-        """ Sync Categorie -> Type Kenmerk """
+        """ Sync Categorieën -> Type Kenmerk (met aparte lijnen!) """
         for product in self:
-            # 1. Welk type hoort bij de gekozen categorie?
+            # 1. Welke types horen bij de gekozen categorieën?
             linked_types = product.public_categ_ids.mapped('x_linked_type_value_id')
             if not linked_types:
                 continue
 
-            target_type_value = linked_types[0] # Pak de eerste
-            type_attribute = target_type_value.attribute_id
+            type_attribute = linked_types[0].attribute_id
 
-            # 2. Check of product al een regel voor 'Type' heeft
-            existing_line = product.attribute_line_ids.filtered(lambda l: l.attribute_id == type_attribute)
+            # 2. Check welke 'Type' waarden er AL op het product staan
+            existing_type_lines = product.attribute_line_ids.filtered(lambda l: l.attribute_id == type_attribute)
+            existing_values = existing_type_lines.mapped('value_ids')
 
-            if existing_line:
-                # Update bestaande regel
-                if target_type_value.id not in existing_line.value_ids.ids:
-                    existing_line.write({'value_ids': [(6, 0, [target_type_value.id])]})
-            else:
-                # Maak nieuwe regel
-                product.write({
-                    'attribute_line_ids': [(0, 0, {
+            # 3. Voeg de ontbrekende types toe als NIEUWE aparte regels
+            new_lines = []
+            for target_type_value in linked_types:
+                if target_type_value not in existing_values:
+                    new_lines.append((0, 0, {
                         'attribute_id': type_attribute.id,
                         'value_ids': [(6, 0, [target_type_value.id])]
-                    })]
+                    }))
+
+            if new_lines:
+                product.write({
+                    'attribute_line_ids': new_lines
                 })
 
     def action_fix_split_sizes(self):

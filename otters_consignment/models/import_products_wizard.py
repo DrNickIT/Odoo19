@@ -126,16 +126,30 @@ class ImportProductsWizard(models.TransientModel):
                 cat_raw = self._get_csv_value(row, ['category', 'categorie', 'type'])
 
                 if cat_raw:
-                    category_id = self._find_or_create_category_hierarchy(cat_raw)
-                    if category_id:
-                        product_vals['public_categ_ids'] = [(6, 0, [category_id])]
+                    public_cat_ids = []
+                    first_internal_cat_id = False
 
-                        public_cat = self.env['product.public.category'].browse(category_id)
-                        internal_cat = self.env['product.category'].search([('name', '=', public_cat.name)], limit=1)
-                        if not internal_cat:
-                            internal_cat = self.env['product.category'].create({'name': public_cat.name})
+                    # Splits op | om meerdere categorieën te ondersteunen
+                    for cat_part in cat_raw.split('|'):
+                        cat_part = cat_part.strip()
+                        if not cat_part: continue
 
-                        product_vals['categ_id'] = internal_cat.id
+                        category_id = self._find_or_create_category_hierarchy(cat_part)
+                        if category_id:
+                            public_cat_ids.append(category_id)
+
+                            # Interne categorie (slechts eentje nodig voor de backend)
+                            if not first_internal_cat_id:
+                                public_cat = self.env['product.public.category'].browse(category_id)
+                                internal_cat = self.env['product.category'].search([('name', '=', public_cat.name)], limit=1)
+                                if not internal_cat:
+                                    internal_cat = self.env['product.category'].create({'name': public_cat.name})
+                                first_internal_cat_id = internal_cat.id
+
+                    if public_cat_ids:
+                        product_vals['public_categ_ids'] = [(6, 0, public_cat_ids)]
+                    if first_internal_cat_id:
+                        product_vals['categ_id'] = first_internal_cat_id
 
                 # D. Attributen Verzamelen
                 attribute_lines = []
