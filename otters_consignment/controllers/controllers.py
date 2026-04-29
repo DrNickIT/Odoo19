@@ -7,9 +7,12 @@ _logger = logging.getLogger(__name__)
 
 class ConsignmentController(http.Controller):
 
-    @http.route('/kleding-opsturen', type='http', auth='public', website=True)
+    @http.route(['/kleding-opsturen', '/kleding-binnenbrengen'], type='http', auth='public', website=True)
     def consignment_form(self, **kw):
         ICP = request.env['ir.config_parameter'].sudo()
+
+        # Check welke URL bezocht wordt
+        is_dropoff = '/kleding-binnenbrengen' in request.httprequest.path
 
         # 1. CHECK STATUS
         is_closed = ICP.get_param('otters_consignment.is_closed')
@@ -48,6 +51,7 @@ class ConsignmentController(http.Controller):
         coupon_perc_int = get_safe_percentage('otters_consignment.coupon_payout_percentage', 0.5)
 
         values = {
+            'is_dropoff': is_dropoff,
             'is_closed': is_closed,
             'closed_message': closed_message,
             'cash_percentage': cash_perc_int,
@@ -77,9 +81,10 @@ class ConsignmentController(http.Controller):
 
         return request.render('otters_consignment.consignment_form_template', values)
 
-    @http.route('/kleding-opsturen/bedankt', type='http', auth='public', website=True)
+    @http.route(['/kleding-opsturen/bedankt', '/kleding-binnenbrengen/bedankt'], type='http', auth='public', website=True)
     def consignment_form_thankyou(self, **kw):
-        return request.render('otters_consignment.consignment_thankyou_template', {})
+        is_dropoff = '/kleding-binnenbrengen' in request.httprequest.path
+        return request.render('otters_consignment.consignment_thankyou_template', {'is_dropoff': is_dropoff})
 
     @http.route([
         '/producten',

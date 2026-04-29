@@ -28,11 +28,15 @@
                                                 Aanvraag goed ontvangen!
                                             </h1>
                                             <p>Beste <t t-out="object.supplier_id.name"/>,</p>
-                                            <p>
-                                                We hebben je aanvraag voor
-                                                <strong><t t-out="ctx.get('total_bags', 1)"/></strong> verzendzak(ken) goed ontvangen.
-                                            </p>
-                                            <p>We controleren je gegevens. Als alles in orde is, ontvang je spoedig een e-mail met het verzendlabel.</p>
+                                            <t t-if="object.delivery_method == 'dropoff'">
+                                                <p>We hebben je aanvraag om kleding <strong>binnen te brengen in Linden</strong> goed ontvangen.</p>
+                                                <p>Je gaf de volgende voorkeur aan voor de afspraak: <strong><t t-out="object.dropoff_preference"/></strong>.</p>
+                                                <p>We controleren onze agenda en sturen je zo snel mogelijk een persoonlijke mail om de afspraak definitief te bevestigen.</p>
+                                            </t>
+                                            <t t-else="">
+                                                <p>We hebben je aanvraag voor <strong><t t-out="ctx.get('total_bags', 1)"/></strong> verzendzak(ken) goed ontvangen.</p>
+                                                <p>We controleren je gegevens. Als alles in orde is, ontvang je spoedig een e-mail met het verzendlabel.</p>
+                                            </t>
                                             <hr style="background-color: #e9ecef; border: 0; height: 1px; margin: 20px 0;"/>
                                             <p>Met vriendelijke groeten,<br/>Otters &amp; Flamingo's</p>
                                         </td>
@@ -114,8 +118,14 @@
                     <p><strong>Nieuwe aanvraag via website!</strong></p>
                     <ul>
                         <li>Klant: <t t-out="object.supplier_id.name"/></li>
-                        <li>Aantal zakken: <t t-out="ctx.get('total_bags', 1)"/></li>
-                        <li>Methode: <t t-out="object.payout_method"/></li>
+                        <li>Type: <t t-out="'Zelf binnenbrengen' if object.delivery_method == 'dropoff' else 'Postpakket (Sendcloud)'"/></li>
+                        <t t-if="object.delivery_method == 'dropoff'">
+                            <li><strong>Voorkeur moment: <t t-out="object.dropoff_preference"/></strong></li>
+                        </t>
+                        <t t-else="">
+                            <li>Aantal zakken: <t t-out="ctx.get('total_bags', 1)"/></li>
+                        </t>
+                        <li>Uitbetaalmethode: <t t-out="object.payout_method"/></li>
                     </ul>
                     <p><a t-att-href="'/web#id=%s&amp;model=otters.consignment.submission&amp;view_type=form' % object.id">Klik hier om te bekijken in Odoo</a></p>
                 </div>

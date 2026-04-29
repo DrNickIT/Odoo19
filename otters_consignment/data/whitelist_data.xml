@@ -18,6 +18,8 @@
             'x_iban',
             'action_unaccepted',
             'action_unsold',
+            'delivery_method',
+            'dropoff_preference',
         ]"/>
     </function>
 </odoo>

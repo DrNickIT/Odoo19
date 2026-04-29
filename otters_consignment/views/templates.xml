@@ -24,7 +24,13 @@
                         <div class="container">
                             <div class="row">
                                 <div class="col-lg-12 text-center">
-                                    <h1 class="text-center">Kleding Opsturen</h1>
+                                    <t t-if="is_dropoff">
+                                        <h1 class="text-center">Kleding Binnenbrengen in Linden</h1>
+                                        <p class="lead text-center text-muted mt-2">Maak hieronder je afspraak. Let op: deze is pas definitief na onze bevestiging per e-mail.</p>
+                                    </t>
+                                    <t t-else="">
+                                        <h1 class="text-center">Kleding Opsturen</h1>
+                                    </t>
                                 </div>
                             </div>
                         </div>
@@ -53,9 +59,11 @@
                                   data-mark="*"
                                   data-model_name="otters.consignment.submission"
                                   data-success-mode="redirect"
-                                  data-success-page="/kleding-opsturen/bedankt"
+                                  t-att-data-success-page="'/kleding-binnenbrengen/bedankt' if is_dropoff else '/kleding-opsturen/bedankt'"
                                   id="consignment_form"
                                   enctype="multipart/form-data">
+
+                                <input type="hidden" name="delivery_method" t-att-value="'dropoff' if is_dropoff else 'sendcloud'"/>
 
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                                 <fieldset t-att-disabled="'disabled' if is_closed else None">
@@ -107,11 +115,21 @@
 
                                     <hr/>
 
-                                    <div class="mb-3">
-                                        <label for="label_count" class="form-label">Aantal verzendzakken/labels nodig?</label>
-                                        <input type="number" class="form-control" name="label_count" value="1" min="1" max="10" required="1" style="max-width: 100px;"/>
-                                        <small class="text-muted">Standaard 1. Heb je heel veel kleding? Vraag er gerust meer aan.</small>
-                                    </div>
+                                    <t t-if="not is_dropoff">
+                                        <div class="mb-3">
+                                            <label for="label_count" class="form-label">Aantal verzendzakken/labels nodig?</label>
+                                            <input type="number" class="form-control" name="label_count" value="1" min="1" max="10" required="1" style="max-width: 100px;"/>
+                                            <small class="text-muted">Standaard 1. Heb je heel veel kleding? Vraag er gerust meer aan.</small>
+                                        </div>
+                                    </t>
+                                    <t t-if="is_dropoff">
+                                        <input type="hidden" name="label_count" value="1"/>
+                                        <div class="mb-4">
+                                            <label for="dropoff_preference" class="form-label fw-bold text-primary">Wanneer wil je langskomen? *</label>
+                                            <input type="text" class="form-control form-control-lg" name="dropoff_preference" required="1" placeholder="Bv. Komende dinsdagvoormiddag..."/>
+                                            <small class="text-muted"><i class="fa fa-info-circle"/> Je afspraak is pas geldig nadat we deze per mail hebben bevestigd.</small>
+                                        </div>
+                                    </t>
 
                                     <hr/>
 
@@ -250,11 +268,17 @@
         <template id="consignment_thankyou_template" name="Bedankt!">
             <t t-call="website.layout">
                 <div id="wrap" class="oe_structure">
-                    <div class="container">
-                        <h1>Bedankt voor je aanvraag!</h1>
-                        <p>We hebben je gegevens goed ontvangen en zullen je spoedig een verzendlabel toesturen via
-                            e-mail.
-                        </p>
+                    <div class="container text-center py-5">
+                        <t t-if="is_dropoff">
+                            <i class="fa fa-calendar-check-o fa-5x text-success mb-4"/>
+                            <h1>Bedankt voor je aanvraag!</h1>
+                            <p class="lead">We hebben je voorkeursmoment genoteerd.</p>
+                            <p>Je ontvangt heel binnenkort een persoonlijke e-mail van ons om de afspraak te bevestigen.<br/><b>Kom nog niet langs voordat je deze bevestiging hebt ontvangen.</b></p>
+                        </t>
+                        <t t-else="">
+                            <h1>Bedankt voor je aanvraag!</h1>
+                            <p>We hebben je gegevens goed ontvangen en zullen je spoedig een verzendlabel toesturen via e-mail.</p>
+                        </t>
                         <a href="/" class="btn btn-primary mt-4">Terug naar de homepagina</a>
                     </div>
                 </div>

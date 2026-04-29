@@ -147,6 +147,8 @@
                     <group>
                         <group string="Inzending Details">
                             <field name="supplier_id"/>
+                            <field name="delivery_method"/>
+                            <field name="dropoff_preference" invisible="delivery_method != 'dropoff'"/>
                             <field name="submission_date"/>
                             <field name="date_published"/>
                             <field name="x_submission_year" readonly="1" options="{'format': false}" widget="char"/>

@@ -70,6 +70,13 @@ class ConsignmentSubmission(models.Model):
         ('return', 'Terugsturen (€7,50)')
     ], string="Actie niet-verkocht (1 jaar)", default='donate', required=True)
 
+    delivery_method = fields.Selection([
+        ('sendcloud', 'Via Verzendlabel (Sendcloud)'),
+        ('dropoff', 'Zelf Binnenbrengen (Linden)')
+    ], string="Aanlevering", default='sendcloud', required=True, tracking=True)
+
+    dropoff_preference = fields.Char(string="Voorkeur Afspraakmoment", tracking=True)
+
     agreed_to_terms = fields.Boolean(string="Akkoord Algemene Voorwaarden", required=True, default=False)
     agreed_to_clothing_terms = fields.Boolean(string="Akkoord Kleding Voorwaarden", required=True, default=False)
     agreed_to_shipping_fee = fields.Boolean(string="Akkoord Verzendkosten (8eur)", required=True, default=False)
