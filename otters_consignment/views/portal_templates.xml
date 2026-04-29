@@ -409,8 +409,11 @@
                                             <t t-elif="product.x_unsold_reason == 'returned'">
                                                 <span class="badge text-bg-info">Teruggestuurd naar jou</span>
                                             </t>
-                                            <t t-elif="product.x_unsold_reason == 'lost'">
-                                                <span class="badge text-bg-danger">Verloren / Beschadigd</span>
+                                            <t t-elif="product.x_unsold_reason == 'new_collection'">
+                                                <span class="badge text-bg-secondary">Plaats gemaakt voor 'nieuwe' collectie</span>
+                                            </t>
+                                            <t t-elif="product.x_unsold_reason == 'other'">
+                                                <span class="badge text-bg-secondary"><t t-out="product.x_unsold_reason_other or 'Andere reden'"/></span>
                                             </t>
                                             <t t-else="">
                                                 <span t-field="product.x_unsold_reason"/>

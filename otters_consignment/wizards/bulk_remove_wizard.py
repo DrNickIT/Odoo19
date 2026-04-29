@@ -9,11 +9,14 @@ class BulkRemoveWizard(models.TransientModel):
 
     # We nemen dezelfde opties over als op het product
     reason = fields.Selection([
+        ('new_collection', "Plaats maken voor de 'nieuwe' collectie"),
         ('charity', 'Geschonken aan goed doel'),
         ('returned', 'Teruggestuurd naar klant'),
-        ('lost', 'Verloren / Beschadigd'),
-        ('other', 'Andere')
+        ('brand', 'Merk niet geaccepteerd'),
+        ('other', 'Andere: ...')
     ], string="Reden", required=True)
+
+    reason_other = fields.Char(string="Specifieer andere reden")
 
     @api.model
     def default_get(self, fields):
@@ -38,7 +41,8 @@ class BulkRemoveWizard(models.TransientModel):
         # OPMERKING: Doordat we de write() methode in product_template.py hebben aangepast,
         # zal dit AUTOMATISCH ook de stock op 0 zetten en is_published op False zetten.
         products_to_remove.write({
-            'x_unsold_reason': self.reason
+            'x_unsold_reason': self.reason,
+            'x_unsold_reason_other': self.reason_other if self.reason == 'other' else False
         })
 
         # Logboek berichtje

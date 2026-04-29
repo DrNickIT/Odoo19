@@ -29,6 +29,9 @@
                             <separator/>
                             <field name="x_customer_preference" string="Wens klant bij niet verkocht"/>
                             <field name="x_unsold_reason" widget="radio"/>
+                            <field name="x_unsold_reason_other"
+                                   invisible="x_unsold_reason != 'other'"
+                                   required="x_unsold_reason == 'other'"/>
                         </group>
                     </group>
                 </page>

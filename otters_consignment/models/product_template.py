@@ -11,14 +11,20 @@ class ProductTemplate(models.Model):
     ]
 
     x_unsold_reason = fields.Selection([
+        ('new_collection', "Plaats maken voor de 'nieuwe' collectie"),
         ('charity', 'Geschonken aan goed doel'),
         ('returned', 'Teruggestuurd naar klant'),
-        ('lost', 'Verloren / Beschadigd'),
         ('brand', 'Merk niet geaccepteerd'),
         ('unknown_migration', 'Ongekend tijdens migratie'),
-        ('other', 'Andere')
+        ('other', 'Andere: ...')
     ], string="Reden uit collectie", copy=False, tracking=True, help="Vul dit in als het item niet verkocht is en uit de shop moet.")
 
+    # NIEUW VELD: Voor het handmatig invullen van de reden
+    x_unsold_reason_other = fields.Char(
+        string="Specifieer andere reden",
+        copy=False,
+        tracking=True
+    )
     submission_id = fields.Many2one(
         'otters.consignment.submission',
         string="Originele Inzending",
