@@ -303,7 +303,7 @@ class ImportProductsWizard(models.TransientModel):
 
         type_val = self.env['product.attribute.value'].search([
             ('attribute_id', '=', type_attr.id),
-            ('name', '=', category.name)
+            ('name', '=ilike', category.name)
         ], limit=1)
 
         if not type_val:
@@ -330,7 +330,7 @@ class ImportProductsWizard(models.TransientModel):
         attribute = self.env['product.attribute'].search([('name', '=ilike', attr_name)], limit=1)
         if not attribute:
             attribute = self.env['product.attribute'].create({
-                'name': attr_name,
+                'name': attr_name.capitalize(), # Forceer hoofdletter bij nieuw kenmerk
                 'create_variant': 'no_variant',
                 'display_type': 'radio'
             })
@@ -345,7 +345,7 @@ class ImportProductsWizard(models.TransientModel):
             if not val_obj:
                 val_obj = self.env['product.attribute.value'].create({
                     'attribute_id': attribute.id,
-                    'name': v
+                    'name': v.capitalize()  # <--- HIER: Forceer hoofdletter bij nieuwe waarde!
                 })
             elif not val_obj.active:
                 val_obj.write({'active': True})
