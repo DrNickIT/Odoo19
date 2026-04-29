@@ -106,7 +106,7 @@
             <field name="subject">Nieuwe aanvraag: {{ object.supplier_id.name }} ({{ ctx.get('total_bags', 1) }} zakken)</field>
             <field name="email_from">{{ object.env.company.email_formatted }}</field>
             <field name="partner_to" eval="False"/>
-            <field name="email_to">{{object.supplier_id.email}}</field>
+            <field name="email_to">{{object.env.company.email}}</field>
             <field name="use_default_to" eval="False"/>
             <field name="auto_delete" eval="False"/>
             <field name="body_html" type="html">
