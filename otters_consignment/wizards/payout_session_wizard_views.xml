@@ -4,9 +4,12 @@
         <field name="name">otters.payout.session.wizard.form</field>
         <field name="model">otters.payout.session.wizard</field>
         <field name="arch" type="xml">
-            <form string="Uitbetalingsronde">
+            <form string="Uitbetalings- &amp; Bonnenronde">
                 <field name="queue_partner_ids" invisible="1"/>
                 <field name="qr_filename" invisible="1"/>
+                <field name="payout_method_missing" invisible="1"/>
+                <field name="is_cash" invisible="1"/>
+                <field name="is_coupon" invisible="1"/>
 
                 <div class="alert alert-info text-center" role="alert" invisible="queue_count == 0">
                     Nog <strong><field name="queue_count"/></strong> leveranciers te gaan in deze ronde.
@@ -16,18 +19,28 @@
                     <group>
                         <h1><field name="current_partner_id" options="{'no_open': True}"/></h1>
                         <h2>
-                            Totaal: <field name="total_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            Totaal openstaand: <field name="total_amount" widget="monetary" options="{'currency_field': 'currency_id'}"/>
                         </h2>
                         <field name="currency_id" invisible="1"/>
                     </group>
                     <group>
+                        <div invisible="not payout_method_missing" class="alert alert-danger fw-bold m-0" role="alert">
+                            <i class="fa fa-exclamation-triangle"/> Geen uitbetaalmethode gekozen!<br/>
+                            Deze inzending is nog niet in orde. Klik op Overslaan om dit eerst recht te zetten op de inzending.
+                        </div>
+
                         <field name="qr_image" widget="image" filename="qr_filename"
                                width="200" height="200"
-                               invisible="not qr_image"/>
+                               invisible="payout_method_missing or not is_cash or not qr_image"/>
 
-                        <div invisible="qr_image" class="text-danger fw-bold">
-                            <i class="fa fa-exclamation-triangle"/> Geen rekeningnummer gevonden!<br/>
+                        <div invisible="payout_method_missing or not is_cash or qr_image" class="text-danger fw-bold" role="alert">
+                            <i class="fa fa-exclamation-triangle"/> Geen rekeningnummer gevonden voor Cash uitbetaling!<br/>
                             Je kan deze betaling niet uitvoeren. Klik op Overslaan.
+                        </div>
+
+                        <div invisible="payout_method_missing or not is_coupon" class="alert alert-success fw-bold m-0" role="alert">
+                            <i class="fa fa-ticket"/> Bevat uitbetaling via waardebon.<br/>
+                            Bij bevestiging wordt er automatisch een bon aangemaakt en gemaild naar de klant.
                         </div>
                     </group>
                 </group>
@@ -39,7 +52,7 @@
                                 <field name="product_id"/>
                                 <field name="price_total" string="Verkoopprijs"/>
                                 <field name="x_computed_percentage" string="Perc." widget="percentage"/>
-                                <field name="x_computed_commission" string="Commissie" sum="Totaal"/>
+                                <field name="x_computed_commission" string="Commissie / Tegoed" sum="Totaal"/>
                             </list>
                         </field>
                     </page>
@@ -47,17 +60,23 @@
 
                 <div invisible="current_partner_id">
                     <h2 class="text-center text-success">
-                        <i class="fa fa-check-circle"/> Alles is betaald!
+                        <i class="fa fa-check-circle"/> Alles is verwerkt!
                     </h2>
-                    <p class="text-center">Er zijn geen openstaande cash-betalingen meer.</p>
+                    <p class="text-center">Er zijn geen openstaande cash- of coupon-betalingen meer.</p>
                 </div>
 
                 <footer>
-                    <button string="Betaald &amp; Volgende ➡"
+                    <button string="Cash Betaald &amp; Volgende ➡"
                             name="action_pay_and_next"
                             type="object"
                             class="btn-primary"
-                            invisible="not current_partner_id or not qr_image"/>
+                            invisible="not current_partner_id or payout_method_missing or not is_cash or not qr_image"/>
+
+                    <button string="Genereer Bon &amp; Volgende ➡"
+                            name="action_pay_and_next"
+                            type="object"
+                            class="btn-success"
+                            invisible="not current_partner_id or payout_method_missing or not is_coupon"/>
 
                     <button string="Overslaan ⏩"
                             name="action_skip_and_next"
