@@ -256,7 +256,7 @@
         <record id="mail_template_consignment_coupon_payout" model="mail.template">
             <field name="name">Otters Waardebon: Uitbetaling (Klant)</field>
             <field name="model_id" ref="loyalty.model_loyalty_card"/>
-            <field name="subject">Jouw Otters &amp; Flamingo's Waardebon staat klaar! 🦦</field>
+            <field name="subject">Jouw Otters en Flamingo's waardebon staat klaar! 🦦</field>
             <field name="email_from">{{ object.env.company.email_formatted }}</field>
             <field name="partner_to" eval="False"/>
             <field name="email_to">{{ object.partner_id.email }}</field>
@@ -276,20 +276,20 @@
                                             <h1 style="color:#00A09D; text-align: left; font-size: 20px; font-weight: bold;">
                                                 Je verdiende tegoed staat klaar!
                                             </h1>
-                                            <p>Beste <t t-out="object.partner_id.name"/>,</p>
-                                            <p>Goed nieuws! Er zijn items van jouw kledinginzending verkocht.</p>
-                                            <p>Omdat je hebt gekozen voor een uitbetaling via een waardebon, hebben we met veel plezier een unieke kortingscode voor je aangemaakt:</p>
+                                            <p>Hoi <t t-out="object.partner_id.name"/>,</p>
+                                            <p>Goed nieuws! De verkochte stuks uit je zending worden uitbetaald.</p>
+                                            <p>Je koos voor een waardebon:</p>
 
                                             <div style="background-color: #f8f9fa; border: 2px dashed #00A09D; padding: 20px; text-align: center; border-radius: 6px; margin: 20px 0;">
-                                                <span style="font-size: 14px; text-transform: uppercase; color: #6c757d; font-weight: bold;">Jouw Tegoedbon Code:</span><br/>
+                                                <span style="font-size: 14px; text-transform: uppercase; color: #6c757d; font-weight: bold;">Jouw waardebon code:</span><br/>
                                                 <span style="font-size: 24px; color: #00A09D; font-weight: bold; letter-spacing: 1px;"><t t-out="object.code"/></span><br/><br/>
                                                 <span style="font-size: 18px; font-weight: bold;">Waarde: € <t t-out="object.points"/></span>
                                             </div>
 
-                                            <p>Je kunt deze code kopiëren en plakken in het winkelmandje bij je volgende bestelling op onze webshop.</p>
-                                            <p>Bedankt voor je fijne inzending en je bijdrage aan een duurzamere kledingwereld!</p>
+                                            <p>Je kan deze code kopiëren en plakken in het winkelmandje bij je volgende bestelling in de webshop.</p>
+                                            <p>Spread the word &amp; let preloved clothes rule the world!</p>
                                             <hr style="background-color: #e9ecef; border: 0; height: 1px; margin: 20px 0;"/>
-                                            <p>Met warme groetjes,<br/>Marleen - Otters &amp; Flamingo's</p>
+                                            <p>Met lieve groetjes,<br/>Marleen, Otters en Flamingo's</p>
                                         </td>
                                     </tr>
                                 </table>

@@ -25,7 +25,7 @@ class PayoutSessionWizard(models.TransientModel):
     qr_image = fields.Binary("QR Code", readonly=True)
     qr_filename = fields.Char("Bestandsnaam", default="qr.png")
 
-    # --- NIEUWE STATUS INDIKATOREN VOOR INTERFACE ---
+    # --- Status indicatoren voor de interface ---
     payout_method_missing = fields.Boolean(compute='_compute_payout_flags')
     is_cash = fields.Boolean(compute='_compute_payout_flags')
     is_coupon = fields.Boolean(compute='_compute_payout_flags')
@@ -40,7 +40,6 @@ class PayoutSessionWizard(models.TransientModel):
         """ Controleert de exacte status van de openstaande lijnen """
         for w in self:
             methods = w.line_ids.mapped('product_id.submission_id.payout_method')
-            # True als er minstens één regel is zonder ingevulde methode (of de lijst leeg is)
             w.payout_method_missing = any(not m for m in methods) or not methods
             w.is_cash = 'cash' in methods and not w.payout_method_missing
             w.is_coupon = 'coupon' in methods and not w.payout_method_missing
@@ -120,22 +119,72 @@ class PayoutSessionWizard(models.TransientModel):
             return False
 
     def action_pay_and_next(self):
+        """ Markeer als betaald (en maak automatisch coupons/mails aan indien nodig) """
         self.ensure_one()
 
         if self.line_ids:
-            # Extra harde guard clause tegen inzendingen zonder methode
+            # --- VEILIGHEIDSCHECK: Is de methode wel ingevuld? ---
             methods = self.line_ids.mapped('product_id.submission_id.payout_method')
             if any(not m for m in methods) or not methods:
-                raise UserError(_("Kan deze actie niet uitvoeren: Er ontbreekt een uitbetaalmethode op de inzending."))
+                raise UserError(_("Kan deze actie niet uitvoeren: Er ontbreekt een uitbetaalmethode op de inzending. Controleer of dit Cash of Coupon is."))
 
-            # --- AUTOMATISCHE GENERATIE VAN DE WAARDEBON ---
+            # --- 1. LOGICA VOOR WAARDEBONNEN (COUPON) ---
             coupon_lines = self.line_ids.filtered(lambda l: l.product_id.submission_id.payout_method == 'coupon')
             if coupon_lines:
                 coupon_amount = sum(coupon_lines.mapped('x_computed_commission'))
                 if coupon_amount > 0:
-                    program = self.env['loyalty.program'].search([('program_type', '=', 'gift_card')], limit=1)
+
+                    # A. Zoek of maak eerst het specifieke product aan met de juiste naam voor het winkelmandje
+                    gift_card_product = self.env['product.product'].search([
+                        ('name', '=', "Otters en Flamingo's Waardebon"),
+                        ('type', '=', 'service')
+                    ], limit=1)
+
+                    if not gift_card_product:
+                        gift_card_product = self.env['product.product'].create({
+                            'name': "Otters en Flamingo's Waardebon",
+                            'type': 'service',
+                            'taxes_id': False,
+                            'list_price': 0,
+                        })
+
+                    # B. Zoek of maak het programma "Otters en Flamingo's Waardebonnen"
+                    program = self.env['loyalty.program'].search([
+                        ('name', '=', "Otters en Flamingo's Waardebonnen"),
+                        ('program_type', '=', 'gift_card')
+                    ], limit=1)
+
                     if not program:
-                        raise UserError(_("Er is geen loyalty programma van het type 'gift_card' (Cadeaubon) gevonden in Odoo."))
+                        program = self.env['loyalty.program'].create({
+                            'name': "Otters en Flamingo's Waardebonnen",
+                            'program_type': 'gift_card',
+                            'applies_on': 'future',
+                            'trigger': 'auto',
+                            'portal_visible': True,
+                            'portal_point_name': 'Euro',
+                            'currency_id': self.env.company.currency_id.id,
+                        })
+
+                    # C. REPARATIE / VERPLICHTE SYNC: Zorg dat de beloning ALTIJD aan dit product hangt
+                    reward = self.env['loyalty.reward'].search([('program_id', '=', program.id)], limit=1)
+                    if reward:
+                        if reward.discount_line_product_id != gift_card_product:
+                            reward.write({'discount_line_product_id': gift_card_product.id})
+                    else:
+                        self.env['loyalty.reward'].create({
+                            'program_id': program.id,
+                            'reward_type': 'discount',
+                            'discount_mode': 'per_point',
+                            'discount': 1.0,
+                            'discount_line_product_id': gift_card_product.id,
+                        })
+
+                    if not self.current_partner_id.email:
+                        raise UserError(f"FOUT: Klant '{self.current_partner_id.name}' heeft geen e-mailadres!")
+
+                    coupon_template = self.env.ref('otters_consignment.mail_template_consignment_coupon_payout', raise_if_not_found=False)
+                    if not coupon_template:
+                        raise UserError("FOUT: Het e-mail sjabloon voor de bon is niet gevonden.")
 
                     coupon_code = f"OTTERS-{uuid.uuid4().hex[:8].upper()}"
                     card = self.env['loyalty.card'].create({
@@ -145,11 +194,16 @@ class PayoutSessionWizard(models.TransientModel):
                         'partner_id': self.current_partner_id.id,
                     })
 
-                    template = self.env.ref('otters_consignment.mail_template_consignment_coupon_payout', raise_if_not_found=False)
-                    if template:
-                        template.sudo().send_mail(card.id, force_send=True)
+                    try:
+                        coupon_template.sudo().send_mail(
+                            card.id,
+                            force_send=True,
+                            email_values={'email_to': self.current_partner_id.email}
+                        )
+                    except Exception as e:
+                        raise UserError(f"Oeps! Odoo kon de e-mail voor de bon niet samenstellen. Foutmelding: {e}")
 
-            # Markeer alle lijnen als betaald in de database
+            # --- 2. MARKEER ALLES ALS BETAALD IN DE DATABASE ---
             self.line_ids.write({
                 'x_is_paid_out': True,
                 'x_payout_date': fields.Date.context_today(self),
@@ -163,6 +217,7 @@ class PayoutSessionWizard(models.TransientModel):
                     'x_fixed_percentage': perc
                 })
 
+        # Uit de wachtrij halen en volgende laden
         self.write({'queue_partner_ids': [(3, self.current_partner_id.id)]})
         return self._load_next_step()
 
