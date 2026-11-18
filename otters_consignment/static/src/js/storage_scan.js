@@ -68,27 +68,32 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
 
         const worker = await this._getOcrWorker();
         const result = await worker.recognize(file);
-        let value = this._extractCode(result.data.text, isProduct);
-        if (value) {
-            return value;
+        const value = this._extractCode(result.data.text, isProduct);
+        if (!isProduct || !window.createImageBitmap) {
+            return value || "";
         }
 
-        if (isProduct && window.createImageBitmap) {
-            try {
-                const crop = await this._createProductLabelCrop(file);
-                if (crop) {
-                    const croppedResult = await worker.recognize(crop);
-                    value = this._extractCode(croppedResult.data.text, true);
+        const candidates = value ? [value] : [];
+        try {
+            const crops = await this._createProductLabelCrops(file);
+            for (const crop of crops) {
+                const croppedResult = await worker.recognize(crop);
+                const cropValue = this._extractCode(croppedResult.data.text, true);
+                if (cropValue) {
+                    candidates.push(cropValue);
                 }
-            } catch (error) {
-                console.debug("Bijgesneden label kon niet worden herkend; gebruik de volledige foto.", error);
             }
+        } catch (error) {
+            console.debug("Label-crops konden niet worden herkend; gebruik de volledige foto.", error);
         }
-        return value || "";
+        return this._selectProductCode(candidates);
     },
 
     _extractCode: function (text, isProduct) {
-        const normalizedText = text.toUpperCase();
+        const normalizedText = text.toUpperCase().replace(
+            /\b([IL])\s+(?=[A-Z]{1,4}\d{2,}\b)/g,
+            "$1"
+        );
         const tokenize = (line) => (line.match(/[A-Z0-9][A-Z0-9_-]*/g) || [])
             .map((token) => token.replace(/^[-_]+|[-_]+$/g, ""));
         if (!isProduct) {
@@ -146,6 +151,32 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         return "";
     },
 
+    _selectProductCode: function (candidates) {
+        let bestCode = "";
+        let bestScore = -Infinity;
+        const candidateCounts = new Map();
+        for (const candidate of candidates) {
+            candidateCounts.set(candidate, (candidateCounts.get(candidate) || 0) + 1);
+        }
+        for (const [candidate, count] of candidateCounts) {
+            const compact = candidate.replace(/[^A-Z0-9]/g, "");
+            const letterCount = (compact.match(/[A-Z]/g) || []).length;
+            const digitCount = (compact.match(/[0-9]/g) || []).length;
+            const lengthScore = Math.max(0, 60 - Math.abs(compact.length - 7) * 6);
+            const mixedCodeScore = letterCount && digitCount
+                ? 10 + Math.min(letterCount, 3) + Math.min(digitCount, 3)
+                : 0;
+            const skuShapeScore = /^[A-Z]{2,}\d{2,}$/.test(compact) ? 12 : 0;
+            const repeatScore = (count - 1) * 12;
+            const score = lengthScore + mixedCodeScore + skuShapeScore + repeatScore;
+            if (score > bestScore) {
+                bestCode = candidate;
+                bestScore = score;
+            }
+        }
+        return bestCode;
+    },
+
     _normalizeOcrAlphaCode: function (token) {
         const match = token.match(/^([A-Z]{2,}?)([FOZ]{3,})$/);
         if (!match) {
@@ -156,31 +187,68 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         return match[1] + digitSuffix;
     },
 
-    _createProductLabelCrop: async function (file) {
+    _createProductLabelCrops: async function (file) {
         const bitmap = await window.createImageBitmap(file);
         try {
-            const sourceWidth = Math.round(bitmap.width * 0.7);
-            const sourceHeight = Math.round(bitmap.height * 0.45);
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.min(sourceWidth * 2, 2400);
-            canvas.height = Math.round(sourceHeight * canvas.width / sourceWidth);
-            const context = canvas.getContext("2d");
-            if (!context) {
-                return null;
-            }
-            context.filter = "grayscale(1) contrast(1.35)";
-            context.drawImage(
-                bitmap,
-                0,
-                0,
-                sourceWidth,
-                sourceHeight,
-                0,
-                0,
-                canvas.width,
-                canvas.height
-            );
-            return canvas;
+            return [0, 90, 270].flatMap((degrees) => {
+                const rotatedWidth = degrees % 180 ? bitmap.height : bitmap.width;
+                const rotatedHeight = degrees % 180 ? bitmap.width : bitmap.height;
+                const rotated = document.createElement("canvas");
+                rotated.width = rotatedWidth;
+                rotated.height = rotatedHeight;
+                const rotatedContext = rotated.getContext("2d");
+                if (!rotatedContext) {
+                    return null;
+                }
+                rotatedContext.translate(rotatedWidth / 2, rotatedHeight / 2);
+                rotatedContext.rotate(degrees * Math.PI / 180);
+                rotatedContext.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+
+                const createCrop = (sourceX, sourceY, sourceWidth, sourceHeight) => {
+                    const scale = Math.min(1.5, 2400 / Math.max(sourceWidth, sourceHeight));
+                    const crop = document.createElement("canvas");
+                    crop.width = Math.round(sourceWidth * scale);
+                    crop.height = Math.round(sourceHeight * scale);
+                    const context = crop.getContext("2d");
+                    if (!context) {
+                        return null;
+                    }
+                    context.filter = "grayscale(1) contrast(1.4)";
+                    context.drawImage(
+                        rotated,
+                        sourceX,
+                        sourceY,
+                        sourceWidth,
+                        sourceHeight,
+                        0,
+                        0,
+                        crop.width,
+                        crop.height
+                    );
+                    return crop;
+                };
+                const crops = [
+                    createCrop(
+                        0,
+                        0,
+                        Math.round(rotatedWidth * 0.9),
+                        Math.round(rotatedHeight * 0.7)
+                    ),
+                ].filter(Boolean);
+                if (degrees === 90 || degrees === 270) {
+                    const bandHeight = Math.round(rotatedHeight * 0.8);
+                    const band = createCrop(
+                        0,
+                        Math.round(rotatedHeight * 0.1),
+                        rotatedWidth,
+                        bandHeight
+                    );
+                    if (band) {
+                        crops.push(band);
+                    }
+                }
+                return crops;
+            }).filter(Boolean);
         } finally {
             bitmap.close();
         }
@@ -198,6 +266,7 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
             }).then(async (worker) => {
                 await worker.setParameters({
                     tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.,",
+                    tessedit_pageseg_mode: "11",
                 });
                 return worker;
             });
