@@ -7,6 +7,10 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
 
     events: {
         "click .o_storage_scan_camera": "_onCameraClick",
+        "click .o_storage_scan_camera_capture": "_onCameraCapture",
+        "click .o_storage_scan_camera_cancel": "_onCameraCancel",
+        "click .o_storage_scan_camera_choose": "_onCameraChoose",
+        "keydown .o_storage_scan_camera_modal": "_onCameraModalKeydown",
         "change #storage_scan_image": "_onImageSelected",
         "click #storage_scan_confirm_move": "_onConfirmMove",
         "click #storage_scan_cancel_move": "_onCancelMove",
@@ -16,12 +20,138 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
     start: function () {
         this.scanTarget = null;
         this.workerPromise = null;
+        this.cameraStream = null;
+        this.cameraRequestId = 0;
+        this.cameraReturnFocus = null;
+        return this._super.apply(this, arguments);
+    },
+
+    destroy: function () {
+        this.cameraRequestId++;
+        this._stopCamera();
         return this._super.apply(this, arguments);
     },
 
     _onCameraClick: function (event) {
         this.scanTarget = event.currentTarget.dataset.target;
+        this.cameraReturnFocus = event.currentTarget;
+        const mediaDevices = window.navigator && window.navigator.mediaDevices;
+        if (!mediaDevices || !mediaDevices.getUserMedia) {
+            this._openImagePicker();
+            return;
+        }
+        this._openCamera();
+    },
+
+    _openCamera: async function () {
+        const modal = this.el.querySelector("#storage_scan_camera_modal");
+        const video = this.el.querySelector("#storage_scan_camera_video");
+        const loading = this.el.querySelector("#storage_scan_camera_loading");
+        const requestId = ++this.cameraRequestId;
+        loading.textContent = "Camera starten…";
+        modal.classList.remove("d-none");
+        loading.classList.remove("d-none");
+
+        try {
+            const stream = await window.navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" } },
+                audio: false,
+            });
+            if (requestId !== this.cameraRequestId) {
+                stream.getTracks().forEach((track) => track.stop());
+                return;
+            }
+            this.cameraStream = stream;
+            video.srcObject = stream;
+            await video.play();
+            loading.classList.add("d-none");
+            this.el.querySelector(".o_storage_scan_camera_capture").focus();
+        } catch (error) {
+            if (requestId !== this.cameraRequestId) {
+                return;
+            }
+            console.debug("Live camera niet beschikbaar; foto kiezen blijft mogelijk.", error);
+            this._stopCamera();
+            loading.textContent = "Camera niet beschikbaar. Geef cameratoegang of kies een foto.";
+            loading.classList.remove("d-none");
+            this.el.querySelector(".o_storage_scan_camera_choose").focus();
+        }
+    },
+
+    _openImagePicker: function () {
         this.el.querySelector("#storage_scan_image").click();
+    },
+
+    _stopCamera: function () {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach((track) => track.stop());
+            this.cameraStream = null;
+        }
+        const video = this.el.querySelector("#storage_scan_camera_video");
+        if (video) {
+            video.pause();
+            video.srcObject = null;
+        }
+    },
+
+    _closeCamera: function () {
+        this.cameraRequestId++;
+        this._stopCamera();
+        this.el.querySelector("#storage_scan_camera_loading").textContent = "Camera starten…";
+        this.el.querySelector("#storage_scan_camera_modal").classList.add("d-none");
+        if (this.cameraReturnFocus) {
+            this.cameraReturnFocus.focus();
+        }
+    },
+
+    _onCameraCapture: async function () {
+        const video = this.el.querySelector("#storage_scan_camera_video");
+        if (!video.videoWidth || !video.videoHeight) {
+            this._showStatus("Wacht tot de camera klaar is en probeer opnieuw.", "info");
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+        if (!context) {
+            this._showStatus("De camerafoto kon niet worden verwerkt. Kies een foto.", "danger");
+            return;
+        }
+        let blob;
+        try {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+        } catch (error) {
+            console.error("Camerafoto maken is mislukt:", error);
+            this._showStatus("De foto kon niet worden vastgelegd. Probeer opnieuw.", "danger");
+            return;
+        }
+        if (!blob) {
+            this._showStatus("De camerafoto kon niet worden opgeslagen. Probeer opnieuw.", "danger");
+            return;
+        }
+
+        const file = new File([blob], `storage-scan-${Date.now()}.jpg`, { type: "image/jpeg" });
+        this._closeCamera();
+        this._processImage(file);
+    },
+
+    _onCameraCancel: function () {
+        this._closeCamera();
+    },
+
+    _onCameraChoose: function () {
+        this._closeCamera();
+        this._openImagePicker();
+    },
+
+    _onCameraModalKeydown: function (event) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            this._closeCamera();
+        }
     },
 
     _onImageSelected: async function () {
@@ -31,6 +161,17 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
             return;
         }
 
+        try {
+            await this._processImage(file);
+        } finally {
+            imageInput.value = "";
+        }
+    },
+
+    _processImage: async function (file) {
+        if (!file || !this.scanTarget) {
+            return;
+        }
         this._showStatus("Code herkennen…", "info");
         try {
             const value = await this._readCode(file, this.scanTarget === "storage_product_code");
@@ -46,8 +187,6 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         } catch (error) {
             console.error("Codeherkenning is mislukt:", error);
             this._showStatus("De code kon niet worden gelezen. Probeer opnieuw of typ de code zelf.", "danger");
-        } finally {
-            imageInput.value = "";
         }
     },
 

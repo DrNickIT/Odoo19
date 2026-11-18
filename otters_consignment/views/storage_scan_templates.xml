@@ -56,6 +56,49 @@
                                class="d-none"/>
                     </form>
 
+                    <div id="storage_scan_camera_modal"
+                         class="o_storage_scan_camera_modal d-none"
+                         role="dialog"
+                         aria-modal="true"
+                         aria-labelledby="storage_scan_camera_title">
+                        <div class="o_storage_scan_camera_dialog">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <h2 id="storage_scan_camera_title" class="h4 mb-0">Code scannen</h2>
+                                <button type="button"
+                                        class="btn-close o_storage_scan_camera_cancel"
+                                        aria-label="Cameravenster sluiten"></button>
+                            </div>
+                            <p class="text-muted mb-2">
+                                Houd de code recht en scherp binnen het kader.
+                            </p>
+                            <div class="o_storage_scan_camera_view">
+                                <video id="storage_scan_camera_video"
+                                       autoplay="autoplay"
+                                       muted="muted"
+                                       playsinline="playsinline"></video>
+                                <div class="o_storage_scan_camera_frame" aria-hidden="true"/>
+                                <p id="storage_scan_camera_loading"
+                                   class="o_storage_scan_camera_loading">
+                                    Camera starten…
+                                </p>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+                                <button type="button"
+                                        class="btn btn-primary o_storage_scan_camera_capture">
+                                    Maak foto
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-secondary o_storage_scan_camera_choose">
+                                    Kies foto
+                                </button>
+                                <button type="button"
+                                        class="btn btn-outline-secondary o_storage_scan_camera_cancel">
+                                    Annuleren
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="storage_scan_status"
                          class="alert mt-3 d-none"
                          role="status"

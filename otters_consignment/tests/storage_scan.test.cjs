@@ -97,6 +97,75 @@ test("configures Tesseract for sparse product-label text", async () => {
     assert.equal(parameters.tessedit_pageseg_mode, "11");
 });
 
+test("opens the rear camera and releases it when the preview closes", async () => {
+    const previousNavigator = browserWindow.navigator;
+    let constraints;
+    let trackStopped = false;
+    let modalVisible = false;
+    let loadingVisible = false;
+    let focused = false;
+    const video = {
+        srcObject: null,
+        play: async () => {},
+        pause: () => {},
+    };
+    const stream = {
+        getTracks: () => [{ stop: () => { trackStopped = true; } }],
+    };
+    const modal = {
+        classList: {
+            remove: () => { modalVisible = true; },
+            add: () => { modalVisible = false; },
+        },
+    };
+    const loading = {
+        textContent: "",
+        classList: {
+            remove: () => { loadingVisible = true; },
+            add: () => { loadingVisible = false; },
+        },
+    };
+    const instance = {
+        cameraRequestId: 0,
+        cameraStream: null,
+        cameraReturnFocus: { focus: () => { focused = true; } },
+        el: {
+            querySelector: (selector) => ({
+                "#storage_scan_camera_modal": modal,
+                "#storage_scan_camera_video": video,
+                "#storage_scan_camera_loading": loading,
+                ".o_storage_scan_camera_capture": { focus: () => {} },
+            })[selector],
+        },
+    };
+    instance._stopCamera = scan._stopCamera.bind(instance);
+    browserWindow.navigator = {
+        mediaDevices: {
+            getUserMedia: async (value) => {
+                constraints = value;
+                return stream;
+            },
+        },
+    };
+
+    try {
+        await scan._openCamera.call(instance);
+        assert.equal(constraints.video.facingMode.ideal, "environment");
+        assert.equal(constraints.audio, false);
+        assert.equal(video.srcObject, stream);
+        assert.equal(modalVisible, true);
+        assert.equal(loadingVisible, false);
+
+        scan._closeCamera.call(instance);
+        assert.equal(trackStopped, true);
+        assert.equal(video.srcObject, null);
+        assert.equal(modalVisible, false);
+        assert.equal(focused, true);
+    } finally {
+        browserWindow.navigator = previousNavigator;
+    }
+});
+
 test("creates enhanced crops in upright and rotated orientations", async () => {
     const rotations = [];
     const cropBounds = [];

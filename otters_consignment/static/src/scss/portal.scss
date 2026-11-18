@@ -13,3 +13,67 @@ body:has(#product_accordion) #product_attributes_simple {
 #product_attributes_simple {
   display: none !important;
 }
+
+.o_storage_scan_camera_modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.o_storage_scan_camera_dialog {
+  width: 100%;
+  max-width: 38rem;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.o_storage_scan_camera_view {
+  position: relative;
+  width: 100%;
+  max-height: 65vh;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: #111;
+}
+
+.o_storage_scan_camera_view video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.o_storage_scan_camera_frame {
+  position: absolute;
+  top: 38%;
+  left: 8%;
+  width: 84%;
+  height: 24%;
+  border: 3px solid #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+}
+
+.o_storage_scan_camera_loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+@media (min-width: 768px) {
+  .o_storage_scan_camera_view {
+    aspect-ratio: 4 / 3;
+  }
+}
