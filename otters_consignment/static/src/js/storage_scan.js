@@ -67,13 +67,12 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         }
 
         const worker = await this._getOcrWorker();
-        const result = await worker.recognize(file);
-        const value = this._extractCode(result.data.text, isProduct);
         if (!isProduct || !window.createImageBitmap) {
-            return value || "";
+            const result = await worker.recognize(file);
+            return this._extractCode(result.data.text, isProduct) || "";
         }
 
-        const candidates = value ? [value] : [];
+        const candidates = [];
         try {
             const crops = await this._createProductLabelCrops(file);
             for (const crop of crops) {
@@ -81,10 +80,19 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
                 const cropValue = this._extractCode(croppedResult.data.text, true);
                 if (cropValue) {
                     candidates.push(cropValue);
+                    if (this._isStrongProductCode(cropValue, croppedResult.data.confidence)) {
+                        return cropValue;
+                    }
                 }
             }
         } catch (error) {
             console.debug("Label-crops konden niet worden herkend; gebruik de volledige foto.", error);
+        }
+
+        const result = await worker.recognize(file);
+        const value = this._extractCode(result.data.text, true);
+        if (value) {
+            candidates.push(value);
         }
         return this._selectProductCode(candidates);
     },
@@ -177,6 +185,13 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         return bestCode;
     },
 
+    _isStrongProductCode: function (candidate, confidence) {
+        const compact = candidate.replace(/[^A-Z0-9]/g, "");
+        return /^[A-Z]{2,}\d{2,}$/.test(compact)
+            && compact.length >= 6
+            && confidence >= 15;
+    },
+
     _normalizeOcrAlphaCode: function (token) {
         const match = token.match(/^([A-Z]{2,}?)([FOZ]{3,})$/);
         if (!match) {
@@ -190,7 +205,8 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
     _createProductLabelCrops: async function (file) {
         const bitmap = await window.createImageBitmap(file);
         try {
-            return [0, 90, 270].flatMap((degrees) => {
+            const rotations = bitmap.height > bitmap.width ? [270, 0, 90] : [0, 90, 270];
+            return rotations.flatMap((degrees) => {
                 const rotatedWidth = degrees % 180 ? bitmap.height : bitmap.width;
                 const rotatedHeight = degrees % 180 ? bitmap.width : bitmap.height;
                 const rotated = document.createElement("canvas");

@@ -51,6 +51,34 @@ test("prefers a plausible product code over rotation OCR noise", () => {
         "IBU199"
     );
     assert.equal(scan._selectProductCode(["R8"]), "R8");
+    assert.equal(scan._isStrongProductCode("IBU199", 15), true);
+    assert.equal(scan._isStrongProductCode("FE911", 100), false);
+    assert.equal(scan._isStrongProductCode("91T1-1EN", 100), false);
+});
+
+test("returns a confident crop result without OCRing the full photo", async () => {
+    const previousCreateImageBitmap = browserWindow.createImageBitmap;
+    browserWindow.createImageBitmap = async () => {};
+    const recognized = [];
+    const instance = {
+        _getOcrWorker: async () => ({
+            recognize: async (image) => {
+                recognized.push(image);
+                return { data: { text: "CVE104", confidence: 21 } };
+            },
+        }),
+        _createProductLabelCrops: async () => ["first crop", "second crop"],
+        _extractCode: scan._extractCode.bind(scan),
+        _isStrongProductCode: scan._isStrongProductCode.bind(scan),
+        _selectProductCode: scan._selectProductCode.bind(scan),
+    };
+
+    try {
+        assert.equal(await scan._readCode.call(instance, "photo", true), "CVE104");
+        assert.deepEqual(recognized, ["first crop"]);
+    } finally {
+        browserWindow.createImageBitmap = previousCreateImageBitmap;
+    }
 });
 
 test("configures Tesseract for sparse product-label text", async () => {
@@ -74,8 +102,8 @@ test("creates enhanced crops in upright and rotated orientations", async () => {
     const cropBounds = [];
     let bitmapClosed = false;
     browserWindow.createImageBitmap = async () => ({
-        width: 1000,
-        height: 800,
+        width: 800,
+        height: 1000,
         close: () => {
             bitmapClosed = true;
         },
@@ -102,7 +130,7 @@ test("creates enhanced crops in upright and rotated orientations", async () => {
     const crops = await scan._createProductLabelCrops({});
 
     assert.equal(crops.length, 5);
-    assert.deepEqual(rotations, [0, Math.PI / 2, (3 * Math.PI) / 2]);
-    assert.deepEqual([cropBounds[2], cropBounds[4]], [[0, 100, 800, 800], [0, 100, 800, 800]]);
+    assert.deepEqual(rotations, [(3 * Math.PI) / 2, 0, Math.PI / 2]);
+    assert.deepEqual([cropBounds[1], cropBounds[4]], [[0, 80, 1000, 640], [0, 80, 1000, 640]]);
     assert.equal(bitmapClosed, true);
 });
