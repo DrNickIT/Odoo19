@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="storage_scan_page" name="Kleding scannen">
+        <t t-call="website.layout">
+            <main class="container my-4 o_storage_scan">
+                <div class="mx-auto" style="max-width: 640px;">
+                    <h1>Kleding in een opbergzak plaatsen</h1>
+                    <p class="text-muted">
+                        Scan de productcode en de zakcode. De zak blijft na het koppelen ingevuld,
+                        zodat je meerdere kledingstukken na elkaar in dezelfde zak kunt plaatsen.
+                    </p>
+
+                    <form id="storage_scan_form">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <div class="mb-3">
+                            <label for="storage_product_code" class="form-label">Productcode</label>
+                            <div class="input-group">
+                                <input id="storage_product_code"
+                                       name="product_code"
+                                       type="text"
+                                       class="form-control form-control-lg"
+                                       autocomplete="off"
+                                       required="required"
+                                       placeholder="Bijvoorbeeld THO-123"/>
+                                <button type="button"
+                                        class="btn btn-outline-secondary o_storage_scan_camera"
+                                        data-target="storage_product_code">
+                                    Scan label
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="storage_bag_code" class="form-label">Zakcode</label>
+                            <div class="input-group">
+                                <input id="storage_bag_code"
+                                       name="bag_code"
+                                       type="text"
+                                       class="form-control form-control-lg"
+                                       autocomplete="off"
+                                       required="required"
+                                       placeholder="Bijvoorbeeld 12"/>
+                                <button type="button"
+                                        class="btn btn-outline-secondary o_storage_scan_camera"
+                                        data-target="storage_bag_code">
+                                    Scan zak
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            Koppel product aan zak
+                        </button>
+                        <input id="storage_scan_image"
+                               type="file"
+                               accept="image/*"
+                               capture="environment"
+                               class="d-none"/>
+                    </form>
+
+                    <div id="storage_scan_status"
+                         class="alert mt-3 d-none"
+                         role="status"
+                         aria-live="polite"></div>
+                </div>
+            </main>
+        </t>
+    </template>
+</odoo>

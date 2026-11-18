@@ -38,6 +38,9 @@
         # 2.2 TWEEDE: Definieer de Root Menu en gebruik de import actie
         'views/views.xml',                # Bevat: menu_consignment_root EN gebruikt action_import_products_wizard
 
+        'views/storage_bag_views.xml',
+        'views/storage_scan_templates.xml',
+
         # 2.3 LAATST: Gebruik de Root Menu voor de Submenu's
         'views/image_upload_wizard_views.xml',    # Gebruikt: menu_consignment_root (parent)
         'reports/consignment_report_views.xml', # Gebruikt: menu_consignment_root (parent)
@@ -71,6 +74,8 @@
             'otters_consignment/static/src/scss/portal.scss',
             'otters_consignment/static/src/js/consignment_form.js',
             'otters_consignment/static/src/js/portal_settings.js',
+            'otters_consignment/static/lib/tesseract/tesseract.min.js',
+            'otters_consignment/static/src/js/storage_scan.js',
         ],
     },
     'installable': True,

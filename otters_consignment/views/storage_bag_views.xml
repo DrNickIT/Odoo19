@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_otters_storage_bag_list" model="ir.ui.view">
+        <field name="name">otters.storage.bag.list</field>
+        <field name="model">otters.storage.bag</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_otters_storage_bag_form" model="ir.ui.view">
+        <field name="name">otters.storage.bag.form</field>
+        <field name="model">otters.storage.bag</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="code"/>
+                    </group>
+                    <notebook>
+                        <page string="Producten">
+                            <field name="product_ids" readonly="1">
+                                <list>
+                                    <field name="default_code"/>
+                                    <field name="name"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_otters_storage_bag" model="ir.actions.act_window">
+        <field name="name">Opbergzakken</field>
+        <field name="res_model">otters.storage.bag</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_otters_storage_scan" model="ir.actions.act_url">
+        <field name="name">Kleding scannen</field>
+        <field name="url">/otters/storage/scan</field>
+        <field name="target">self</field>
+    </record>
+
+    <menuitem
+        id="menu_otters_storage_scan"
+        name="Kleding scannen"
+        parent="otters_consignment.menu_consignment_root"
+        action="action_otters_storage_scan"
+        sequence="15"
+        groups="base.group_user"/>
+    <menuitem
+        id="menu_otters_storage_bag"
+        name="Opbergzakken"
+        parent="otters_consignment.menu_consignment_root"
+        action="action_otters_storage_bag"
+        sequence="20"
+        groups="base.group_user"/>
+</odoo>

@@ -15,6 +15,7 @@
                         <group string="Koppeling">
                             <field name="submission_id" readonly="1"/>
                             <field name="consignment_supplier_id"/>
+                            <field name="storage_bag_id"/>
                         </group>
 
                         <group string="Financieel">

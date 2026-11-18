@@ -15,3 +15,4 @@ from . import attribute_sorting
 from . import category_type_mapping
 from . import product_attribute_fix
 from . import sale_order
+from . import storage_bag

@@ -30,6 +30,12 @@ class ProductTemplate(models.Model):
         string="Originele Inzending",
         ondelete='set null'
     )
+    storage_bag_id = fields.Many2one(
+        'otters.storage.bag',
+        string='Opbergzak',
+        index=True,
+        ondelete='set null',
+    )
 
     # NIEUWE RELATED VELDEN TOEVOEGEN:
 
