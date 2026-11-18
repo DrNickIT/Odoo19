@@ -8,6 +8,7 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
     events: {
         "click .o_storage_scan_camera": "_onCameraClick",
         "click .o_storage_scan_camera_capture": "_onCameraCapture",
+        "click .o_storage_scan_camera_torch": "_onCameraTorch",
         "click .o_storage_scan_camera_cancel": "_onCameraCancel",
         "click .o_storage_scan_camera_choose": "_onCameraChoose",
         "keydown .o_storage_scan_camera_modal": "_onCameraModalKeydown",
@@ -21,6 +22,8 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         this.scanTarget = null;
         this.workerPromise = null;
         this.cameraStream = null;
+        this.cameraTrack = null;
+        this.cameraTorchEnabled = false;
         this.cameraRequestId = 0;
         this.cameraReturnFocus = null;
         return this._super.apply(this, arguments);
@@ -62,6 +65,7 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
                 return;
             }
             this.cameraStream = stream;
+            this._configureCameraTorch(stream.getVideoTracks()[0]);
             video.srcObject = stream;
             await video.play();
             loading.classList.add("d-none");
@@ -82,10 +86,62 @@ publicWidget.registry.StorageBagScan = publicWidget.Widget.extend({
         this.el.querySelector("#storage_scan_image").click();
     },
 
+    _configureCameraTorch: function (track) {
+        const button = this.el.querySelector(".o_storage_scan_camera_torch");
+        const status = this.el.querySelector("#storage_scan_camera_torch_status");
+        const capabilities = track && track.getCapabilities ? track.getCapabilities() : {};
+        this.cameraTrack =
+            capabilities.torch && typeof track.applyConstraints === "function" ? track : null;
+        this.cameraTorchEnabled = false;
+        button.textContent = "Lamp aan";
+        button.setAttribute("aria-pressed", "false");
+        button.classList.add("d-none");
+        status.textContent = "";
+        status.classList.add("d-none");
+        if (this.cameraTrack) {
+            button.classList.remove("d-none");
+        }
+    },
+
+    _onCameraTorch: async function () {
+        if (!this.cameraTrack) {
+            return;
+        }
+        const button = this.el.querySelector(".o_storage_scan_camera_torch");
+        const status = this.el.querySelector("#storage_scan_camera_torch_status");
+        const enabled = !this.cameraTorchEnabled;
+        try {
+            await this.cameraTrack.applyConstraints({ advanced: [{ torch: enabled }] });
+        } catch (error) {
+            console.warn("Cameralamp kon niet worden gewijzigd.", error);
+            status.textContent = "De cameralamp kon niet worden bediend. Gebruik extra licht.";
+            status.classList.remove("d-none");
+            return;
+        }
+        this.cameraTorchEnabled = enabled;
+        button.textContent = enabled ? "Lamp uit" : "Lamp aan";
+        button.setAttribute("aria-pressed", String(enabled));
+        status.textContent = "";
+        status.classList.add("d-none");
+    },
+
     _stopCamera: function () {
         if (this.cameraStream) {
             this.cameraStream.getTracks().forEach((track) => track.stop());
             this.cameraStream = null;
+        }
+        this.cameraTrack = null;
+        this.cameraTorchEnabled = false;
+        const torchButton = this.el.querySelector(".o_storage_scan_camera_torch");
+        if (torchButton) {
+            torchButton.textContent = "Lamp aan";
+            torchButton.setAttribute("aria-pressed", "false");
+            torchButton.classList.add("d-none");
+        }
+        const torchStatus = this.el.querySelector("#storage_scan_camera_torch_status");
+        if (torchStatus) {
+            torchStatus.textContent = "";
+            torchStatus.classList.add("d-none");
         }
         const video = this.el.querySelector("#storage_scan_camera_video");
         if (video) {

@@ -82,7 +82,16 @@
                                     Camera starten…
                                 </p>
                             </div>
+                            <p id="storage_scan_camera_torch_status"
+                               class="text-warning small mt-2 d-none"
+                               role="status"
+                               aria-live="polite"></p>
                             <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+                                <button type="button"
+                                        class="btn btn-outline-warning o_storage_scan_camera_torch d-none"
+                                        aria-pressed="false">
+                                    Lamp aan
+                                </button>
                                 <button type="button"
                                         class="btn btn-primary o_storage_scan_camera_capture">
                                     Maak foto

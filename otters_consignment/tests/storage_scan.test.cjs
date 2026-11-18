@@ -104,13 +104,24 @@ test("opens the rear camera and releases it when the preview closes", async () =
     let modalVisible = false;
     let loadingVisible = false;
     let focused = false;
+    let torchVisible = false;
+    let torchPressed = "false";
+    let torchText = "Lamp aan";
+    let torchStatusVisible = false;
+    const torchConstraints = [];
     const video = {
         srcObject: null,
         play: async () => {},
         pause: () => {},
     };
+    const track = {
+        stop: () => { trackStopped = true; },
+        getCapabilities: () => ({ torch: true }),
+        applyConstraints: async (value) => { torchConstraints.push(value); },
+    };
     const stream = {
-        getTracks: () => [{ stop: () => { trackStopped = true; } }],
+        getTracks: () => [track],
+        getVideoTracks: () => [track],
     };
     const modal = {
         classList: {
@@ -125,19 +136,48 @@ test("opens the rear camera and releases it when the preview closes", async () =
             add: () => { loadingVisible = false; },
         },
     };
+    const torchButton = {
+        classList: {
+            add: () => { torchVisible = false; },
+            remove: () => { torchVisible = true; },
+        },
+        get textContent() {
+            return torchText;
+        },
+        set textContent(value) {
+            torchText = value;
+        },
+        setAttribute: (name, value) => {
+            if (name === "aria-pressed") {
+                torchPressed = value;
+            }
+        },
+    };
+    const torchStatus = {
+        textContent: "",
+        classList: {
+            add: () => { torchStatusVisible = false; },
+            remove: () => { torchStatusVisible = true; },
+        },
+    };
     const instance = {
         cameraRequestId: 0,
         cameraStream: null,
+        cameraTrack: null,
+        cameraTorchEnabled: false,
         cameraReturnFocus: { focus: () => { focused = true; } },
         el: {
             querySelector: (selector) => ({
                 "#storage_scan_camera_modal": modal,
                 "#storage_scan_camera_video": video,
                 "#storage_scan_camera_loading": loading,
+                ".o_storage_scan_camera_torch": torchButton,
+                "#storage_scan_camera_torch_status": torchStatus,
                 ".o_storage_scan_camera_capture": { focus: () => {} },
             })[selector],
         },
     };
+    instance._configureCameraTorch = scan._configureCameraTorch.bind(instance);
     instance._stopCamera = scan._stopCamera.bind(instance);
     browserWindow.navigator = {
         mediaDevices: {
@@ -155,15 +195,61 @@ test("opens the rear camera and releases it when the preview closes", async () =
         assert.equal(video.srcObject, stream);
         assert.equal(modalVisible, true);
         assert.equal(loadingVisible, false);
+        assert.equal(torchVisible, true);
+
+        await scan._onCameraTorch.call(instance);
+        assert.equal(torchConstraints.length, 1);
+        assert.equal(torchConstraints[0].advanced[0].torch, true);
+        assert.equal(torchText, "Lamp uit");
+        assert.equal(torchPressed, "true");
+        assert.equal(torchStatusVisible, false);
+
+        await scan._onCameraTorch.call(instance);
+        assert.equal(torchConstraints.length, 2);
+        assert.equal(torchConstraints[1].advanced[0].torch, false);
+        assert.equal(torchText, "Lamp aan");
+        assert.equal(torchPressed, "false");
 
         scan._closeCamera.call(instance);
         assert.equal(trackStopped, true);
+        assert.equal(torchVisible, false);
         assert.equal(video.srcObject, null);
         assert.equal(modalVisible, false);
         assert.equal(focused, true);
     } finally {
         browserWindow.navigator = previousNavigator;
     }
+});
+
+test("keeps the torch control hidden when the camera does not support it", () => {
+    let torchVisible = false;
+    const torchButton = {
+        textContent: "",
+        classList: {
+            add: () => { torchVisible = false; },
+            remove: () => { torchVisible = true; },
+        },
+        setAttribute: () => {},
+    };
+    const torchStatus = {
+        textContent: "",
+        classList: { add: () => {}, remove: () => {} },
+    };
+    const instance = {
+        cameraTrack: null,
+        cameraTorchEnabled: false,
+        el: {
+            querySelector: (selector) => ({
+                ".o_storage_scan_camera_torch": torchButton,
+                "#storage_scan_camera_torch_status": torchStatus,
+            })[selector],
+        },
+    };
+
+    scan._configureCameraTorch.call(instance, { getCapabilities: () => ({}) });
+
+    assert.equal(torchVisible, false);
+    assert.equal(instance.cameraTrack, null);
 });
 
 test("creates enhanced crops in upright and rotated orientations", async () => {
